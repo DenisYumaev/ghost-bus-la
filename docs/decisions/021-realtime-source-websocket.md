@@ -40,9 +40,7 @@ ADR-001 assumed HTTP polling of the Metro API: its realtime endpoints every 30 s
 
 ## Why
 
-<!-- OWNER: rewrite this paragraph in your own words before this PR merges (SPEC.md section 5). -->
-
-The WebSocket is the only realtime path that works today without a key, and cancellation history that isn't captured is gone forever, so waiting for a better source costs more than any weakness of this one. Snapshots on a fixed grid give downstream code one simple unit to reason about (the state of the fleet at a moment) while still storing every message's bytes unchanged, so a parsing bug can always be fixed by re-reading bronze. Cadences stay provisional because the only size numbers come from one evening's probe, and choosing storage cost from a guess is how budgets get blown.
+Metro's realtime data only shows what's happening right now, so if I'm not recording, that history is gone. The only source that worked without a key was a WebSocket, so I chose to archive from it right away instead of waiting for a better one. Every 30 seconds for vehicle positions and every 60 seconds for trip updates, I save a snapshot: the latest message from each vehicle or trip seen since the last one, stored exactly as Metro sent it, so I can fix parser bugs later by re-reading the raw files. I treated the snapshot frequency as provisional until I'd measured a full day of real sizes, because that decides the storage bill.
 
 ## Alternatives considered
 
