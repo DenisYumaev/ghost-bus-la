@@ -1,0 +1,37 @@
+# --- Secrets and state: never commit (CLAUDE.md hard rule 9) ---
+.env
+.env.*
+!.env.example
+*.tfstate
+*.tfstate.*
+*.tfplan
+backend.hcl
+*.tfvars
+!*.tfvars.example
+*.pem
+*.key
+
+# --- Terraform working files ---
+.terraform/
+
+# --- Python ---
+.venv/
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.hypothesis/
+.coverage
+coverage.xml
+htmlcov/
+dist/
+build/
+
+# --- Local runtime data ---
+spool/
+
+# --- Editors and OS ---
+.DS_Store
+.idea/
+.vscode/

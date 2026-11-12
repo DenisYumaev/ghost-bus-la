@@ -1,0 +1,14 @@
+[project]
+name = "ghostbus-ingest"
+version = "0.1.0"
+description = "Archives LA Metro's realtime WebSocket streams and GTFS schedule to S3."
+requires-python = ">=3.12,<3.13"
+# Hard rule 3: ingest depends only on network, disk, and S3.
+# Never add ghostbus-core, a database driver, or any other app package here;
+# tests/test_isolation.py fails if you do.
+dependencies = []
+
+[build-system]
+# uv's own build backend; it expects the code in src/<package_name>/.
+requires = ["uv_build>=0.13,<0.14"]
+build-backend = "uv_build"
