@@ -70,7 +70,7 @@ One JSON line per attempt, success or failure:
 
 `outcome` is `written`, `duplicate`, `http_error`, or `network_error` (ADR-004). The fetch time lives here, not in the object key.
 
-Written to `<spool>/_fetch_log/dt=YYYY-MM-DD/hour=HH.jsonl`, uploaded to `bronze/_fetch_log/…` when the hour closes and on shutdown. `feed_header_ts` is the newest entity timestamp in the snapshot, because the stream has no feed header. The log also records `n_entities`, `partial`, and each disconnect.
+Written to `<spool>/_fetch_log/dt=YYYY-MM-DD/hour=HH.jsonl`, uploaded when the hour closes and on shutdown. Each upload is content-addressed, `bronze/_fetch_log/dt=YYYY-MM-DD/hour=HH/<sha16>.jsonl`, because a mid-hour restart uploads the same hour twice with different content and a fixed name would be rejected by the conditional write (ADR-004). Readers take the union of an hour's files and drop duplicate lines. `feed_header_ts` is the newest entity timestamp in the snapshot, because the stream has no feed header. The log also records `n_entities`, `partial`, and each disconnect.
 
 The fetch log is what makes the `unknown` outcome possible. Without a record of failed fetches, an outage looks like a quiet feed.
 
