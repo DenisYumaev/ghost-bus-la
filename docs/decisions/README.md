@@ -17,6 +17,8 @@ Update this table in the same PR that adds or changes an ADR.
 | --- | --- | --- | --- |
 | [001](001-ingestion-decisions.md) | Ingestion: raw bytes, crosswalk, UTC and service dates, ingest every line | Accepted; decisions 1 and 3 to be superseded by 021, decision 6's key format by 004 | → 021, 004 |
 | [002](002-product-direction.md) | Build a rider-facing product (web, API, alerts) on the pipeline | Accepted | Supersedes the v1 spec |
+| [003](003-operating-standards.md) | Operating standards: explain-back merge gate (predictions optional), SLOs and error budget, incident log, tools on evidence | Proposed | |
+| [004](004-bronze-storage-guardrails.md) | Bronze storage: content-addressed keys, conditional writes, deny-delete and no-overwrite policy, instance role, remote state | Proposed (accepted after the `selftest/` check) | Supersedes 001 decision 6's key format |
 | [021](021-realtime-source-websocket.md) | Realtime source: WebSocket snapshots; cancellations from trip updates | Proposed (accepted after the M0 size measurement) | Supersedes 001 decisions 1 and 3 |
 
 ## Planned
@@ -25,8 +27,6 @@ Already decided in `docs/SPEC.md` section 5, which holds the one-line why and th
 
 | # | Decision | Expected |
 | --- | --- | --- |
-| 003 | Operating standards: explain-back merge gate, SLOs and error budget, incident log, tools adopted on evidence | M0 |
-| 004 | Bronze storage and guardrails: content-addressed keys, conditional writes, deny-delete policy, instance role, remote state | M0 |
 | 011 | One VM with Docker Compose | M0 |
 | 015 | DuckDB and dbt on Parquet; no warehouse | M1 |
 | 016 | cron first, Airflow in M4 | M1 |
