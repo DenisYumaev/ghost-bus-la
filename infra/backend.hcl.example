@@ -1,0 +1,7 @@
+# Copy to backend.hcl (gitignored) and fill in the bucket from:
+#   terraform -chdir=infra/bootstrap output -raw tfstate_bucket_name
+bucket       = "ghost-bus-la-tfstate-<account_id>"
+key          = "main/terraform.tfstate"
+region       = "us-west-2"
+use_lockfile = true
+encrypt      = true
