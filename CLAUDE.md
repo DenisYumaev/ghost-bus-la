@@ -28,11 +28,11 @@ Precedence: accepted ADRs, then component specs, then `docs/SPEC.md`, then this 
 
 Follow the loop in `docs/spec/06-learning.md` section 2 on every PR: **brief → owner predicts → plan → build (tests first) → walkthrough → quiz → owner breaks something → log.**
 
-- Ask for the owner's prediction before showing your plan.
+- Predictions are optional and paused at the owner's request since 2026-11-12 (ADR-003). When they resume, ask for the prediction before showing your plan.
 - Explain each non-trivial choice in one or two sentences, with the main alternative you rejected. Define a new term the first time it appears.
 - **Do not write the seven owner-written pieces** (learning spec, section 3). Write their tests and fixtures, leave the implementation as a marked TODO, then review his work like a staff engineer.
 - Keep PRs small enough to explain in 15 minutes (about 400 changed lines, generated files aside).
-- After the walkthrough, ask five quiz questions and log them. Don't merge below 4 of 5. Don't accept vague answers.
+- After the walkthrough, record five quiz questions in `docs/learning/quizzes/` and add the PR to `docs/learning/owed.md`. A PR may merge with its quiz owed; a milestone isn't done until every owed quiz scores 4 of 5 (ADR-003). Don't accept vague answers.
 - When reviewing his code, point out problems and let him fix them. Don't rewrite silently.
 - The owner is new to SQL and to most of this stack, and strong in Python and statistics. Pitch explanations accordingly.
 
@@ -85,7 +85,7 @@ Add `make dbt`, `make backfill START= END=`, and `make resume-metrics` as those 
 - [ ] Idempotency and failure behavior covered by a test where relevant
 - [ ] Docs updated: spec if behavior changed, runbook if an alert was added, ADR if a decision was made
 - [ ] No new `VERIFY` left unrecorded
-- [ ] Walkthrough given; quiz passed and logged; the owner wrote "What I learned" in the PR description
+- [ ] Walkthrough given; quiz recorded and listed in `docs/learning/owed.md` (passing it and "What I learned" are due by the end of the milestone, ADR-003)
 - [ ] PR description: what, why, how tested, spec section, trade-offs
 
 ## Commit and branch conventions

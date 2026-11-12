@@ -18,12 +18,12 @@ Region `us-west-2`. Terraform state lives in an S3 bucket with native lock files
 
 | Resource | Details |
 | --- | --- |
-| S3 data bucket | Versioning on, public access blocked, SSE-S3, `prevent_destroy`. The bucket policy denies deletes on `bronze/*` for every principal. No lifecycle transitions on `bronze/`. `derived/` holds rebuildable data (ADR-004) |
+| S3 data bucket | Versioning on, public access blocked, SSE-S3, `prevent_destroy`. The bucket policy denies deletes on `bronze/*`, and writes to `bronze/*` or `selftest/*` without `If-None-Match`, for every principal. No lifecycle transitions on `bronze/`. `derived/` holds rebuildable data; its old versions expire after 7 days. `selftest/` objects expire after 1 day (ADR-004) |
 | S3 `backups` bucket | Versioning on, public access blocked, 14-day expiry on database dumps |
 | EC2 instance | `t4g.small` through M1, then `t4g.medium`; Ubuntu LTS arm64; 30 GB gp3; termination protection; cloud-init installs Docker |
 | Elastic IP | For the API's DNS record |
 | Security group | No inbound rules through M1. From M2, inbound 80 and 443 for the API. Never port 22: shell access is through SSM Session Manager |
-| IAM instance role | Put and get on `bronze/*` and `derived/*`, list the bucket, write to the backups bucket, read specific SSM parameters, SSM core. No delete on bronze |
+| IAM instance role | Put and get on `bronze/*` and `derived/*`, put and delete on `selftest/*`, list the bucket, write to the backups bucket, read specific SSM parameters, SSM core. No delete on bronze |
 | IAM role for GitHub Actions | Assumed through OIDC; may run one SSM document on this instance. No long-lived AWS keys in GitHub |
 | SSM Parameter Store | Secure strings for secrets; values are set by hand, never in Terraform files or state where avoidable |
 | AWS Budget | $40 a month, email at 50%, 80%, 100% |

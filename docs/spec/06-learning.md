@@ -25,7 +25,7 @@ By M8 the owner can, without notes:
 | 7. Break | Owner | Break one thing on purpose (delete a line, feed bad input) and predict the failure before running it |
 | 8. Log | Owner | Three lines in `docs/learning/daily-log.md`: learned, confused by, question for tomorrow |
 
-**Merge gate (ADR-003):** a PR merges only when the owner scores at least 4 of 5 on the quiz and has written the PR's "What I learned" section in his own words. If the score is lower, Claude re-explains the weak area a different way and asks new questions. Claude must not soften the questions or accept vague answers.
+**Gate (ADR-003):** a PR may merge once CI passes, with its quiz and "What I learned" owed and tracked in `docs/learning/owed.md`. A milestone isn't done, and the next doesn't start, until the owner has scored at least 4 of 5 on every owed quiz and written every "What I learned" in his own words. If the score is lower, Claude re-explains the weak area a different way and asks new questions. Claude must not soften the questions or accept vague answers.
 
 **When time is short,** steps 2 and 7 may be skipped for pure boilerplate (config, Dockerfiles, CI plumbing). Steps 5 and 6 are never skipped.
 
