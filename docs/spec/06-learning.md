@@ -35,7 +35,7 @@ Seven pieces the owner writes by hand, because interviews test writing, not read
 
 | # | Piece | File | Milestone | Skill it builds |
 | --- | --- | --- | --- | --- |
-| 1 | GTFS time and service-date conversion | `packages/ghostbus_core/service_date.py` | M1 | Time zones, edge cases, pure functions |
+| 1 | GTFS time and service-date conversion | `packages/ghostbus_core/src/ghostbus_core/service_date.py` | M1 | Time zones, edge cases, pure functions |
 | 2 | Schedule expansion | `pipeline/dbt/models/intermediate/int_schedule_expanded.sql` | M1 | Joins, set logic, date handling |
 | 3 | Trip matching through the crosswalk | `pipeline/dbt/models/intermediate/int_trip_crosswalk.sql` | M1 (exact), M4 (fuzzy) | Joins across sources, measuring match rates |
 | 4 | Outcome classification | `pipeline/dbt/models/gold/fct_trip_outcomes.sql` | M1 (three outcomes), M4 (full decision table) | CASE logic, window functions, CTE structure |
