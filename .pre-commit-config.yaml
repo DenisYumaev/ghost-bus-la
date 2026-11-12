@@ -1,0 +1,41 @@
+# Runs before every commit. Install with `make install`.
+repos:
+  # Local hooks run the ruff and mypy pinned in uv.lock, so the hook,
+  # `make lint`, and CI can never disagree about versions.
+  - repo: local
+    hooks:
+      - id: ruff-check
+        name: ruff check
+        entry: uv run ruff check --fix
+        language: system
+        types: [python]
+      - id: ruff-format
+        name: ruff format
+        entry: uv run ruff format
+        language: system
+        types: [python]
+      - id: fixture-size
+        name: fixture size limit
+        entry: uv run python scripts/check_fixture_size.py
+        language: system
+        pass_filenames: false
+        always_run: true
+
+  # Secret scanning (CLAUDE.md hard rule 9). Blocks the commit if it finds
+  # anything that looks like a key or token.
+  - repo: https://github.com/gitleaks/gitleaks
+    rev: v8.30.1
+    hooks:
+      - id: gitleaks
+
+  - repo: https://github.com/pre-commit/pre-commit-hooks
+    rev: v6.0.0
+    hooks:
+      - id: check-added-large-files
+        args: ["--maxkb=1024"]
+      - id: check-merge-conflict
+      - id: check-toml
+      - id: check-yaml
+      - id: end-of-file-fixer
+      - id: trailing-whitespace
+      - id: detect-private-key
