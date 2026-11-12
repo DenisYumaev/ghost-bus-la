@@ -32,6 +32,25 @@ jobs:
       - name: Test
         run: make test
 
+  infra:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: hashicorp/setup-terraform@dfe3c3f87815947d99a8997f908cb6525fc44e9e # v4.0.1
+        with:
+          terraform_version: "1.17.1" # same as local; bump both together
+      - name: Format
+        run: terraform fmt -check -recursive infra
+      # Offline: -backend=false skips remote state, and the tests use a mock provider.
+      # CI has no AWS credentials, and doesn't need any.
+      - name: Validate and test bootstrap
+        working-directory: infra/bootstrap
+        run: |
+          terraform init -backend=false -input=false
+          terraform validate
+          terraform test
+
   security:
     runs-on: ubuntu-latest
     timeout-minutes: 5
