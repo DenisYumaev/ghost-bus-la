@@ -5,6 +5,13 @@
 # so weakening one fails CI before any plan reaches a human.
 
 mock_provider "aws" {
+
+  # The provider validates ARNs, so the mock must return a real-looking one.
+  mock_resource "aws_sns_topic" {
+    defaults = {
+      arn = "arn:aws:sns:us-west-2:123456789012:ghost-bus-la-ops-alerts"
+    }
+  }
   mock_data "aws_caller_identity" {
     defaults = {
       account_id = "123456789012"
