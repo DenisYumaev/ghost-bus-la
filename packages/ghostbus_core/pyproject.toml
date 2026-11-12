@@ -1,0 +1,11 @@
+[project]
+name = "ghostbus-core"
+version = "0.1.0"
+description = "Shared logic for Ghost Bus LA: config, GTFS time and service-date math, models, logging."
+requires-python = ">=3.12,<3.13"
+dependencies = []
+
+[build-system]
+# uv's own build backend; it expects the code in src/<package_name>/.
+requires = ["uv_build>=0.13,<0.14"]
+build-backend = "uv_build"
