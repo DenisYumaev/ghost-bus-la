@@ -18,7 +18,7 @@ Quizzes live on their PR's branch until it merges, so use the GitHub links. They
 | [#2](https://github.com/DenisYumaev/ghost-bus-la/pull/2) | Repo scaffold | [ ] [002](https://github.com/DenisYumaev/ghost-bus-la/blob/chore/scaffold/docs/learning/quizzes/002-scaffold.md) | [ ] | n/a | n/a |
 | [#3](https://github.com/DenisYumaev/ghost-bus-la/pull/3) | ADR-003 and ADR-004 | [ ] [003](https://github.com/DenisYumaev/ghost-bus-la/blob/docs/adr-003-004/docs/learning/quizzes/003-adr-003-004.md) | [ ] | [ ] ADR-003, [ ] ADR-004 | n/a |
 | [#4](https://github.com/DenisYumaev/ghost-bus-la/pull/4) | Terraform state bucket | [ ] [004](https://github.com/DenisYumaev/ghost-bus-la/blob/infra/bootstrap/docs/learning/quizzes/004-infra-bootstrap.md) | [ ] | n/a | Yes, 2026-11-12 |
-| [#5](https://github.com/DenisYumaev/ghost-bus-la/pull/5) | Data bucket import, policy, budget | [ ] [005](https://github.com/DenisYumaev/ghost-bus-la/blob/infra/data-bucket/docs/learning/quizzes/005-infra-data-bucket.md) | [ ] | n/a | Not yet |
+| [#5](https://github.com/DenisYumaev/ghost-bus-la/pull/5) | Data bucket import, policy, budget | [ ] [005](https://github.com/DenisYumaev/ghost-bus-la/blob/infra/data-bucket/docs/learning/quizzes/005-infra-data-bucket.md) | [ ] | n/a | Yes, 2026-11-12 |
 
 **Suggested order:** 002 and 004 first, because PR #4 is already live in AWS and can't merge before PR #2. Then 005 once it's applied. Then 001 and 003.
 
