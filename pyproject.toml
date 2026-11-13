@@ -15,6 +15,7 @@ dev = [
     "pytest",
     "pytest-cov",
     "ruff",
+    "websockets",
 ]
 
 # One virtual environment and one lockfile for every package below.
