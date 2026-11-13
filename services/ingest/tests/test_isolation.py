@@ -72,3 +72,22 @@ def test_ingest_declares_no_forbidden_dependency() -> None:
         for dep in project.get("dependencies", [])
     }
     assert names & FORBIDDEN_MODULES == set()
+
+
+def test_every_third_party_import_is_declared_as_a_dependency() -> None:
+    # The production image installs only ingest's own dependencies. A module that is present in
+    # the dev environment but undeclared passes every other test and then crashes the container
+    # at startup (it happened once: websockets was only in the dev group).
+    import sys
+
+    imported: set[str] = set()
+    for path in SOURCE_ROOT.rglob("*.py"):
+        imported |= imported_top_level_modules(path.read_text())
+    third_party = imported - set(sys.stdlib_module_names) - {"ghostbus_ingest"}
+
+    project = tomllib.loads((SERVICE_ROOT / "pyproject.toml").read_text())["project"]
+    declared = {
+        re.split(r"[\s;\[<>=!~]", dep, maxsplit=1)[0].lower().replace("-", "_")
+        for dep in project.get("dependencies", [])
+    }
+    assert third_party - declared == set(), "declare these in services/ingest/pyproject.toml"

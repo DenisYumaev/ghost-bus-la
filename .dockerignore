@@ -1,0 +1,16 @@
+# Keep the build context small and free of secrets and local state.
+**/.venv
+**/__pycache__
+**/.pytest_cache
+**/.mypy_cache
+**/.ruff_cache
+**/.hypothesis
+.git
+infra
+docs
+web
+**/*.tfstate*
+**/backend.hcl
+**/*.tfvars
+**/.env
+**/tests
