@@ -4,7 +4,7 @@
 # never an apply target (CLAUDE.md hard rule 8).
 
 .DEFAULT_GOAL := help
-.PHONY: help install test lint fmt hooks tf-test plan-bootstrap plan selftest-s3
+.PHONY: help install test lint fmt hooks tf-test plan-bootstrap plan selftest-s3 deploy-ingest
 
 help:  ## List the targets
 	@grep -E '^[a-z0-9-]+:.*## ' $(MAKEFILE_LIST) | awk -F':.*## ' '{printf "  %-15s %s\n", $$1, $$2}'
@@ -42,3 +42,7 @@ plan:  ## Plan the main configuration (needs infra/backend.hcl and infra/terrafo
 
 selftest-s3:  ## Prove conditional writes and the no-overwrite policy on the real bucket (selftest/ only)
 	uv run python scripts/selftest_conditional_writes.py --bucket "$$(terraform -chdir=infra output -raw data_bucket_name)"
+
+deploy-ingest:  ## Deploy ingest to the VM over SSM: make deploy-ingest SHA=<full git sha on main>
+	@test -n "$(SHA)" || (echo "usage: make deploy-ingest SHA=<full git sha>" && exit 2)
+	uv run python scripts/deploy_ingest.py $(SHA)

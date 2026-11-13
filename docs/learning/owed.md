@@ -30,6 +30,7 @@ All quizzes are in `docs/learning/quizzes/` on `main`. PRs merge with their quiz
 | [#16](https://github.com/DenisYumaev/ghost-bus-la/pull/16) | Service entry point | [ ] [014](quizzes/014-ingest-service.md) | [ ] | n/a | n/a |
 | [#17](https://github.com/DenisYumaev/ghost-bus-la/pull/17) | Health check and heartbeat | [ ] [015](quizzes/015-ingest-health.md) | [ ] | n/a | n/a |
 | [#18](https://github.com/DenisYumaev/ghost-bus-la/pull/18) | Docker image and CI build | [ ] [016](quizzes/016-ingest-image.md) | [ ] | n/a | n/a |
+| [#19](https://github.com/DenisYumaev/ghost-bus-la/pull/19) | Deploy ingest to the VM | [ ] [017](quizzes/017-deploy-ingest.md) | [ ] | n/a | Not yet |
 
 **Suggested order:** 004, 005, and 006 first, because they describe what is live in AWS right now. Then 002, 001, and 003.
 
@@ -96,5 +97,9 @@ All quizzes are in `docs/learning/quizzes/` on `main`. PRs merge with their quiz
 >
 
 ### PR #18 · Docker image
+
+>
+
+### PR #19 · Deploy
 
 >
