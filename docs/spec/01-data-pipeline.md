@@ -40,7 +40,7 @@ These cadences are starting points. Uncompressed, they come to about 1.3 GB a da
 
 - One process. Each stream has its own connection and keeps, in memory, the latest message per entity ID.
 - **Cutting a snapshot:** on a fixed grid (`next = start + n × interval`), write the latest message for every entity seen since the previous cut, one JSON message per line, exactly as received, sorted by entity ID. An entity that stopped appearing is absent from the next snapshot, which is how a vehicle or trip leaving the stream is recorded.
-- **A snapshot is complete only if a full cycle was received** since the previous cut. If the connection was down for the whole interval, write nothing and log `network_error`. If it was down for part of it, write what arrived and log `partial = true`.
+- **A snapshot is complete only if the connection stayed up for the whole interval** since the previous cut. Every entity reappears at least every 6.74 s (`docs/research/ws-cycle-timing.md`), so an uninterrupted 30 s interval holds at least four full loops. If the connection was down for the whole interval, write nothing and log `network_error`. If it was down for part of it, write what arrived and log `partial = true`. Either way, log `connected_s`, the seconds connected during the interval.
 - **Reconnect** with exponential backoff (1 s, 2 s, 4 s, capped at 60 s) and jitter. Log every disconnect with its close code. Send a `User-Agent` naming the project and a contact address.
 - One connection per stream, never more. This is someone else's server with undocumented limits.
 - The GTFS download uses plain HTTPS with a 120 s timeout and the same backoff.

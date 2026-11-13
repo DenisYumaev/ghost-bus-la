@@ -30,7 +30,7 @@ ADR-001 assumed HTTP polling of the Metro API: its realtime endpoints every 30 s
    | `vehicle_positions` | 30 s | about 1.3 GB | measured in M0 |
    | `trip_updates` | 60 s | about 5 GB | measured in M0 |
 
-4. **Completeness.** If the connection was down for the whole interval, write nothing and log `network_error`. If it was down for part of the interval, write what arrived and log `partial = true`. The stream has no end-of-loop marker, so how a full cycle is detected is an open design item, settled and tested in the snapshot PR and then recorded in `docs/spec/01-data-pipeline.md` section 2.3.
+4. **Completeness.** If the connection was down for the whole interval, write nothing and log `network_error`. If it was down for part of the interval, write what arrived and log `partial = true`. The stream has no end-of-loop marker, so completeness is judged by connection coverage instead: a snapshot is complete when the connection stayed up for the whole interval, and partial otherwise. The fetch log also records `connected_s`. This holds because the slowest measured reappearance of any entity was 6.74 s, well under the 30 s shortest interval (`docs/research/ws-cycle-timing.md`, 2026-11-12).
 
 5. **Announced cancellations** are trip-update messages with `tripUpdate.trip.scheduleRelationship == "CANCELED"`, identified by `(tripId, startDate)`. An entry disappearing from the stream is not evidence of anything: canceled entries linger after the trip's time, so events close by time, not by absence (`docs/spec/03-alerts.md`).
 
