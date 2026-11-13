@@ -13,49 +13,16 @@ from pathlib import Path
 from typing import Any
 
 import pytest
-from botocore.exceptions import ClientError, EndpointConnectionError
+from botocore.exceptions import EndpointConnectionError
 from ghostbus_ingest.fetch_log import FetchLog
 from ghostbus_ingest.snapshot import Snapshot, SnapshotBuffer
 from ghostbus_ingest.spool import Spool, object_key, spool_object_key
 from ghostbus_ingest.uploader import Uploader
+from ingest_fakes import FakeS3, client_error
 
 BUCKET = "test-bucket"
 T0 = datetime(2026, 11, 13, 2, 14, 30, tzinfo=UTC).timestamp()
 HOUR = 3600.0
-
-
-class FakeS3:
-    """Just enough S3: PutObject with If-None-Match, plus switchable failures."""
-
-    def __init__(self) -> None:
-        self.objects: dict[str, tuple[bytes, str | None]] = {}
-        self.fail_with: Exception | None = None
-        self.puts = 0
-
-    def put_object(self, **kw: Any) -> dict[str, Any]:
-        self.puts += 1
-        if self.fail_with is not None:
-            raise self.fail_with
-        if kw.get("IfNoneMatch") == "*" and kw["Key"] in self.objects:
-            raise client_error("PreconditionFailed", 412)
-        self.objects[kw["Key"]] = (kw["Body"], kw.get("ContentType"))
-        return {"ETag": '"e"'}
-
-    def get_object(self, **kw: Any) -> dict[str, Any]:
-        raise NotImplementedError
-
-    def list_object_versions(self, **kw: Any) -> dict[str, Any]:
-        raise NotImplementedError
-
-    def delete_object(self, **kw: Any) -> dict[str, Any]:
-        raise AssertionError("ingest must never delete anything in S3")
-
-
-def client_error(code: str, status: int) -> ClientError:
-    return ClientError(
-        {"Error": {"Code": code, "Message": code}, "ResponseMetadata": {"HTTPStatusCode": status}},
-        "PutObject",
-    )
 
 
 def snapshot(value: int, cut_at: float = T0, feed: str = "vehicle_positions") -> Snapshot:
