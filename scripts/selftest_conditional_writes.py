@@ -17,29 +17,18 @@ Usage:
 
 import argparse
 import sys
-import time
 import uuid
 from dataclasses import dataclass
-from typing import Any, Literal, Protocol
 
 import boto3
 from botocore.exceptions import ClientError
 
+# The production write path: the self-test proves the code ingest actually runs (quiz 007, Q5).
+from ghostbus_ingest.s3 import S3Client, conditional_put, http_status
+
 SELFTEST_PREFIX = "selftest/"
 BODY_A = b"ghost-bus-la conditional write self-test: first body\n"
 BODY_B = b"ghost-bus-la conditional write self-test: second body\n"
-MAX_CONFLICT_RETRIES = 3
-
-PutOutcome = Literal["written", "duplicate"]
-
-
-class S3Client(Protocol):
-    """The boto3 S3 calls this script makes. boto3 has no type hints, so we declare our side."""
-
-    def put_object(self, **kwargs: Any) -> dict[str, Any]: ...
-    def get_object(self, **kwargs: Any) -> dict[str, Any]: ...
-    def list_object_versions(self, **kwargs: Any) -> dict[str, Any]: ...
-    def delete_object(self, **kwargs: Any) -> dict[str, Any]: ...
 
 
 @dataclass(frozen=True)
@@ -47,10 +36,6 @@ class CheckResult:
     name: str
     passed: bool
     detail: str
-
-
-def _status(error: ClientError) -> int:
-    return int(error.response["ResponseMetadata"]["HTTPStatusCode"])
 
 
 def _require_selftest_key(key: str) -> None:
@@ -62,29 +47,6 @@ def _require_selftest_key(key: str) -> None:
 
 def new_selftest_key() -> str:
     return f"{SELFTEST_PREFIX}conditional-write/{uuid.uuid4().hex}.txt"
-
-
-def conditional_put(
-    s3: S3Client, bucket: str, key: str, body: bytes, retry_delay_s: float = 0.5
-) -> PutOutcome:
-    """PutObject with If-None-Match: *, interpreted as ADR-004 decision 2 specifies.
-
-    200 -> "written". 412 -> "duplicate" (those bytes, or some bytes, are already at this key).
-    409 -> a concurrent conditional write is in flight: retry. Anything else is raised.
-    """
-    _require_selftest_key(key)
-    for _attempt in range(MAX_CONFLICT_RETRIES):
-        try:
-            s3.put_object(Bucket=bucket, Key=key, Body=body, IfNoneMatch="*")
-            return "written"
-        except ClientError as error:
-            status = _status(error)
-            if status == 412:
-                return "duplicate"
-            if status != 409:
-                raise
-        time.sleep(retry_delay_s)
-    raise RuntimeError(f"still 409 Conflict after {MAX_CONFLICT_RETRIES} attempts for {key}")
 
 
 def _versions(s3: S3Client, bucket: str, key: str) -> tuple[list[str], list[str]]:
@@ -137,7 +99,7 @@ def run_selftest(s3: S3Client, bucket: str, key: str) -> list[CheckResult]:
             denied, detail = False, "unconditional write SUCCEEDED: the policy did not deny it"
         except ClientError as error:
             code = error.response["Error"]["Code"]
-            denied, detail = code == "AccessDenied", f"error={code} status={_status(error)}"
+            denied, detail = code == "AccessDenied", f"error={code} status={http_status(error)}"
         results.append(CheckResult("unconditional_write_is_denied_by_policy", denied, detail))
 
         versions, _markers = _versions(s3, bucket, key)

@@ -15,7 +15,6 @@ from botocore.stub import Stubber
 from selftest_conditional_writes import (
     BODY_A,
     BODY_B,
-    conditional_put,
     new_selftest_key,
     run_selftest,
 )
@@ -85,36 +84,13 @@ def _cleanup(stub: Stubber, version_ids: list[str]) -> None:
         stub.add_response("delete_object", {}, {"Bucket": BUCKET, "Key": KEY, "VersionId": v})
 
 
-# --- conditional_put -------------------------------------------------------------------------
+# conditional_put itself is tested in services/ingest/tests/test_s3.py, where it now lives.
 
 
-def test_conditional_put_new_key_is_written(s3: Any, stub: Stubber) -> None:
-    _put_ok(stub, BODY_A)
-    assert conditional_put(s3, BUCKET, KEY, BODY_A) == "written"
-
-
-def test_conditional_put_existing_key_is_duplicate(s3: Any, stub: Stubber) -> None:
-    _put_error(stub, "PreconditionFailed", 412, BODY_A)
-    assert conditional_put(s3, BUCKET, KEY, BODY_A) == "duplicate"
-
-
-def test_conditional_put_retries_a_409_conflict(s3: Any, stub: Stubber) -> None:
-    _put_error(stub, "ConditionalRequestConflict", 409, BODY_A)
-    _put_error(stub, "PreconditionFailed", 412, BODY_A)
-    assert conditional_put(s3, BUCKET, KEY, BODY_A, retry_delay_s=0) == "duplicate"
-
-
-def test_conditional_put_gives_up_after_repeated_409s(s3: Any, stub: Stubber) -> None:
-    for _ in range(3):
-        _put_error(stub, "ConditionalRequestConflict", 409, BODY_A)
-    with pytest.raises(RuntimeError, match="409"):
-        conditional_put(s3, BUCKET, KEY, BODY_A, retry_delay_s=0)
-
-
-def test_conditional_put_refuses_any_key_outside_selftest(s3: Any) -> None:
-    # Bronze is sacred (hard rule 1): this script may never write there.
+def test_run_selftest_refuses_any_key_outside_selftest(s3: Any) -> None:
+    # Bronze is sacred (hard rule 1): the guard fires before any request is sent.
     with pytest.raises(ValueError, match="selftest/"):
-        conditional_put(s3, BUCKET, "bronze/vehicle_positions/x.ndjson.gz", BODY_A)
+        run_selftest(s3, BUCKET, "bronze/vehicle_positions/x.ndjson.gz")
 
 
 # --- run_selftest ----------------------------------------------------------------------------
