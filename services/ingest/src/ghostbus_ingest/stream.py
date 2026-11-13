@@ -69,12 +69,14 @@ class StreamRunner:
         fetch_log: FetchLog,
         clock: Callable[[], float] = time.time,
         backoff: Callable[[int], float] = backoff_delay,
+        on_result: Callable[[str, str, float], None] | None = None,
     ) -> None:
         self.feed = feed
         self.spool = spool
         self.fetch_log = fetch_log
         self.clock = clock
         self.backoff = backoff
+        self.on_result = on_result  # (feed, outcome, cut time): feeds health and the heartbeat
         start = clock()
         self.buffer = SnapshotBuffer(
             feed.name,
@@ -106,13 +108,20 @@ class StreamRunner:
         cut = self.buffer.cut(at)
         if not isinstance(cut, Snapshot):
             self.fetch_log.record_fetch(cut, None)
+            self._report("network_error", at)
             return
         try:
             result = self.spool.write_snapshot(cut)
         except OSError as error:
             self.fetch_log.record_fetch(cut, None, error=repr(error))
+            self._report("spool_error", at)
             return
         self.fetch_log.record_fetch(cut, result)
+        self._report(result.outcome, at)
+
+    def _report(self, outcome: str, at: float) -> None:
+        if self.on_result is not None:
+            self.on_result(self.feed.name, outcome, at)
 
     # --- connection ------------------------------------------------------------------------
 
