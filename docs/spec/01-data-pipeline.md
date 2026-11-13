@@ -59,7 +59,7 @@ Before the first production run, verify conditional writes on the versioned buck
 
 ### 2.5 Fetch log
 
-One JSON line per snapshot attempt, success or failure (`event: "fetch"`), and one per connection change (`event: "connect"` or `"disconnect"`, with the close code). The uploader adds `event: "upload"` lines. Implemented in `services/ingest/src/ghostbus_ingest/fetch_log.py`.
+One JSON line per snapshot attempt, success or failure (`event: "fetch"`), and one per connection change (`event: "connect"`, `"disconnect"` with the close code, or `"connect_failed"` with the error). The uploader adds `event: "upload"` lines. Implemented in `services/ingest/src/ghostbus_ingest/fetch_log.py`.
 
 ```json
 {"event":"fetch","fetched_at":"2026-11-13T02:14:30Z","feed":"vehicle_positions","url_key":"metro_ws",
@@ -72,7 +72,7 @@ One JSON line per snapshot attempt, success or failure (`event: "fetch"`), and o
  "reason":"abnormal closure","ingest_version":"0.1.0"}
 ```
 
-For `fetch` lines, `outcome` is `written` (stored in the spool), `duplicate` (the local shortcut: same bytes as the feed's previous snapshot), or `network_error` (nothing to write: the connection was down all interval, or the server sent nothing; `error` says which). `http_status` and `latency_ms` are `null` for WebSocket feeds (ADR-021); `http_error` is reserved for the GTFS download. The fetch time lives here, not in the object key.
+For `fetch` lines, `outcome` is `written` (stored in the spool), `duplicate` (the local shortcut: same bytes as the feed's previous snapshot), `network_error` (nothing to write: the connection was down all interval, or the server sent nothing; `error` says which), or `spool_error` (a snapshot existed but writing it to disk failed, for example a full disk; the stream keeps running). `http_status` and `latency_ms` are `null` for WebSocket feeds (ADR-021); `http_error` is reserved for the GTFS download. The fetch time lives here, not in the object key.
 
 Written to `<spool>/_fetch_log/dt=YYYY-MM-DD/hour=HH.jsonl`, uploaded when the hour closes and on shutdown. Each upload is content-addressed, `bronze/_fetch_log/dt=YYYY-MM-DD/hour=HH/<sha16>.jsonl`, because a mid-hour restart uploads the same hour twice with different content and a fixed name would be rejected by the conditional write (ADR-004). Readers take the union of an hour's files and drop duplicate lines. `feed_header_ts` is the newest entity timestamp in the snapshot, because the stream has no feed header. The log also records `n_entities`, `partial`, and each disconnect.
 
