@@ -10,6 +10,7 @@ dependencies = [
     # S3 client (ADR-004 decision 7). 1.36 (January 2025) is well after S3 added conditional
     # writes (August 2024); uv.lock pins the version actually tested.
     "boto3>=1.36",
+    "httpx>=0.27",  # heartbeat pings (in the stack list)
 ]
 
 [build-system]

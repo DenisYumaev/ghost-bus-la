@@ -80,8 +80,8 @@ The fetch log is what makes the `unknown` outcome possible. Without a record of 
 
 ### 2.6 Watching the watcher
 
-- Ping an external heartbeat service after each successful cycle of the 30 s feeds. If the VM dies, in-pipeline alerts die with it; the external check doesn't.
-- Expose `/healthz` on a local port: healthy if every feed succeeded within three of its intervals.
+- Ping an external heartbeat service (Healthchecks.io) after each successful cut of the fastest feed, **but only while every feed is healthy** by the `/healthz` rule below. A dead trip-updates stream then stops the pings even if vehicle positions are fine. If the VM dies, in-pipeline alerts die with it; the external check doesn't. The ping URL is a secret: it lives in SSM Parameter Store at `/ghost-bus-la/heartbeat-url` and is never logged. A missing URL disables the heartbeat with a log line and never stops ingest.
+- Expose `/healthz` on a local port (8081, localhost only): healthy if every feed had a `written` or `duplicate` cut within three of its intervals, with the service start time standing in until a feed's first success. Returns 200 or 503 with per-feed detail.
 - Alert when spool disk usage passes 70%.
 
 ### 2.7 Tests

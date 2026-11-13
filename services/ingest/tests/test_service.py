@@ -8,8 +8,10 @@ import asyncio
 import json
 from pathlib import Path
 
+import httpx
 import pytest
 from ghostbus_ingest import service
+from ghostbus_ingest.heartbeat import Heartbeat
 from ghostbus_ingest.service import Settings, run_service
 from ghostbus_ingest.stream import FeedConfig, StreamRunner
 from ingest_fakes import FakeMetro, FakeS3, async_test, fake_metro, fixture_frames
@@ -25,6 +27,7 @@ def test_settings_from_env_with_defaults() -> None:
     assert settings.feeds_config == Path("config/feeds.toml")
     assert settings.region == "us-west-2"
     assert settings.upload_interval_s == 10.0
+    assert settings.health_port == 8081
 
 
 def test_settings_from_env_overrides() -> None:
@@ -52,6 +55,8 @@ def test_settings_from_env_overrides() -> None:
             {"GHOSTBUS_BUCKET": "b", "GHOSTBUS_UPLOAD_INTERVAL_S": "soon"},
             "GHOSTBUS_UPLOAD_INTERVAL_S",
         ),
+        ({"GHOSTBUS_BUCKET": "b", "GHOSTBUS_HEALTH_PORT": "http"}, "GHOSTBUS_HEALTH_PORT"),
+        ({"GHOSTBUS_BUCKET": "b", "GHOSTBUS_HEALTH_PORT": "70000"}, "GHOSTBUS_HEALTH_PORT"),
     ],
 )
 def test_bad_settings_are_rejected_with_the_variable_named(
@@ -83,6 +88,7 @@ def settings_for(tmp_path: Path) -> Settings:
         feeds_config=Path("unused.toml"),
         region="us-west-2",
         upload_interval_s=0.2,
+        health_port=0,  # any free port; tests must never collide on 8081
     )
 
 
@@ -196,3 +202,70 @@ async def test_a_crashed_uploader_stops_the_service_with_exit_code_1(
     events = [json.loads(x) for x in capsys.readouterr().out.splitlines()]
     assert any(e["event"] == "uploader_crashed" and "uploader" in e["error"] for e in events)
     assert events[-1] == {**events[-1], "event": "service_stop", "exit_code": 1}
+
+
+@async_test
+async def test_healthy_service_pings_the_heartbeat_once_per_fast_cycle(tmp_path: Path) -> None:
+    pings: list[float] = []
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        pings.append(asyncio.get_running_loop().time())
+        return httpx.Response(200)
+
+    vp = FakeMetro(fixture_frames("vehicle_positions_45s.jsonl.gz"))
+    tu = FakeMetro(fixture_frames("trip_updates_45s.jsonl.gz"))
+    async with (
+        httpx.AsyncClient(transport=httpx.MockTransport(handler)) as client,
+        fake_metro(vp) as vp_url,
+        fake_metro(tu) as tu_url,
+    ):
+        feeds = {
+            "vehicle_positions": FeedConfig("vehicle_positions", vp_url, 1),
+            "trip_updates": FeedConfig("trip_updates", tu_url, 2),
+        }
+        stop = asyncio.Event()
+        heartbeat = Heartbeat("https://hc-ping.com/test", client)
+        task = asyncio.create_task(
+            run_service(settings_for(tmp_path), feeds, FakeS3(), stop, heartbeat)
+        )
+        await asyncio.sleep(3.4)
+        stop.set()
+        assert await asyncio.wait_for(task, timeout=10) == 0
+
+    # vehicle_positions (1 s) is the fastest feed: about one ping per second, not one per cut
+    # of every feed. Allow for the first, partial interval and the final cut on stop.
+    assert 2 <= len(pings) <= 5
+
+
+@async_test
+async def test_no_heartbeat_while_a_feed_is_failing(tmp_path: Path) -> None:
+    pings: list[float] = []
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        pings.append(asyncio.get_running_loop().time())
+        return httpx.Response(200)
+
+    vp = FakeMetro(fixture_frames("vehicle_positions_45s.jsonl.gz"))
+    async with (
+        httpx.AsyncClient(transport=httpx.MockTransport(handler)) as client,
+        fake_metro(vp) as vp_url,
+    ):
+        feeds = {
+            "vehicle_positions": FeedConfig("vehicle_positions", vp_url, 1),
+            "trip_updates": FeedConfig("trip_updates", "ws://127.0.0.1:9", 1),  # never connects
+        }
+        stop = asyncio.Event()
+        start = asyncio.get_running_loop().time()
+        task = asyncio.create_task(
+            run_service(
+                settings_for(tmp_path), feeds, FakeS3(), stop, Heartbeat("https://h/x", client)
+            )
+        )
+        await asyncio.sleep(5.5)
+        stop.set()
+        await asyncio.wait_for(task, timeout=10)
+
+    # trip_updates never succeeds, so once its 3-interval grace (3 s) is over, pings stop
+    # even though vehicle_positions is fine. This is what makes a dead stream page the owner.
+    assert pings, "pings during the grace period show the heartbeat was wired up"
+    assert all(t - start < 3.6 for t in pings)
