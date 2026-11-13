@@ -50,6 +50,13 @@ jobs:
           terraform init -backend=false -input=false
           terraform validate
           terraform test
+      - name: Validate the deploy files
+        env:
+          INGEST_TAG: 0000000000000000000000000000000000000000
+          GHOSTBUS_BUCKET: ci-placeholder
+        run: |
+          docker compose -f deploy/compose.ingest.yml config --quiet
+          bash -n deploy/remote-deploy-ingest.sh
       - name: Validate and test main configuration
         working-directory: infra
         run: |
