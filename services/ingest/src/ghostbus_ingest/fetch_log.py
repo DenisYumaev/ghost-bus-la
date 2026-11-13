@@ -8,8 +8,10 @@ Files: <root>/_fetch_log/dt=YYYY-MM-DD/hour=HH.jsonl, by the UTC time of the eve
 Events: `fetch` (a snapshot attempt), `connect`, `disconnect`; the uploader adds `upload`.
 """
 
+import hashlib
 import json
 import os
+import re
 from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any, Literal
@@ -18,6 +20,15 @@ from ghostbus_ingest.snapshot import EmptyCut, Snapshot
 from ghostbus_ingest.spool import SpoolResult, object_key, spool_name
 
 URL_KEY = "metro_ws"
+UPLOADED_SUFFIX = ".uploaded"
+_LOG_FILE = re.compile(r"dt=(\d{4}-\d{2}-\d{2})/hour=(\d{2})\.jsonl$")
+
+
+def _hour_start(path: Path) -> datetime:
+    match = _LOG_FILE.search(path.as_posix())
+    if match is None:
+        raise ValueError(f"not a fetch-log file: {path}")
+    return datetime.strptime(f"{match[1]} {match[2]}", "%Y-%m-%d %H").replace(tzinfo=UTC)
 
 
 def iso_utc(at: float) -> str:
@@ -115,3 +126,70 @@ class FetchLog:
                 "ingest_version": self.ingest_version,
             },
         )
+
+    def record_upload(
+        self,
+        at: float,
+        spool_file: str,
+        object_key: str | None,
+        outcome: Literal["written", "duplicate", "error", "corrupt"],
+        error: str | None = None,
+    ) -> None:
+        """Log one spool-file upload attempt (fetch-log uploads are tracked by their markers)."""
+        self._append(
+            at,
+            {
+                "event": "upload",
+                "at": iso_utc(at),
+                "spool_file": spool_file,
+                "object_key": object_key,
+                "outcome": outcome,
+                "error": error,
+                "ingest_version": self.ingest_version,
+            },
+        )
+
+    def files_to_upload(self, now: float, final: bool) -> list[tuple[Path, bytes, str]]:
+        """Hourly files whose current content isn't in S3 yet: (path, bytes, sha256).
+
+        Closed hours always; the still-open hour only on the final pass at shutdown. A file that
+        grows after an upload (a restart mid-hour, a late line) is uploaded again under a new
+        content-addressed key, and readers take the union (ADR-004).
+        """
+        result = []
+        for path in sorted((self.root / "_fetch_log").glob("dt=*/hour=*.jsonl")):
+            closed = _hour_start(path).timestamp() + 3600 <= now
+            if not (closed or final):
+                continue
+            data = path.read_bytes()
+            sha = hashlib.sha256(data).hexdigest()
+            if self.uploaded_sha(path) != sha:
+                result.append((path, data, sha))
+        return result
+
+    @staticmethod
+    def object_key_for(path: Path, sha256: str) -> str:
+        start = _hour_start(path)
+        return f"bronze/_fetch_log/dt={start:%Y-%m-%d}/hour={start:%H}/{sha256[:16]}.jsonl"
+
+    @staticmethod
+    def uploaded_sha(path: Path) -> str | None:
+        marker = path.with_name(path.name + UPLOADED_SUFFIX)
+        return marker.read_text().strip() if marker.exists() else None
+
+    @staticmethod
+    def mark_uploaded(path: Path, sha256: str) -> None:
+        path.with_name(path.name + UPLOADED_SUFFIX).write_text(sha256 + "\n")
+
+    def clean_uploaded(self, now: float, keep_s: float) -> int:
+        """Delete hourly files whose exact current content is in S3, once older than keep_s."""
+        removed = 0
+        for path in sorted((self.root / "_fetch_log").glob("dt=*/hour=*.jsonl")):
+            hour_end = _hour_start(path).timestamp() + 3600
+            if now - hour_end <= keep_s:
+                continue
+            if self.uploaded_sha(path) == hashlib.sha256(path.read_bytes()).hexdigest():
+                path.unlink()
+                path.with_name(path.name + UPLOADED_SUFFIX).unlink(missing_ok=True)
+                removed += 1
+        return removed
