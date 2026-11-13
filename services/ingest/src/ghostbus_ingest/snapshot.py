@@ -116,6 +116,11 @@ class SnapshotBuffer:
         self._connected_since: float | None = None
         self._connected_s = 0.0
 
+    @property
+    def interval_start(self) -> float:
+        """When the current interval began: the previous cut, or the grid point before start."""
+        return self._interval_start
+
     def on_connect(self, at: float) -> None:
         if self._connected_since is None:
             self._connected_since = at

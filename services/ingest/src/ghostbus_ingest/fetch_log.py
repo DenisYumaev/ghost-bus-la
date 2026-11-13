@@ -56,8 +56,14 @@ class FetchLog:
             f.flush()
             os.fsync(f.fileno())
 
-    def record_fetch(self, cut: Snapshot | EmptyCut, result: SpoolResult | None) -> None:
-        """Log one snapshot attempt. An EmptyCut is logged as `network_error`."""
+    def record_fetch(
+        self, cut: Snapshot | EmptyCut, result: SpoolResult | None, error: str | None = None
+    ) -> None:
+        """Log one snapshot attempt.
+
+        An EmptyCut is `network_error`. A Snapshot with no result and an error is `spool_error`
+        (the write to disk failed, for example a full disk).
+        """
         record: dict[str, Any] = {
             "event": "fetch",
             "fetched_at": iso_utc(cut.cut_at),
@@ -73,7 +79,7 @@ class FetchLog:
                 "content_hash": cut.sha256,
                 "object_key": object_key(cut),
                 "spool_file": spool_name(cut) if result and result.path else None,
-                "outcome": result.outcome if result else "written",
+                "outcome": result.outcome if result else "spool_error",
                 "feed_header_ts": (
                     iso_utc(cut.newest_entity_ts) if cut.newest_entity_ts is not None else None
                 ),
@@ -82,7 +88,7 @@ class FetchLog:
                 "n_unkeyed": cut.n_unkeyed,
                 "n_unframed": cut.n_unframed,
                 "partial": cut.partial,
-                "error": None,
+                "error": error,
             }
         else:
             record |= {
@@ -110,7 +116,7 @@ class FetchLog:
     def record_connection(
         self,
         feed: str,
-        event: Literal["connect", "disconnect"],
+        event: Literal["connect", "disconnect", "connect_failed"],
         at: float,
         close_code: int | None = None,
         reason: str | None = None,

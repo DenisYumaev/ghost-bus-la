@@ -1,0 +1,10 @@
+# Realtime feeds ingest archives (ADR-021; pipeline spec, section 2.2).
+# URLs live here, never in code. Cadences are provisional until the M0 measured day.
+
+[feeds.vehicle_positions]
+url = "wss://api.metro.net/ws/LACMTA/vehicle_positions"
+interval_s = 30
+
+[feeds.trip_updates]
+url = "wss://api.metro.net/ws/LACMTA/trip_updates"
+interval_s = 60
