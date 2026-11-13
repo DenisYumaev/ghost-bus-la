@@ -23,6 +23,7 @@ All quizzes are in `docs/learning/quizzes/` on `main`. PRs merge with their quiz
 | [#8](https://github.com/DenisYumaev/ghost-bus-la/pull/8) | Conditional-write self-test | [ ] [007](quizzes/007-selftest-conditional-writes.md) | [ ] | n/a | Ran against the real bucket, 2026-11-12 |
 | [#9](https://github.com/DenisYumaev/ghost-bus-la/pull/9) | WebSocket fixtures and loop timing | [ ] [008](quizzes/008-ws-fixtures.md) | [ ] | n/a | n/a |
 | [#10](https://github.com/DenisYumaev/ghost-bus-la/pull/10) | Snapshot core | [ ] [009](quizzes/009-ingest-snapshot.md) | [ ] | n/a | n/a |
+| [#12](https://github.com/DenisYumaev/ghost-bus-la/pull/12) | Spool and fetch log | [ ] [010](quizzes/010-ingest-spool.md) | [ ] | n/a | n/a |
 
 **Suggested order:** 004, 005, and 006 first, because they describe what is live in AWS right now. Then 002, 001, and 003.
 
@@ -61,5 +62,9 @@ All quizzes are in `docs/learning/quizzes/` on `main`. PRs merge with their quiz
 >
 
 ### PR #10 · Snapshot core
+
+>
+
+### PR #12 · Spool and fetch log
 
 >
