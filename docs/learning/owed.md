@@ -21,6 +21,7 @@ All quizzes are in `docs/learning/quizzes/` on `main`. PRs merge with their quiz
 | [#5](https://github.com/DenisYumaev/ghost-bus-la/pull/5) | Data bucket import, policy, budget | [ ] [005](quizzes/005-infra-data-bucket.md) | [ ] | n/a | Yes, 2026-11-12 |
 | [#7](https://github.com/DenisYumaev/ghost-bus-la/pull/7) | VM, role, recovery alarms | [ ] [006](quizzes/006-infra-vm.md) | [ ] | n/a | Yes, 2026-11-12 |
 | [#8](https://github.com/DenisYumaev/ghost-bus-la/pull/8) | Conditional-write self-test | [ ] [007](quizzes/007-selftest-conditional-writes.md) | [ ] | n/a | Ran against the real bucket, 2026-11-12 |
+| [#9](https://github.com/DenisYumaev/ghost-bus-la/pull/9) | WebSocket fixtures and loop timing | [ ] [008](quizzes/008-ws-fixtures.md) | [ ] | n/a | n/a |
 
 **Suggested order:** 004, 005, and 006 first, because they describe what is live in AWS right now. Then 002, 001, and 003.
 
@@ -51,5 +52,9 @@ All quizzes are in `docs/learning/quizzes/` on `main`. PRs merge with their quiz
 >
 
 ### PR #8 · Self-test
+
+>
+
+### PR #9 · Fixtures
 
 >
