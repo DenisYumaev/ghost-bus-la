@@ -55,7 +55,7 @@ These cadences are starting points. Uncompressed, they come to about 1.3 GB a da
    using `PutObject` with `If-None-Match: *`, where `dt` is the UTC fetch date. A `412 Precondition Failed` means those bytes are already stored; record `duplicate`, which counts as success. After a written or duplicate result it leaves a `.uploaded` marker.
 5. A janitor deletes spool files that are uploaded, older than 48 hours, and behind the detector's cursor.
 
-Before the first production run, verify conditional writes on the versioned bucket using a scratch `selftest/` prefix outside `bronze/`, so the deny-delete policy doesn't make the test objects permanent.
+Before the first production run, verify conditional writes on the versioned bucket using a scratch `selftest/` prefix outside `bronze/`, so the deny-delete policy doesn't make the test objects permanent. **Verified 2026-11-12:** `412` on the second write, and an unconditional write denied by the bucket policy (ADR-004 results; rerun with `make selftest-s3`).
 
 ### 2.5 Fetch log
 

@@ -8,6 +8,7 @@ dependencies = []
 
 [dependency-groups]
 dev = [
+    "boto3",
     "hypothesis",
     "mypy",
     "pre-commit",
@@ -45,6 +46,12 @@ warn_unreachable = true
 # Test directories hold top-level modules: keep test file names unique.
 mypy_path = ["packages/ghostbus_core/src", "services/ingest/src", "scripts"]
 explicit_package_bases = true
+
+# boto3 and botocore ship no type hints. Code that uses them defines a small Protocol for the
+# calls it makes, so mypy still checks our side of every call.
+[[tool.mypy.overrides]]
+module = ["boto3", "boto3.*", "botocore", "botocore.*"]
+ignore_missing_imports = true
 
 [tool.pytest.ini_options]
 # importlib mode lets several directories named tests/ coexist without __init__.py files.

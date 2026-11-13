@@ -4,10 +4,10 @@
 # never an apply target (CLAUDE.md hard rule 8).
 
 .DEFAULT_GOAL := help
-.PHONY: help install test lint fmt hooks tf-test plan-bootstrap plan
+.PHONY: help install test lint fmt hooks tf-test plan-bootstrap plan selftest-s3
 
 help:  ## List the targets
-	@grep -E '^[a-z-]+:.*## ' $(MAKEFILE_LIST) | awk -F':.*## ' '{printf "  %-10s %s\n", $$1, $$2}'
+	@grep -E '^[a-z0-9-]+:.*## ' $(MAKEFILE_LIST) | awk -F':.*## ' '{printf "  %-15s %s\n", $$1, $$2}'
 
 install:  ## Install locked dev dependencies and the git hooks
 	uv sync --all-packages --locked
@@ -39,3 +39,6 @@ plan-bootstrap:  ## Plan the state bucket (read-only against AWS; apply is done 
 
 plan:  ## Plan the main configuration (needs infra/backend.hcl and infra/terraform.tfvars)
 	cd infra && terraform init -input=false -backend-config=backend.hcl && terraform plan -out=main.tfplan
+
+selftest-s3:  ## Prove conditional writes and the no-overwrite policy on the real bucket (selftest/ only)
+	uv run python scripts/selftest_conditional_writes.py --bucket "$$(terraform -chdir=infra output -raw data_bucket_name)"

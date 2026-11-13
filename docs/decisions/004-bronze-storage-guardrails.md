@@ -1,6 +1,6 @@
 # ADR-004: Bronze storage and guardrails: content-addressed keys, conditional writes, deny-delete, instance role, remote state
 
-- **Status:** Proposed. Accepted once the `selftest/` check (M0) confirms the two `VERIFY` items below
+- **Status:** Proposed. Both `VERIFY` items were confirmed on 2026-11-12 (results below). Accepted once the owner's "Why" rewrite lands, because accepted ADRs can't be edited (CLAUDE.md hard rule 13)
 - **Date:** 2026-11-12
 - **Supersedes:** ADR-001 decision 6's key format and duplicate check. Its partitioning by UTC fetch date and its fetch log stand
 - **Evidence:** `docs/spec/01-data-pipeline.md` sections 2.4, 2.5, and 3; `docs/spec/05-infra-ops.md` section 2; ADR-021
@@ -57,7 +57,17 @@ ADR-001 decision 6 keyed objects as `<fetched_at>_<sha16>` and skipped a write "
 - A second `PutObject` with `If-None-Match: *` to an existing key in this **versioned** bucket returns `412`, and the stored object is unchanged.
 - An unconditional `PutObject` to `selftest/` is denied by the bucket policy, which proves the `s3:if-none-match` condition works as written.
 
-Record both results here when this ADR is accepted.
+**Results, 2026-11-12** (`scripts/selftest_conditional_writes.py`, run from the owner's laptop as the `denis-dev` user against the data bucket; rerun with `make selftest-s3`):
+
+| Check | Result |
+| --- | --- |
+| First `PutObject` with `If-None-Match: *` to a new key | `200`, written |
+| Second one to the same key, versioned bucket | **`412`**, rejected |
+| Stored object afterwards | First body kept |
+| `PutObject` without `If-None-Match` | **`403 AccessDenied`** from the bucket policy |
+| Versions of the key | Exactly 1 |
+
+Both `VERIFY` items hold. Cleanup deleted every version, and the bucket held 0 objects and 0 delete markers afterwards. The deny applied to an administrator, which confirms it covers every principal.
 
 ## Why
 
