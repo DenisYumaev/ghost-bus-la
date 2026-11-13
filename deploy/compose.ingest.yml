@@ -1,0 +1,30 @@
+# Ingest on the VM (infra spec, section 3). Deployed by deploy/deploy-ingest.sh, which writes
+# the .env next to this file with INGEST_TAG (a git SHA) and GHOSTBUS_BUCKET.
+#
+# Credentials: none here. The container reaches the instance role through IMDSv2 (hop limit 2).
+
+services:
+  ingest:
+    image: ghcr.io/denisyumaev/ghost-bus-la-ingest:${INGEST_TAG:?INGEST_TAG must be a git SHA}
+    restart: always
+    # docker stop sends SIGTERM; the service then makes final cuts and a final upload pass
+    # (up to 60 s for the uploader). Give it time before Docker escalates to SIGKILL.
+    stop_grace_period: 90s
+    environment:
+      GHOSTBUS_BUCKET: ${GHOSTBUS_BUCKET:?GHOSTBUS_BUCKET must be set}
+      AWS_REGION: us-west-2
+    volumes:
+      - spool:/var/lib/ghostbus/spool # survives container restarts and redeploys
+    # Hardening: nothing in the image needs to write outside the spool, gain privileges,
+    # or use Linux capabilities.
+    read_only: true
+    tmpfs:
+      - /tmp
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL
+    mem_limit: 512m
+
+volumes:
+  spool:
