@@ -96,8 +96,10 @@ Branches `<type>/<short-topic>` (`feat/…`, `fix/…`, `docs/…`, `infra/…`,
 
 Update this section at the end of every session.
 
-- **As of Nov 11, 2026:** this is a new repo. It holds the specs, ADR-001, ADR-002, and the probe report. No code yet. **Nothing is archiving.**
-- AWS: account on the paid plan; IAM user `denis-dev` with MFA; CLI configured for `us-west-2`.
-- An earlier, scrapped repo (`la-ghost-bus`) created a data bucket and a budget with Terraform. Its code and decision records are not part of this project. M0 imports or destroys those two resources.
-- The data-source probe is done: `docs/research/day1-probe.md`. Realtime comes from the Metro API WebSocket; cancellations come from trip updates; the canceled-service API and the REST realtime endpoints are dead. ADR-001 decisions 1 and 3 are superseded by this (ADR-021, to be written in M0).
-- Next: M0 in `docs/SPEC.md` section 6.
+- **As of Nov 12, 2026 (M0 in progress). Nothing is archiving yet:** ingest isn't deployed.
+- **Merged (PRs #1–#10):** ADR-021 (Proposed until the measured day), ADR-003 (Proposed; quiz gate moved to the milestone), ADR-004 (Proposed; both `VERIFY` items passed, accepted after the owner's Why rewrite); repo scaffold with CI (`python`, `infra`, `security`); conditional-write self-test (`make selftest-s3`); recorded WebSocket fixtures; `ghostbus_ingest/snapshot.py` (pure snapshot logic).
+- **Live in AWS (Terraform, owner-approved applies):** state bucket `ghost-bus-la-tfstate-<acct>` (bootstrap, local state in `infra/bootstrap/terraform.tfstate`); data bucket `la-ghost-bus-bronze-<acct>` and budget `la-ghost-bus-monthly`, **imported** from the scrapped repo (its old state retired as `../la-ghost-bus/infra/terraform.tfstate.retired-2026-11-12`), with the ADR-004 policy and 50/80/100% alerts; VM `i-047b5f055d9425e38` (t4g.small, SSM only, no inbound), role `ghost-bus-la-app`, status-check alarms to SNS `ghost-bus-la-ops-alerts`. Main config state is in S3; `infra/backend.hcl` and `infra/terraform.tfvars` are local and gitignored.
+- **Owner's learning work is deferred** and tracked in `docs/learning/owed.md` (quizzes 001–009, What I learned, Why rewrites for ADR-003 and ADR-004). All of it is due before M0 closes (ADR-003). Predictions are paused.
+- **Measured** (`docs/research/ws-cycle-timing.md`): every entity reappears within 6.74 s; first size estimate about 0.65 GB a day gzipped across both feeds.
+- **Next in M0:** spool and fetch log, uploader, WebSocket client, then deploy (archive starts), GTFS download, the measured day, drills 1 and 2. Also owed by the owner: request a Swiftly key, read Metro's terms, confirm the SNS email subscription.
+- **Workflow notes:** merge with merge commits, not squash. Retarget stacked PRs to `main` before merging their parent with `--delete-branch` (deleting a base branch closes child PRs).
