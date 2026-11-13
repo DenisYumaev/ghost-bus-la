@@ -11,6 +11,7 @@ Layout:
 """
 
 import os
+import re
 from dataclasses import dataclass
 from datetime import UTC, datetime
 from pathlib import Path
@@ -22,6 +23,8 @@ FEEDS = frozenset({"vehicle_positions", "trip_updates"})
 EXTENSION = ".ndjson.gz"
 UPLOADED_SUFFIX = ".uploaded"
 TMP_SUFFIX = ".tmp"
+CORRUPT_SUFFIX = ".corrupt"
+_SPOOL_NAME = re.compile(r"^(\d{4})(\d{2})(\d{2})T(\d{6})Z_([0-9a-f]{16})\.ndjson\.gz$")
 
 
 def _utc(at: float) -> datetime:
@@ -36,6 +39,25 @@ def spool_name(snap: Snapshot) -> str:
 def object_key(snap: Snapshot) -> str:
     """The content-addressed S3 key (ADR-004). `dt` is the UTC fetch date, a storage partition."""
     return f"bronze/{snap.feed}/dt={_utc(snap.cut_at):%Y-%m-%d}/{snap.sha16}{EXTENSION}"
+
+
+def parse_spool_name(path: Path) -> tuple[datetime, str]:
+    """(cut time, sha16) from `<YYYYMMDDTHHMMSSZ>_<sha16>.ndjson.gz`."""
+    match = _SPOOL_NAME.match(path.name)
+    if match is None:
+        raise ValueError(f"not a spool file name: {path.name!r}")
+    year, month, day, hms, sha16 = match.groups()
+    cut = datetime.strptime(f"{year}{month}{day}{hms}", "%Y%m%d%H%M%S").replace(tzinfo=UTC)
+    return cut, sha16
+
+
+def spool_object_key(path: Path) -> str:
+    """The S3 key for a spool file: the same key `object_key` gives for its snapshot."""
+    cut, sha16 = parse_spool_name(path)
+    feed = path.parent.name
+    if feed not in FEEDS:
+        raise ValueError(f"spool file name {path} is not under a known feed directory")
+    return f"bronze/{feed}/dt={cut:%Y-%m-%d}/{sha16}{EXTENSION}"
 
 
 @dataclass(frozen=True)
@@ -105,6 +127,32 @@ class Spool:
     @staticmethod
     def mark_uploaded(path: Path) -> None:
         path.with_name(path.name + UPLOADED_SUFFIX).touch()
+
+    @staticmethod
+    def set_aside_corrupt(path: Path) -> Path:
+        """Rename a file whose bytes don't match its name, so it's kept but never uploaded."""
+        target = path.with_name(path.name + CORRUPT_SUFFIX)
+        os.replace(path, target)
+        return target
+
+    def clean_uploaded(self, now: float, keep_s: float) -> int:
+        """Janitor (spec 2.4, step 5): delete spool files that are in S3 and older than keep_s.
+
+        Never touches a file without an upload marker, and never anything in S3. (The detector
+        cursor condition is added with the detector in M3.)
+        """
+        removed = 0
+        for feed in sorted(FEEDS):
+            directory = self.root / feed
+            if not directory.is_dir():
+                continue
+            for path in directory.glob("*" + EXTENSION):
+                cut, _sha16 = parse_spool_name(path)
+                if self.is_uploaded(path) and now - cut.timestamp() > keep_s:
+                    path.unlink()
+                    path.with_name(path.name + UPLOADED_SUFFIX).unlink(missing_ok=True)
+                    removed += 1
+        return removed
 
     def remove_stale_tmp(self, now: float, older_than_s: float = 3600) -> int:
         """Delete temp files left by a crash. Only spool files, never anything in S3."""
