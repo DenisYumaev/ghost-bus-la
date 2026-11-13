@@ -6,7 +6,11 @@ requires-python = ">=3.12,<3.13"
 # Hard rule 3: ingest depends only on network, disk, and S3.
 # Never add ghostbus-core, a database driver, or any other app package here;
 # tests/test_isolation.py fails if you do.
-dependencies = []
+dependencies = [
+    # S3 client (ADR-004 decision 7). 1.36 (January 2025) is well after S3 added conditional
+    # writes (August 2024); uv.lock pins the version actually tested.
+    "boto3>=1.36",
+]
 
 [build-system]
 # uv's own build backend; it expects the code in src/<package_name>/.

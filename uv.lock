@@ -148,7 +148,6 @@ source = { virtual = "." }
 
 [package.dev-dependencies]
 dev = [
-    { name = "boto3" },
     { name = "hypothesis" },
     { name = "mypy" },
     { name = "pre-commit" },
@@ -162,7 +161,6 @@ dev = [
 
 [package.metadata.requires-dev]
 dev = [
-    { name = "boto3" },
     { name = "hypothesis" },
     { name = "mypy" },
     { name = "pre-commit" },
@@ -181,6 +179,12 @@ source = { editable = "packages/ghostbus_core" }
 name = "ghostbus-ingest"
 version = "0.1.0"
 source = { editable = "services/ingest" }
+dependencies = [
+    { name = "boto3" },
+]
+
+[package.metadata]
+requires-dist = [{ name = "boto3", specifier = ">=1.36" }]
 
 [[package]]
 name = "hypothesis"
