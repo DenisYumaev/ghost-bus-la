@@ -1,0 +1,31 @@
+#cloud-config
+# Runs once, on the VM's first boot. Later changes to the machine go through deploys over SSM,
+# not through this file: Terraform ignores edits to it, so editing it never rebuilds the VM.
+
+timezone: Etc/UTC  # store and log in UTC (CLAUDE.md hard rule 5)
+
+package_update: true
+package_upgrade: true
+packages:
+  - docker.io
+  - docker-compose-v2
+
+# 2 GB swap: headroom for DuckDB and dbt peaks on a small instance (SPEC section 3.4).
+swap:
+  filename: /swapfile
+  size: 2G
+  maxsize: 2G
+
+write_files:
+  # Rotate container logs so they can't fill the disk (infra spec, section 3).
+  - path: /etc/docker/daemon.json
+    content: |
+      {
+        "log-driver": "json-file",
+        "log-opts": {"max-size": "10m", "max-file": "5"}
+      }
+
+runcmd:
+  - systemctl enable --now docker
+  # The SSM agent ships with Ubuntu's AWS images as a snap; make sure it's running.
+  - snap start amazon-ssm-agent || true

@@ -19,8 +19,9 @@ All quizzes are in `docs/learning/quizzes/` on `main`. PRs merge with their quiz
 | [#3](https://github.com/DenisYumaev/ghost-bus-la/pull/3) | ADR-003 and ADR-004 | [ ] [003](quizzes/003-adr-003-004.md) | [ ] | [ ] ADR-003, [ ] ADR-004 | n/a |
 | [#4](https://github.com/DenisYumaev/ghost-bus-la/pull/4) | Terraform state bucket | [ ] [004](quizzes/004-infra-bootstrap.md) | [ ] | n/a | Yes, 2026-11-12 |
 | [#5](https://github.com/DenisYumaev/ghost-bus-la/pull/5) | Data bucket import, policy, budget | [ ] [005](quizzes/005-infra-data-bucket.md) | [ ] | n/a | Yes, 2026-11-12 |
+| [#7](https://github.com/DenisYumaev/ghost-bus-la/pull/7) | VM, role, recovery alarms | [ ] [006](quizzes/006-infra-vm.md) | [ ] | n/a | Yes, 2026-11-12 |
 
-**Suggested order:** 004 and 005 first, because they describe what is live in AWS right now. Then 002, 001, and 003.
+**Suggested order:** 004, 005, and 006 first, because they describe what is live in AWS right now. Then 002, 001, and 003.
 
 ## What I learned (drafts)
 
@@ -41,5 +42,9 @@ All quizzes are in `docs/learning/quizzes/` on `main`. PRs merge with their quiz
 >
 
 ### PR #5 · Data bucket
+
+>
+
+### PR #7 · VM
 
 >
