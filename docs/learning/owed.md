@@ -26,6 +26,7 @@ All quizzes are in `docs/learning/quizzes/` on `main`. PRs merge with their quiz
 | [#12](https://github.com/DenisYumaev/ghost-bus-la/pull/12) | Spool and fetch log | [ ] [010](quizzes/010-ingest-spool.md) | [ ] | n/a | n/a |
 | [#13](https://github.com/DenisYumaev/ghost-bus-la/pull/13) | Shared S3 write and backoff | [ ] [011](quizzes/011-ingest-s3-backoff.md) | [ ] | n/a | n/a |
 | [#14](https://github.com/DenisYumaev/ghost-bus-la/pull/14) | Uploader | [ ] [012](quizzes/012-ingest-uploader.md) | [ ] | n/a | n/a |
+| [#15](https://github.com/DenisYumaev/ghost-bus-la/pull/15) | WebSocket stream runner | [ ] [013](quizzes/013-ingest-stream.md) | [ ] | n/a | n/a |
 
 **Suggested order:** 004, 005, and 006 first, because they describe what is live in AWS right now. Then 002, 001, and 003.
 
@@ -76,5 +77,9 @@ All quizzes are in `docs/learning/quizzes/` on `main`. PRs merge with their quiz
 >
 
 ### PR #14 · Uploader
+
+>
+
+### PR #15 · Stream runner
 
 >
