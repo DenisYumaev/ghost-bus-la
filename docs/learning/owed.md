@@ -20,6 +20,7 @@ All quizzes are in `docs/learning/quizzes/` on `main`. PRs merge with their quiz
 | [#4](https://github.com/DenisYumaev/ghost-bus-la/pull/4) | Terraform state bucket | [ ] [004](quizzes/004-infra-bootstrap.md) | [ ] | n/a | Yes, 2026-11-12 |
 | [#5](https://github.com/DenisYumaev/ghost-bus-la/pull/5) | Data bucket import, policy, budget | [ ] [005](quizzes/005-infra-data-bucket.md) | [ ] | n/a | Yes, 2026-11-12 |
 | [#7](https://github.com/DenisYumaev/ghost-bus-la/pull/7) | VM, role, recovery alarms | [ ] [006](quizzes/006-infra-vm.md) | [ ] | n/a | Yes, 2026-11-12 |
+| [#8](https://github.com/DenisYumaev/ghost-bus-la/pull/8) | Conditional-write self-test | [ ] [007](quizzes/007-selftest-conditional-writes.md) | [ ] | n/a | Ran against the real bucket, 2026-11-12 |
 
 **Suggested order:** 004, 005, and 006 first, because they describe what is live in AWS right now. Then 002, 001, and 003.
 
@@ -46,5 +47,9 @@ All quizzes are in `docs/learning/quizzes/` on `main`. PRs merge with their quiz
 >
 
 ### PR #7 · VM
+
+>
+
+### PR #8 · Self-test
 
 >
