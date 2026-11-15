@@ -143,7 +143,9 @@ def test_a_crash_between_write_and_rename_leaves_no_visible_file(
     monkeypatch.undo()
 
     assert spool.pending() == []  # the uploader never sees a half-written file
-    assert len(list((tmp_path / "vehicle_positions").glob("*.tmp"))) == 1
+    # A raised error removes its temp file, so a full disk doesn't fill up with them. A real
+    # kill (power loss) still leaves one; remove_stale_tmp clears those at startup.
+    assert list((tmp_path / "vehicle_positions").glob("*.tmp")) == []
 
 
 def test_a_failed_write_does_not_poison_the_duplicate_shortcut(

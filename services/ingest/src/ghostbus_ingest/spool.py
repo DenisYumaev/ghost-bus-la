@@ -26,6 +26,11 @@ EXTENSION = ".ndjson.gz"  # stream snapshots
 # uncompressed lines (ADR-004 decision 1).
 EXTENSIONS = {"vehicle_positions": EXTENSION, "trip_updates": EXTENSION, "gtfs_static": ".zip"}
 FEEDS = frozenset(EXTENSIONS)
+# Feeds whose last stored hash survives a restart. The GTFS ZIP is downloaded on every start and
+# its key holds the UTC date, so without this a restart on a new day would store an identical
+# 22 MB object again. Streams change every few seconds and don't need it.
+PERSIST_LAST_SHA = frozenset({"gtfs_static"})
+LAST_SHA_FILE = "last_sha256"
 UPLOADED_SUFFIX = ".uploaded"
 TMP_SUFFIX = ".tmp"
 CORRUPT_SUFFIX = ".corrupt"
@@ -81,12 +86,32 @@ def _fsync_dir(directory: Path) -> None:
         os.close(fd)
 
 
+def _atomic_write(final: Path, body: bytes) -> None:
+    """Write via a temp file, fsync, rename, fsync the directory. A failure removes the temp
+    file, so a full disk doesn't fill up further with partial files."""
+    tmp = final.with_name(final.name + TMP_SUFFIX)
+    try:
+        with tmp.open("wb") as f:
+            f.write(body)
+            f.flush()
+            os.fsync(f.fileno())  # bytes on disk before the name becomes visible
+        os.replace(tmp, final)  # atomic: readers see the whole file or nothing
+    except BaseException:
+        tmp.unlink(missing_ok=True)
+        raise
+    _fsync_dir(final.parent)
+
+
 class Spool:
     def __init__(self, root: Path) -> None:
         self.root = root
         # Local duplicate shortcut (spec 2.4, step 2): the previous stored hash, per feed.
         # Memory only; after a restart S3's 412 is the authority.
         self._last_sha: dict[str, str] = {}
+        for feed in PERSIST_LAST_SHA:
+            saved = root / feed / LAST_SHA_FILE
+            if saved.exists():
+                self._last_sha[feed] = saved.read_text().strip()
 
     def _feed_dir(self, feed: str) -> Path:
         if feed not in FEEDS:
@@ -109,15 +134,10 @@ class Spool:
             return SpoolResult("duplicate", None, key)
 
         final = directory / name
-        tmp = final.with_name(final.name + TMP_SUFFIX)
-        with tmp.open("wb") as f:
-            f.write(body)
-            f.flush()
-            os.fsync(f.fileno())  # bytes on disk before the name becomes visible
-        os.replace(tmp, final)  # atomic: readers see the whole file or nothing
-        _fsync_dir(directory)
-
+        _atomic_write(final, body)
         self._last_sha[feed] = sha256  # only after the write succeeded
+        if feed in PERSIST_LAST_SHA:
+            _atomic_write(directory / LAST_SHA_FILE, (sha256 + "\n").encode())
         return SpoolResult("written", final, key)
 
     def pending(self) -> list[Path]:

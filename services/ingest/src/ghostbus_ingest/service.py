@@ -147,13 +147,12 @@ async def run_service(
             stop.set()
 
     async def run_gtfs(config: GtfsConfig, client: httpx.AsyncClient) -> None:
-        nonlocal crashed
         try:
             await GtfsDownloader(config, spool, fetch_log, client).run(stop)
-        except Exception as error:  # a bug: same treatment as a crashed stream
-            crashed = True
+        except Exception as error:
+            # The schedule loop already survives failed downloads. If the loop itself dies,
+            # log it and let the streams run on: they are what can't be recovered (rule 3).
             log_event("gtfs_crashed", error=repr(error))
-            stop.set()
 
     tasks = [run_stream(feed) for feed in feeds.values()]
     if gtfs is not None and http is not None:

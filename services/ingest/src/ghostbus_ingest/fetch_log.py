@@ -21,6 +21,7 @@ from ghostbus_ingest.spool import SpoolResult, object_key, spool_name
 
 URL_KEY = "metro_ws"
 UPLOADED_SUFFIX = ".uploaded"
+Outcome = Literal["written", "duplicate", "http_error", "network_error", "spool_error"]
 _LOG_FILE = re.compile(r"dt=(\d{4}-\d{2}-\d{2})/hour=(\d{2})\.jsonl$")
 
 
@@ -118,7 +119,7 @@ class FetchLog:
         at: float,
         feed: str,
         url_key: str,
-        outcome: Literal["written", "duplicate", "http_error", "network_error", "spool_error"],
+        outcome: Outcome,
         *,
         result: SpoolResult | None = None,
         http_status: int | None = None,
@@ -149,7 +150,7 @@ class FetchLog:
                 "n_messages": None,
                 "n_unkeyed": None,
                 "n_unframed": None,
-                "partial": False,
+                "partial": None,
                 "error": error,
                 "connected_s": None,
                 "interval_s": None,

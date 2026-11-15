@@ -6,9 +6,11 @@ it goes to the spool exactly as downloaded, and the uploader stores it at
 `bronze/gtfs_static/dt=YYYY-MM-DD/<sha16>.zip` with a conditional write, like every snapshot.
 An unchanged ZIP is logged as `duplicate` and not stored again.
 
-Failures never stop the streams. A network error, a 5xx or 429, or a body that isn't a ZIP is
-retried with the shared backoff; any other 4xx (the file moved) waits for the next daily slot,
-because retrying every minute wouldn't help and would hammer someone else's server.
+Failures never stop the streams: the schedule changes about weekly, the streams are the data
+that can't be recovered (hard rule 3). A network error, a 5xx or 429, or a body that isn't a ZIP
+is retried with the shared backoff, at most MAX_RETRIES times in a row; any other 4xx (the file
+moved) waits for the next daily slot, because retrying wouldn't help and would hammer someone
+else's server. An unexpected exception is logged and treated as a failure, never raised.
 """
 
 import asyncio
@@ -29,14 +31,15 @@ from zoneinfo import ZoneInfo
 import httpx
 
 from ghostbus_ingest.backoff import backoff_delay
-from ghostbus_ingest.fetch_log import FetchLog
+from ghostbus_ingest.fetch_log import FetchLog, Outcome
 from ghostbus_ingest.logs import log_event
-from ghostbus_ingest.spool import Spool
+from ghostbus_ingest.spool import Spool, SpoolResult
 
 FEED = "gtfs_static"
 URL_KEY = "gtfs_bus_gitlab"
 TIMEOUT_S = 120.0  # spec 2.3
-MAX_BYTES = 200 * 1024 * 1024  # the ZIP is about 22 MB; refuse anything absurd (mem_limit 512m)
+MAX_BYTES = 64 * 1024 * 1024  # the ZIP is about 22 MB; the body is held in memory (mem_limit 512m)
+MAX_RETRIES = 10  # then wait for the next daily slot instead of asking every minute
 LA = ZoneInfo("America/Los_Angeles")
 _HHMM = re.compile(r"^([01]\d|2[0-3]):([0-5]\d)$")
 
@@ -75,6 +78,10 @@ def next_daily_run(now: float, daily_at: str) -> float:
     return candidate.timestamp()
 
 
+class _TooLarge(Exception):
+    pass
+
+
 class GtfsDownloader:
     def __init__(
         self, config: GtfsConfig, spool: Spool, fetch_log: FetchLog, client: httpx.AsyncClient
@@ -86,15 +93,23 @@ class GtfsDownloader:
         self.max_bytes = MAX_BYTES
         self.last_status: int | None = None  # of the latest attempt; None if it never got one
 
-    async def _get(self) -> tuple[int, bytes]:
-        """GET the ZIP, reading at most max_bytes + 1 so an oversized body is caught early."""
-        async with self.client.stream("GET", self.config.url, timeout=TIMEOUT_S) as response:
-            body = bytearray()
-            async for chunk in response.aiter_bytes():
-                body += chunk
-                if len(body) > self.max_bytes:
-                    break
-            return response.status_code, bytes(body)
+    async def _get(self) -> tuple[int, bytearray]:
+        """GET the ZIP within TIMEOUT_S in total. Stops reading just past max_bytes.
+
+        httpx's own timeout applies to each step (connect, each read), so a server trickling
+        bytes could hold a download open forever; asyncio.timeout bounds the whole request.
+        """
+        async with asyncio.timeout(TIMEOUT_S):
+            async with self.client.stream("GET", self.config.url) as response:
+                declared = response.headers.get("Content-Length", "")
+                if declared.isdigit() and int(declared) > self.max_bytes:
+                    raise _TooLarge(f"Content-Length {declared} exceeds {self.max_bytes}")
+                body = bytearray()  # returned as is: no second copy of up to 64 MB
+                async for chunk in response.aiter_bytes():
+                    body += chunk
+                    if len(body) > self.max_bytes:
+                        raise _TooLarge(f"body larger than {self.max_bytes} bytes")
+                return response.status_code, body
 
     async def download_once(self, now: float) -> str:
         """One attempt. Returns the outcome it logged."""
@@ -102,42 +117,46 @@ class GtfsDownloader:
         self.last_status = None
         try:
             status, body = await self._get()
-        except httpx.HTTPError as error:
+        except _TooLarge as error:
+            self.fetch_log.record_download(now, FEED, URL_KEY, "http_error", error=str(error))
+            return "http_error"
+        except (httpx.HTTPError, TimeoutError) as error:
             self.fetch_log.record_download(now, FEED, URL_KEY, "network_error", error=repr(error))
             return "network_error"
         self.last_status = status
         latency_ms = round((time.monotonic() - started) * 1000)
+        seen = Seen(status, latency_ms, len(body))
 
-        problem = None
-        if status != 200:
-            problem = f"HTTP {status}"
-        elif len(body) > self.max_bytes:
-            problem = f"body larger than {self.max_bytes} bytes"
-        elif not zipfile.is_zipfile(io.BytesIO(body)):
-            problem = "body is not a ZIP"  # an error page served with 200
+        # Hashing, the ZIP check, and the fsynced write of ~22 MB run in a thread so the
+        # streams' event loop isn't blocked.
+        return await asyncio.to_thread(self._store, now, bytes(body), seen)
+
+    def _store(self, now: float, body: bytes, seen: "Seen") -> str:
         sha = hashlib.sha256(body).hexdigest()
-        if problem:
-            self.fetch_log.record_download(
-                now, FEED, URL_KEY, "http_error",
-                http_status=status, latency_ms=latency_ms, body_len=len(body),
-                sha256=sha, error=problem,
-            )  # fmt: skip
-            return "http_error"
-
+        if seen.status != 200:
+            return self._log(now, "http_error", seen, sha, f"HTTP {seen.status}")
+        if not zipfile.is_zipfile(io.BytesIO(body)):
+            return self._log(now, "http_error", seen, sha, "body is not a ZIP")
         try:
             result = self.spool.write_file(FEED, now, body, sha)
         except OSError as error:  # a full disk: log it, try again later
-            self.fetch_log.record_download(
-                now, FEED, URL_KEY, "spool_error",
-                http_status=status, latency_ms=latency_ms, body_len=len(body),
-                sha256=sha, error=repr(error),
-            )  # fmt: skip
-            return "spool_error"
+            return self._log(now, "spool_error", seen, sha, repr(error))
+        return self._log(now, result.outcome, seen, sha, None, result)
+
+    def _log(
+        self,
+        now: float,
+        outcome: Outcome,
+        seen: "Seen",
+        sha: str,
+        error: str | None,
+        result: SpoolResult | None = None,
+    ) -> str:
         self.fetch_log.record_download(
-            now, FEED, URL_KEY, result.outcome, result=result,
-            http_status=status, latency_ms=latency_ms, body_len=len(body), sha256=sha,
+            now, FEED, URL_KEY, outcome, result=result, http_status=seen.status,
+            latency_ms=seen.latency_ms, body_len=seen.size, sha256=sha, error=error,
         )  # fmt: skip
-        return result.outcome
+        return outcome
 
     @staticmethod
     def should_retry(outcome: str, http_status: int | None) -> bool:
@@ -147,6 +166,23 @@ class GtfsDownloader:
         if outcome == "http_error" and http_status is not None and 400 <= http_status < 500:
             return http_status == 429  # rate limited: back off; any other 4xx won't fix itself
         return True
+
+    async def _attempt(self, stop: asyncio.Event, now: float) -> str | None:
+        """One download, cancelled if `stop` is set first (None). Never raises a bug."""
+        download = asyncio.create_task(self.download_once(now))
+        stopping = asyncio.create_task(stop.wait())
+        await asyncio.wait({download, stopping}, return_when=asyncio.FIRST_COMPLETED)
+        stopping.cancel()
+        if not download.done():
+            download.cancel()
+            with contextlib.suppress(asyncio.CancelledError):
+                await download
+            return None
+        try:
+            return download.result()
+        except Exception as error:  # a bug: log it, count it as a failure, keep going
+            log_event("gtfs_error", error=repr(error))
+            return "error"
 
     async def run(
         self,
@@ -164,8 +200,11 @@ class GtfsDownloader:
         pause = wait if wait is not None else sleep_or_stop
         failures = 0
         while not stop.is_set():
-            outcome = await self.download_once(clock())
-            if self.should_retry(outcome, self.last_status):
+            outcome = await self._attempt(stop, clock())
+            if outcome is None:
+                break
+            retry = self.should_retry(outcome, self.last_status)
+            if retry and failures < MAX_RETRIES - 1:
                 delay = backoff_delay(failures, rand=rand)
                 failures += 1
             else:
@@ -176,6 +215,15 @@ class GtfsDownloader:
             if stop.is_set():
                 break
             await pause(delay)
+
+
+@dataclass(frozen=True)
+class Seen:
+    """What the server sent: status, time to the full body, and its size."""
+
+    status: int
+    latency_ms: int
+    size: int
 
 
 __all__ = ["GtfsConfig", "GtfsDownloader", "load_gtfs", "next_daily_run"]

@@ -311,3 +311,33 @@ async def test_the_gtfs_zip_is_downloaded_on_start_and_uploaded_by_shutdown(
     assert len(gtfs_keys) == 1
     assert gtfs_keys[0].endswith(".zip")
     assert s3.objects[gtfs_keys[0]][0] == buf.getvalue()
+
+
+@async_test
+async def test_a_gtfs_crash_never_stops_the_streams(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    from ghostbus_ingest.gtfs import GtfsConfig, GtfsDownloader
+
+    async def broken(self: GtfsDownloader, stop: asyncio.Event, **kw: object) -> None:
+        raise RuntimeError("bug in the schedule loop")
+
+    monkeypatch.setattr(GtfsDownloader, "run", broken)
+    s3 = FakeS3()
+    vp = FakeMetro(fixture_frames("vehicle_positions_45s.jsonl.gz"))
+    async with fake_metro(vp) as vp_url:
+        feeds = {"vehicle_positions": FeedConfig("vehicle_positions", vp_url, 1)}
+        stop = asyncio.Event()
+        task = asyncio.create_task(
+            run_service(
+                settings_for(tmp_path), feeds, s3, stop,
+                gtfs=GtfsConfig("https://example.test/x.zip", "03:00"),
+                http=httpx.AsyncClient(),
+            )
+        )  # fmt: skip
+        await asyncio.sleep(2.5)
+        assert not task.done(), "the GTFS crash must not stop the service"
+        stop.set()
+        code = await asyncio.wait_for(task, timeout=10)
+    assert code == 0
+    assert any(k.startswith("bronze/vehicle_positions/") for k in s3.objects)

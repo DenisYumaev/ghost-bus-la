@@ -15,9 +15,9 @@ Walk through one call to `GtfsDownloader.download_once` when Metro has just publ
 <details>
 <summary>Model answer</summary>
 
-1. It streams the ZIP from GitLab with a 120 s timeout, reading at most 200 MB.
-2. It checks the response: status 200, not oversized, and actually a ZIP (`zipfile.is_zipfile`).
-3. It hashes the exact bytes (SHA-256). These bytes differ from the last ZIP it stored, so `Spool.write_file` writes them atomically (temp file, `fsync`, rename, directory `fsync`) as `gtfs_static/<fetch time>_<sha16>.zip`.
+1. It streams the ZIP from GitLab, with 120 s as a limit on the whole request, reading at most 64 MB (refused up front if `Content-Length` says more).
+2. In a worker thread, so the streams' event loop isn't blocked, it checks the response: status 200 and actually a ZIP (`zipfile.is_zipfile`).
+3. It hashes the exact bytes (SHA-256). These differ from the last stored hash, which is kept in `gtfs_static/last_sha256` so it survives restarts, so `Spool.write_file` writes them atomically (temp file, `fsync`, rename, directory `fsync`) as `gtfs_static/<fetch time>_<sha16>.zip`.
 4. It logs a `fetch` line with `outcome: written`, the HTTP status, latency, size and hash.
 5. Later, the uploader checks the file's hash against its name and stores it at `bronze/gtfs_static/dt=<UTC date>/<sha16>.zip` with `If-None-Match: *`.
 
@@ -66,7 +66,7 @@ The HTML page gets a new hash, so it's stored as a new **schedule version** in b
 <details>
 <summary>Model answer</summary>
 
-The backoff caps at 60 s, so ingest would request the missing file about once a minute, forever: about 1,440 pointless requests a day against someone else's server. A 404 won't fix itself. So `should_retry` waits for the next daily slot on any 4xx except 429 (rate limited, where backing off is the right response). The daily `http_error` line in the fetch log is the signal to fix the URL.
+The backoff caps at 60 s, so ingest would request the missing file about once a minute, forever: about 1,440 pointless requests a day against someone else's server. A 404 won't fix itself. So `should_retry` waits for the next daily slot on any 4xx except 429 (rate limited, where backing off is the right response). Even retryable failures stop after 10 in a row and wait for the daily slot. The daily `http_error` line in the fetch log is the signal to fix the URL.
 
 </details>
 
