@@ -21,6 +21,7 @@ from ghostbus_ingest.spool import SpoolResult, object_key, spool_name
 
 URL_KEY = "metro_ws"
 UPLOADED_SUFFIX = ".uploaded"
+Outcome = Literal["written", "duplicate", "http_error", "network_error", "spool_error"]
 _LOG_FILE = re.compile(r"dt=(\d{4}-\d{2}-\d{2})/hour=(\d{2})\.jsonl$")
 
 
@@ -112,6 +113,50 @@ class FetchLog:
             "ingest_version": self.ingest_version,
         }
         self._append(cut.cut_at, record)
+
+    def record_download(
+        self,
+        at: float,
+        feed: str,
+        url_key: str,
+        outcome: Outcome,
+        *,
+        result: SpoolResult | None = None,
+        http_status: int | None = None,
+        latency_ms: int | None = None,
+        body_len: int | None = None,
+        sha256: str | None = None,
+        error: str | None = None,
+    ) -> None:
+        """Log one HTTPS download attempt (the GTFS ZIP). Same `fetch` event and keys as a
+        snapshot, so one reader handles both; stream-only fields are null."""
+        self._append(
+            at,
+            {
+                "event": "fetch",
+                "fetched_at": iso_utc(at),
+                "feed": feed,
+                "url_key": url_key,
+                "http_status": http_status,
+                "latency_ms": latency_ms,
+                "bytes": body_len,
+                "bytes_gz": None,
+                "content_hash": sha256,
+                "object_key": result.object_key if result else None,
+                "spool_file": result.path.name if result and result.path else None,
+                "outcome": outcome,
+                "feed_header_ts": None,
+                "n_entities": None,
+                "n_messages": None,
+                "n_unkeyed": None,
+                "n_unframed": None,
+                "partial": None,
+                "error": error,
+                "connected_s": None,
+                "interval_s": None,
+                "ingest_version": self.ingest_version,
+            },
+        )
 
     def record_connection(
         self,

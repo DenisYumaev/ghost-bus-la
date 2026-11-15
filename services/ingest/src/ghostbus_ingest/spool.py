@@ -6,6 +6,7 @@ the detector could read it.
 
 Layout:
     <root>/<feed>/<YYYYMMDDTHHMMSSZ>_<sha16>.ndjson.gz   a snapshot, named by cut time
+    <root>/gtfs_static/<YYYYMMDDTHHMMSSZ>_<sha16>.zip    a schedule ZIP, named by fetch time
     <root>/<feed>/<same name>.uploaded                    marker: stored in S3 (written or 412)
     <root>/<feed>/<same name>.tmp                         in progress; never read
 """
@@ -19,12 +20,21 @@ from typing import Literal
 
 from ghostbus_ingest.snapshot import Snapshot
 
-FEEDS = frozenset({"vehicle_positions", "trip_updates"})
-EXTENSION = ".ndjson.gz"
+STREAM_FEEDS = frozenset({"vehicle_positions", "trip_updates"})
+EXTENSION = ".ndjson.gz"  # stream snapshots
+# What each feed stores. For a ZIP the hash is of the file itself; for a snapshot it is of the
+# uncompressed lines (ADR-004 decision 1).
+EXTENSIONS = {"vehicle_positions": EXTENSION, "trip_updates": EXTENSION, "gtfs_static": ".zip"}
+FEEDS = frozenset(EXTENSIONS)
+# Feeds whose last stored hash survives a restart. The GTFS ZIP is downloaded on every start and
+# its key holds the UTC date, so without this a restart on a new day would store an identical
+# 22 MB object again. Streams change every few seconds and don't need it.
+PERSIST_LAST_SHA = frozenset({"gtfs_static"})
+LAST_SHA_FILE = "last_sha256"
 UPLOADED_SUFFIX = ".uploaded"
 TMP_SUFFIX = ".tmp"
 CORRUPT_SUFFIX = ".corrupt"
-_SPOOL_NAME = re.compile(r"^(\d{4})(\d{2})(\d{2})T(\d{6})Z_([0-9a-f]{16})\.ndjson\.gz$")
+_SPOOL_NAME = re.compile(r"^(\d{4})(\d{2})(\d{2})T(\d{6})Z_([0-9a-f]{16})(\.ndjson\.gz|\.zip)$")
 
 
 def _utc(at: float) -> datetime:
@@ -42,11 +52,11 @@ def object_key(snap: Snapshot) -> str:
 
 
 def parse_spool_name(path: Path) -> tuple[datetime, str]:
-    """(cut time, sha16) from `<YYYYMMDDTHHMMSSZ>_<sha16>.ndjson.gz`."""
+    """(cut time, sha16) from `<YYYYMMDDTHHMMSSZ>_<sha16>.<ext>`."""
     match = _SPOOL_NAME.match(path.name)
     if match is None:
         raise ValueError(f"not a spool file name: {path.name!r}")
-    year, month, day, hms, sha16 = match.groups()
+    year, month, day, hms, sha16, _ext = match.groups()
     cut = datetime.strptime(f"{year}{month}{day}{hms}", "%Y%m%d%H%M%S").replace(tzinfo=UTC)
     return cut, sha16
 
@@ -55,9 +65,9 @@ def spool_object_key(path: Path) -> str:
     """The S3 key for a spool file: the same key `object_key` gives for its snapshot."""
     cut, sha16 = parse_spool_name(path)
     feed = path.parent.name
-    if feed not in FEEDS:
-        raise ValueError(f"spool file name {path} is not under a known feed directory")
-    return f"bronze/{feed}/dt={cut:%Y-%m-%d}/{sha16}{EXTENSION}"
+    if feed not in FEEDS or not path.name.endswith(EXTENSIONS[feed]):
+        raise ValueError(f"spool file name {path} doesn't match a known feed directory")
+    return f"bronze/{feed}/dt={cut:%Y-%m-%d}/{sha16}{EXTENSIONS[feed]}"
 
 
 @dataclass(frozen=True)
@@ -76,12 +86,32 @@ def _fsync_dir(directory: Path) -> None:
         os.close(fd)
 
 
+def _atomic_write(final: Path, body: bytes) -> None:
+    """Write via a temp file, fsync, rename, fsync the directory. A failure removes the temp
+    file, so a full disk doesn't fill up further with partial files."""
+    tmp = final.with_name(final.name + TMP_SUFFIX)
+    try:
+        with tmp.open("wb") as f:
+            f.write(body)
+            f.flush()
+            os.fsync(f.fileno())  # bytes on disk before the name becomes visible
+        os.replace(tmp, final)  # atomic: readers see the whole file or nothing
+    except BaseException:
+        tmp.unlink(missing_ok=True)
+        raise
+    _fsync_dir(final.parent)
+
+
 class Spool:
     def __init__(self, root: Path) -> None:
         self.root = root
         # Local duplicate shortcut (spec 2.4, step 2): the previous stored hash, per feed.
         # Memory only; after a restart S3's 412 is the authority.
         self._last_sha: dict[str, str] = {}
+        for feed in PERSIST_LAST_SHA:
+            saved = root / feed / LAST_SHA_FILE
+            if saved.exists():
+                self._last_sha[feed] = saved.read_text().strip()
 
     def _feed_dir(self, feed: str) -> Path:
         if feed not in FEEDS:
@@ -92,21 +122,22 @@ class Spool:
 
     def write_snapshot(self, snap: Snapshot) -> SpoolResult:
         """Store a snapshot atomically, or skip it if it repeats the previous one for its feed."""
-        directory = self._feed_dir(snap.feed)
-        key = object_key(snap)
-        if self._last_sha.get(snap.feed) == snap.sha256:
+        return self.write_file(snap.feed, snap.cut_at, snap.gz, snap.sha256)
+
+    def write_file(self, feed: str, at: float, body: bytes, sha256: str) -> SpoolResult:
+        """Store `body` atomically as `<at>_<sha16><ext>`, or skip it if `sha256` repeats the
+        feed's previous stored hash (spec 2.4, steps 2 and 3)."""
+        directory = self._feed_dir(feed)
+        name = f"{_utc(at):%Y%m%dT%H%M%SZ}_{sha256[:16]}{EXTENSIONS[feed]}"
+        key = f"bronze/{feed}/dt={_utc(at):%Y-%m-%d}/{sha256[:16]}{EXTENSIONS[feed]}"
+        if self._last_sha.get(feed) == sha256:
             return SpoolResult("duplicate", None, key)
 
-        final = directory / spool_name(snap)
-        tmp = final.with_name(final.name + TMP_SUFFIX)
-        with tmp.open("wb") as f:
-            f.write(snap.gz)
-            f.flush()
-            os.fsync(f.fileno())  # bytes on disk before the name becomes visible
-        os.replace(tmp, final)  # atomic: readers see the whole file or nothing
-        _fsync_dir(directory)
-
-        self._last_sha[snap.feed] = snap.sha256  # only after the write succeeded
+        final = directory / name
+        _atomic_write(final, body)
+        self._last_sha[feed] = sha256  # only after the write succeeded
+        if feed in PERSIST_LAST_SHA:
+            _atomic_write(directory / LAST_SHA_FILE, (sha256 + "\n").encode())
         return SpoolResult("written", final, key)
 
     def pending(self) -> list[Path]:
@@ -116,7 +147,7 @@ class Spool:
             for feed in sorted(FEEDS)
             if (self.root / feed).is_dir()
             for path in (self.root / feed).iterdir()
-            if path.name.endswith(EXTENSION) and not self.is_uploaded(path)
+            if path.name.endswith(EXTENSIONS[feed]) and not self.is_uploaded(path)
         ]
         return sorted(files, key=lambda p: (p.name, p.parent.name))
 
@@ -146,7 +177,7 @@ class Spool:
             directory = self.root / feed
             if not directory.is_dir():
                 continue
-            for path in directory.glob("*" + EXTENSION):
+            for path in directory.glob("*" + EXTENSIONS[feed]):
                 cut, _sha16 = parse_spool_name(path)
                 if self.is_uploaded(path) and now - cut.timestamp() > keep_s:
                     path.unlink()

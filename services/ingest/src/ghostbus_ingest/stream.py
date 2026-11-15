@@ -26,7 +26,7 @@ from websockets.exceptions import ConnectionClosed, InvalidHandshake, InvalidURI
 from ghostbus_ingest.backoff import backoff_delay
 from ghostbus_ingest.fetch_log import FetchLog
 from ghostbus_ingest.snapshot import Snapshot, SnapshotBuffer, next_grid_point
-from ghostbus_ingest.spool import FEEDS, Spool
+from ghostbus_ingest.spool import STREAM_FEEDS, Spool
 
 # ADR-021: name the project; the repository is the contact route, no personal email.
 USER_AGENT = (
@@ -47,8 +47,10 @@ def load_feeds(path: Path) -> dict[str, FeedConfig]:
     raw = tomllib.loads(path.read_text())
     feeds: dict[str, FeedConfig] = {}
     for name, entry in raw.get("feeds", {}).items():
-        if name not in FEEDS:
-            raise ValueError(f"unknown feed {name!r} in {path}; expected one of {sorted(FEEDS)}")
+        if name not in STREAM_FEEDS:
+            raise ValueError(
+                f"unknown feed {name!r} in {path}; expected one of {sorted(STREAM_FEEDS)}"
+            )
         url, interval = entry["url"], entry["interval_s"]
         if not url.startswith("wss://"):
             raise ValueError(f"feed {name!r}: url must start with wss:// (got {url!r})")
