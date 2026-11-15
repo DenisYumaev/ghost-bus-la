@@ -1,6 +1,6 @@
 # ADR-021: Realtime source is the Metro API WebSocket; cancellations come from trip updates
 
-- **Status:** Proposed. Accepted in M0's closing PR, once one full day of snapshot sizes has been measured and decision 3's cadences are final. Until then, ingest is built on decisions 1, 2, and 4 to 7 as written here
+- **Status:** Accepted 2026-11-15, on the measured day (`docs/research/measured-day-2026-11-14.md`). Decision 3's cadences are final
 - **Date:** 2026-11-12
 - **Supersedes:** ADR-001 decisions 1 and 3 (on acceptance)
 - **Evidence:** `docs/research/day1-probe.md`, run 2026-11-11
@@ -23,12 +23,12 @@ ADR-001 assumed HTTP polling of the Metro API: its realtime endpoints every 30 s
 
    *Clarifies ADR-001 decision 2.* A WebSocket has no single "response" to store. Here "raw" means each message's bytes are unchanged. Which messages a snapshot contains and in what order is our framing; it is deterministic and defined in this decision.
 
-3. **Cadence (provisional).** `vehicle_positions` every 30 seconds, `trip_updates` every 60 seconds. These are starting points. One full day of M0 data sets the final values, and the measured daily volume, raw and compressed, is recorded here before this ADR is accepted.
+3. **Cadence.** `vehicle_positions` every 30 seconds, `trip_updates` every 60 seconds. These started as provisional values; the measured day (2026-11-14, about 0.49 GB a day gzipped across both feeds) confirmed them, so they are final. Storage grows about 15 GB a month, roughly $0.35 a month more each month at S3 Standard list price.
 
-   | Feed | Snapshot every | Uncompressed per day (from probe cycle sizes) | Compressed per day |
+   | Feed | Snapshot every | Uncompressed per day, measured 2026-11-14 | Compressed per day |
    | --- | --- | --- | --- |
-   | `vehicle_positions` | 30 s | about 1.3 GB | measured in M0 |
-   | `trip_updates` | 60 s | about 5 GB | measured in M0 |
+   | `vehicle_positions` | 30 s | 1.18 GB (probe estimate: about 1.3 GB) | 129.5 MB |
+   | `trip_updates` | 60 s | 5.85 GB (probe estimate: about 5 GB) | 364.0 MB |
 
 4. **Completeness.** If the connection was down for the whole interval, write nothing and log `network_error`. If it was down for part of the interval, write what arrived and log `partial = true`. The stream has no end-of-loop marker, so completeness is judged by connection coverage instead: a snapshot is complete when the connection stayed up for the whole interval, and partial otherwise. The fetch log also records `connected_s`. This holds because the slowest measured reappearance of any entity was 6.74 s, well under the 30 s shortest interval (`docs/research/ws-cycle-timing.md`, 2026-11-12).
 
@@ -53,7 +53,7 @@ Metro's realtime data only shows what's happening right now, so if I'm not recor
 
 - `trip_updates` is the critical stream: the alerts and the M1 advance-notice gate depend on it, and it is about 85% of the raw volume.
 - The fetch log's `http_status` is `null` for WebSocket feeds. Each disconnect is logged with its close code. The example in `docs/spec/01-data-pipeline.md` section 2.5, with a `.pb` key and HTTP status 200, predates this ADR and is corrected in the ingest PRs.
-- Expected S3 writes at these cadences are about 4,320 a day (2,880 plus 1,440), before the GTFS download and hourly fetch-log files. Storage cost is recorded after the measured day.
+- S3 writes at these cadences: 4,316 snapshot uploads on the measured day (expected 4,320, 2,880 plus 1,440, less four cuts with no connection), plus 24 fetch-log files and the occasional GTFS ZIP. Cost is in the measured-day report.
 - The local duplicate shortcut (`docs/spec/01-data-pipeline.md` section 2.4, step 2) will rarely fire on streams that change every few seconds. Content-addressed keys with conditional writes remain the real idempotency guarantee (ADR-004).
 - Ingest identifies itself with `User-Agent: ghost-bus-la/<version> (+https://github.com/DenisYumaev/ghost-bus-la)`. The repository is the contact route; no personal email address is sent to Metro.
 - If the stream changes shape, the raw bytes are still archived, and the schema-fingerprint check (pipeline spec, section 10) flags it.
