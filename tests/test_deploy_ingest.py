@@ -60,7 +60,10 @@ def test_commands_carry_the_compose_file_and_run_the_remote_script() -> None:
     assert commands[-1] == "bash /tmp/ghost-bus-la-deploy.sh"
 
 
-@pytest.mark.parametrize("bad", ["main", "dd166b2", SHA.upper(), SHA + "0", "x; rm -rf /"])
+@pytest.mark.parametrize(
+    "bad",
+    ["main", "dd166b2", SHA.upper(), SHA + "0", "x; rm -rf /", SHA + "\n", SHA + "\nid", " " + SHA],
+)
 def test_only_a_full_lowercase_sha_is_accepted(bad: str, ssm: tuple[Any, Stubber]) -> None:
     client, _stub = ssm  # nothing queued: any SSM call would fail the test
     with pytest.raises(ValueError, match="SHA"):
