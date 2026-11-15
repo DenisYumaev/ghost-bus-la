@@ -9,7 +9,7 @@ A rider-facing product for LA Metro bus riders: reliability lookup by line and s
 It is also a portfolio project with two goals, in this order:
 
 1. **Make the resume entry in `docs/SPEC.md` section 1 true and measurable.** Every feature traces to a line there.
-2. **Teach the owner.** He must be able to explain and defend every file. `docs/spec/06-learning.md` makes that concrete; its merge gate is binding.
+2. **Teach the owner.** He must be able to defend the design in an interview. Since ADR-022 there is no quiz gate; `docs/learning/interview-decisions.md` is the record of trade-offs he must be able to explain. The owner wants to finish as fast as possible.
 
 ## Read before working
 
@@ -26,13 +26,14 @@ Precedence: accepted ADRs, then component specs, then `docs/SPEC.md`, then this 
 
 ## How to work with the owner
 
-Follow the loop in `docs/spec/06-learning.md` section 2 on every PR: **brief → owner predicts → plan → build (tests first) → walkthrough → quiz → owner breaks something → log.**
+Follow the loop in `docs/spec/06-learning.md` section 2 on every PR, trimmed by ADR-022: **brief → plan → build (tests first) → walkthrough → record the quiz.**
 
 - Predictions are optional and paused at the owner's request since 2026-11-12 (ADR-003). When they resume, ask for the prediction before showing your plan.
 - Explain each non-trivial choice in one or two sentences, with the main alternative you rejected. Define a new term the first time it appears.
 - **Do not write the seven owner-written pieces** (learning spec, section 3). Write their tests and fixtures, leave the implementation as a marked TODO, then review his work like a staff engineer.
 - Keep PRs small enough to explain in 15 minutes (about 400 changed lines, generated files aside).
-- After the walkthrough, record five quiz questions in `docs/learning/quizzes/` and add the PR to `docs/learning/owed.md`. A PR may merge with its quiz owed; a milestone isn't done until every owed quiz scores 4 of 5 (ADR-003). Don't accept vague answers.
+- After the walkthrough, record five quiz questions in `docs/learning/quizzes/` and add the PR to `docs/learning/owed.md`. Don't ask the owner to take them; they gate nothing (ADR-022). If he does answer one, grade it strictly.
+- In every PR that makes or changes a decision worth defending, add or update its entry in `docs/learning/interview-decisions.md`.
 - When reviewing his code, point out problems and let him fix them. Don't rewrite silently.
 - The owner is new to SQL and to most of this stack, and strong in Python and statistics. Pitch explanations accordingly.
 
@@ -85,7 +86,8 @@ Add `make dbt`, `make backfill START= END=`, and `make resume-metrics` as those 
 - [ ] Idempotency and failure behavior covered by a test where relevant
 - [ ] Docs updated: spec if behavior changed, runbook if an alert was added, ADR if a decision was made
 - [ ] No new `VERIFY` left unrecorded
-- [ ] Walkthrough given; quiz recorded and listed in `docs/learning/owed.md` (passing it and "What I learned" are due by the end of the milestone, ADR-003)
+- [ ] Walkthrough given; quiz recorded and listed in `docs/learning/owed.md` (optional for the owner, ADR-022)
+- [ ] `docs/learning/interview-decisions.md` updated if a decision was made or changed
 - [ ] PR description: what, why, how tested, spec section, trade-offs
 
 ## Commit and branch conventions
@@ -96,10 +98,10 @@ Branches `<type>/<short-topic>` (`feat/…`, `fix/…`, `docs/…`, `infra/…`,
 
 Update this section at the end of every session.
 
-- **As of Nov 12, 2026 (M0 in progress). Nothing is archiving yet:** ingest isn't deployed.
-- **Merged (PRs #1–#10):** ADR-021 (Proposed until the measured day), ADR-003 (Proposed; quiz gate moved to the milestone), ADR-004 (Proposed; both `VERIFY` items passed, accepted after the owner's Why rewrite); repo scaffold with CI (`python`, `infra`, `security`); conditional-write self-test (`make selftest-s3`); recorded WebSocket fixtures; `ghostbus_ingest/snapshot.py` (pure snapshot logic).
-- **Live in AWS (Terraform, owner-approved applies):** state bucket `ghost-bus-la-tfstate-<acct>` (bootstrap, local state in `infra/bootstrap/terraform.tfstate`); data bucket `la-ghost-bus-bronze-<acct>` and budget `la-ghost-bus-monthly`, **imported** from the scrapped repo (its old state retired as `../la-ghost-bus/infra/terraform.tfstate.retired-2026-11-12`), with the ADR-004 policy and 50/80/100% alerts; VM `i-047b5f055d9425e38` (t4g.small, SSM only, no inbound), role `ghost-bus-la-app`, status-check alarms to SNS `ghost-bus-la-ops-alerts`. Main config state is in S3; `infra/backend.hcl` and `infra/terraform.tfvars` are local and gitignored.
-- **Owner's learning work is deferred** and tracked in `docs/learning/owed.md` (quizzes 001–009, What I learned, Why rewrites for ADR-003 and ADR-004). All of it is due before M0 closes (ADR-003). Predictions are paused.
+- **As of Nov 15, 2026 (M0 in progress, two days past its dates). Nothing is archiving yet:** the deploy tooling is merged but has never been run against the VM.
+- **Merged (PRs #1–#19):** ADR-021, ADR-003, ADR-004 (all Proposed; see their status lines); repo scaffold with CI; conditional-write self-test (`make selftest-s3`); WebSocket fixtures; the whole ingest service: snapshot core, spool and fetch log, S3 write with backoff, uploader, stream runner, entry point, `/healthz` and heartbeat, Docker image built in CI and published to GHCR, laptop deploy tool with health-gated rollback, runbook entries.
+- **Live in AWS (Terraform, owner-approved applies):** state bucket `ghost-bus-la-tfstate-<acct>` (bootstrap, local state in `infra/bootstrap/terraform.tfstate`); data bucket `la-ghost-bus-bronze-<acct>` and budget `la-ghost-bus-monthly`, imported from the scrapped repo, with the ADR-004 policy and 50/80/100% alerts; VM `i-047b5f055d9425e38` (t4g.small, SSM only, no inbound), role `ghost-bus-la-app`, status-check alarms to SNS `ghost-bus-la-ops-alerts`. Main config state is in S3; `infra/backend.hcl` and `infra/terraform.tfvars` are local and gitignored.
+- **Learning (ADR-022, 2026-11-15):** no quiz gate. Quizzes 001–017 are recorded and optional. Interview prep lives in `docs/learning/interview-decisions.md`. Predictions are paused. Still open: the owner's Why rewrites for ADR-003, ADR-004 and ADR-022.
 - **Measured** (`docs/research/ws-cycle-timing.md`): every entity reappears within 6.74 s; first size estimate about 0.65 GB a day gzipped across both feeds.
-- **Next in M0:** spool and fetch log, uploader, WebSocket client, then deploy (archive starts), GTFS download, the measured day, drills 1 and 2. Also owed by the owner: request a Swiftly key, read Metro's terms, confirm the SNS email subscription.
+- **Next in M0:** first deploy (archive starts), GTFS download, the measured day, drills 1 and 2. Owed by the owner: request a Swiftly key, read Metro's terms, confirm the SNS email subscription.
 - **Workflow notes:** merge with merge commits, not squash. Retarget stacked PRs to `main` before merging their parent with `--delete-branch` (deleting a base branch closes child PRs).

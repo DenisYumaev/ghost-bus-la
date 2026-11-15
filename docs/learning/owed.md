@@ -1,6 +1,6 @@
 # Owed learning work
 
-Everything the owner still has to do for each PR. The owner deferred these on 2026-11-12 so the build could keep moving. Claude adds a row with every new PR and ticks items off when they're done.
+A study backlog, not a blocker. Since ADR-022 (2026-11-15), quizzes and "What I learned" notes are optional and gate neither merges nor milestones. Claude still adds a row with every new PR and ticks items off when they're done. For interview prep, start with `interview-decisions.md`.
 
 **How to clear an item**
 
@@ -8,7 +8,7 @@ Everything the owner still has to do for each PR. The owner deferred these on 20
 - **What I learned:** write 3 to 5 sentences in the space below, in your own words. Claude copies it into the PR description.
 - **Why rewrite:** edit the ADR's "Why" section directly and delete its `OWNER` marker line.
 
-All quizzes are in `docs/learning/quizzes/` on `main`. PRs merge with their quiz owed; everything here is due before the milestone closes (ADR-003).
+All quizzes are in `docs/learning/quizzes/` on `main`. Take them whenever you have time.
 
 ## Status
 
@@ -32,7 +32,7 @@ All quizzes are in `docs/learning/quizzes/` on `main`. PRs merge with their quiz
 | [#18](https://github.com/DenisYumaev/ghost-bus-la/pull/18) | Docker image and CI build | [ ] [016](quizzes/016-ingest-image.md) | [ ] | n/a | n/a |
 | [#19](https://github.com/DenisYumaev/ghost-bus-la/pull/19) | Deploy ingest to the VM | [ ] [017](quizzes/017-deploy-ingest.md) | [ ] | n/a | Not yet |
 
-**Suggested order:** 004, 005, and 006 first, because they describe what is live in AWS right now. Then 002, 001, and 003.
+**Suggested order, if you take them:** 004, 005, and 006 first, because they describe what is live in AWS right now. Then 002, 001, and 003.
 
 ## What I learned (drafts)
 

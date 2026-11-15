@@ -25,9 +25,9 @@ By M8 the owner can, without notes:
 | 7. Break | Owner | Break one thing on purpose (delete a line, feed bad input) and predict the failure before running it |
 | 8. Log | Owner | Three lines in `docs/learning/daily-log.md`: learned, confused by, question for tomorrow |
 
-**Gate (ADR-003):** a PR may merge once CI passes, with its quiz and "What I learned" owed and tracked in `docs/learning/owed.md`. A milestone isn't done, and the next doesn't start, until the owner has scored at least 4 of 5 on every owed quiz and written every "What I learned" in his own words. If the score is lower, Claude re-explains the weak area a different way and asks new questions. Claude must not soften the questions or accept vague answers.
+**Gate (ADR-022, superseding ADR-003's gate):** there is no quiz gate. Claude still writes each PR's quiz into `docs/learning/quizzes/` and lists it in `docs/learning/owed.md`; the owner takes quizzes when he chooses. Every PR that makes or changes a decision worth defending updates `docs/learning/interview-decisions.md`.
 
-**When time is short,** steps 2 and 7 may be skipped for pure boilerplate (config, Dockerfiles, CI plumbing). Steps 5 and 6 are never skipped.
+**When time is short,** steps 2 and 7 may be skipped for pure boilerplate (config, Dockerfiles, CI plumbing). Step 5 is never skipped; step 6 is recorded, not taken (ADR-022).
 
 ## 3. Owner-written core
 

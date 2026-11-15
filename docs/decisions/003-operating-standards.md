@@ -1,6 +1,6 @@
 # ADR-003: Operating standards: explain-back merge gate, SLOs, incident log, tools on evidence
 
-- **Status:** Proposed
+- **Status:** Proposed. Decision 1 (the explain-back gate) superseded by ADR-022 on 2026-11-15; decisions 2 to 4 stand
 - **Date:** 2026-11-12
 - **Evidence:** `docs/spec/06-learning.md` (the loop and merge gate); `docs/spec/05-infra-ops.md` sections 8 (SLOs) and 14 (incidents); ADR-002 (the project's purpose)
 
