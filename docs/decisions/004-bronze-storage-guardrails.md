@@ -1,6 +1,6 @@
 # ADR-004: Bronze storage and guardrails: content-addressed keys, conditional writes, deny-delete, instance role, remote state
 
-- **Status:** Proposed. Both `VERIFY` items were confirmed on 2026-11-12 (results below). Accepted once the owner's "Why" rewrite lands, because accepted ADRs can't be edited (CLAUDE.md hard rule 13)
+- **Status:** Accepted 2026-11-15, on the `VERIFY` results below (confirmed 2026-11-12). Claude writes the "Why" (ADR-022)
 - **Date:** 2026-11-12
 - **Supersedes:** ADR-001 decision 6's key format and duplicate check. Its partitioning by UTC fetch date and its fetch log stand
 - **Evidence:** `docs/spec/01-data-pipeline.md` sections 2.4, 2.5, and 3; `docs/spec/05-infra-ops.md` section 2; ADR-021
@@ -71,14 +71,12 @@ Both `VERIFY` items hold. Cleanup deleted every version, and the bucket held 0 o
 
 ## Why
 
-<!-- OWNER: rewrite this paragraph in your own words before this PR merges (SPEC.md section 5). -->
-
 If the key is a hash of the content, the same snapshot always lands on the same key, so a retry, a restart, or a second uploader can't create a duplicate. With a conditional write, the "does it exist?" check and the write happen as one step inside S3, so there is no race to lose. Putting the deny rules in the bucket policy means "bronze is sacred" holds even when the code has a bug or a person makes a mistake at the terminal. An instance role means there is no long-lived key on the VM to leak, which matters after the November 10 incident.
 
 ## Alternatives considered
 
 - **Fetch time in the key, with list-before-write deduplication** (ADR-001 decision 6). There is a race: two writers both list, both see nothing, and both write. Every write also pays for a list request. S3's strong read-after-write consistency doesn't help, because the check and the write are still two separate requests.
-- **S3 Object Lock** instead of a deny policy. Stronger: even the root user can't delete locked objects. But once Object Lock is enabled on a bucket it can never be disabled, and it needs retention periods for every object. The deny policy can be removed only by a deliberate, reviewed policy change, which is enough to stop bugs and accidents, the realistic threats here.
+- **S3 Object Lock** instead of a deny policy. Stronger: even the root user can't delete locked objects. But once Object Lock is enabled on a bucket it can never be disabled, and it needs retention periods for every object. The deny policy stops bugs and accidents in every normal code path, the realistic threats here. It does not stop a determined administrator: the policy itself can be deleted outside Terraform, and the root user can always do so. That residual risk is accepted; Object Lock is the answer if insiders become the threat.
 - **Moving old bronze objects to a colder storage class.** Each transition is charged per object, and the infrequent-access classes bill a 128 KB minimum per object. With thousands of small snapshots a day, the fees can exceed the saving. Compaction into `derived/` already handles query performance. Revisit after the M0 size measurement.
 - **Access keys on the VM, or in GitHub.** Long-lived keys leak (2026-11-10). Instance roles and OIDC issue short-lived credentials automatically.
 - **A DynamoDB table for state locking.** The older pattern; native S3 lock files replace it with one less resource.
@@ -89,7 +87,7 @@ If the key is a hash of the content, the same snapshot always lands on the same 
 - A 64-bit hash prefix means a different snapshot could, in theory, collide with an existing key and be treated as a duplicate. With about 2,880 snapshots per feed per day, the chance within one day's partition is about 2 in 10 trillion. The full hash in the fetch log would show it.
 - The same bytes fetched on two different UTC days are stored twice, once per `dt` partition. That's harmless, and it keeps every day's partition self-contained.
 - The data bucket is the one imported from the scrapped repo (owner's decision, 2026-11-11), so its name is `la-ghost-bus-bronze-<account>` even though it holds `derived/` and `selftest/` as well. Bucket names can't be changed.
-- Removing the deny policy takes a Terraform change and an `apply` the owner approves (CLAUDE.md hard rule 8), which is the intended friction.
+- Within this project's process, removing the deny policy takes a Terraform change and an `apply` the owner approves (CLAUDE.md hard rule 8), which is the intended friction. AWS itself doesn't enforce that path: an administrator could delete the policy directly.
 
 ## Would change if
 

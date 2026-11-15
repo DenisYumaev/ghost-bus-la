@@ -1,6 +1,6 @@
 # 06 · Learning plan
 
-Claude Code writes most of the code. The owner's job is to understand all of it well enough to direct it, catch its mistakes, and defend it in an interview. This file defines how that happens. It is binding on Claude Code: the merge gate in section 2 applies to every PR.
+Claude Code writes most of the code. The owner's job is to understand all of it well enough to direct it, catch its mistakes, and defend it in an interview. This file defines how that happens. Since ADR-022 (2026-11-15) nothing in it gates a merge or a milestone. Claude writes all code; steps marked optional below are practice the owner does when he chooses.
 
 ## 1. The standard
 
@@ -17,21 +17,23 @@ By M8 the owner can, without notes:
 | Step | Who | What |
 | --- | --- | --- |
 | 1. Brief | Claude | State the goal, the spec section, and the constraints in under 10 lines |
-| 2. Predict | Owner | Write 5 to 10 lines in `docs/learning/predictions/NNN-<topic>.md`: how would I build this, and what could go wrong? No peeking |
+| 2. Predict (optional, ADR-022) | Owner | Write 5 to 10 lines in `docs/learning/predictions/NNN-<topic>.md`: how would I build this, and what could go wrong? No peeking |
 | 3. Plan | Claude | Present the plan; compare it with the prediction; name what the prediction missed and what it got right |
 | 4. Build | Claude | Tests first, then implementation, in small commits |
-| 5. Walkthrough | Claude | Explain the diff file by file: what, why, the main alternative rejected. Define every new term once |
-| 6. Quiz | Claude asks, owner answers | Five questions: two "what does this do", two "what breaks if…", one "how would you change it to…". Log questions and answers in `docs/learning/quiz-log.md` |
-| 7. Break | Owner | Break one thing on purpose (delete a line, feed bad input) and predict the failure before running it |
-| 8. Log | Owner | Three lines in `docs/learning/daily-log.md`: learned, confused by, question for tomorrow |
+| 5. Walkthrough | Claude | Written in the PR description (ADR-022): each file, what, why, the main alternative rejected. Define every new term once |
+| 6. Quiz | Claude records | Five questions with model answers in `docs/learning/quizzes/`: two "what does this do", two "what breaks if…", one "how would you change it to…". The owner takes them when he chooses; scores go in `docs/learning/quiz-log.md` |
+| 7. Break (optional) | Owner | Break one thing on purpose (delete a line, feed bad input) and predict the failure before running it |
+| 8. Log (optional) | Owner | Three lines in `docs/learning/daily-log.md`: learned, confused by, question for tomorrow |
 
-**Gate (ADR-003):** a PR may merge once CI passes, with its quiz and "What I learned" owed and tracked in `docs/learning/owed.md`. A milestone isn't done, and the next doesn't start, until the owner has scored at least 4 of 5 on every owed quiz and written every "What I learned" in his own words. If the score is lower, Claude re-explains the weak area a different way and asks new questions. Claude must not soften the questions or accept vague answers.
+**Gate (ADR-022, superseding ADR-003's gate):** there is no quiz gate. Claude still writes each PR's quiz into `docs/learning/quizzes/` and lists it in `docs/learning/owed.md`; the owner takes quizzes when he chooses. Every PR that makes or changes a decision worth defending updates `docs/learning/interview-decisions.md`.
 
-**When time is short,** steps 2 and 7 may be skipped for pure boilerplate (config, Dockerfiles, CI plumbing). Steps 5 and 6 are never skipped.
+**When time is short,** steps 2 and 7 may be skipped for pure boilerplate (config, Dockerfiles, CI plumbing). Step 5 is never skipped; step 6 is recorded, not taken (ADR-022).
 
-## 3. Owner-written core
+## 3. Owner-written core (superseded by ADR-022)
 
-Seven pieces the owner writes by hand, because interviews test writing, not reading. For each, Claude writes the tests and fixtures first, gives hints only when asked, and reviews the result like a staff engineer: correctness, edge cases, naming, performance. Claude does not write the implementation.
+**Since 2026-11-15, Claude writes all seven pieces**, with property-based tests, hand-checked fixtures, and an independent reviewer pass (ADR-022). The rewrite drill is dropped. The table stays as the list of the project's most important code, worth studying for interviews.
+
+~~Seven pieces the owner writes by hand.~~ Superseded: Claude writes them (see the note above).
 
 | # | Piece | File | Milestone | Skill it builds |
 | --- | --- | --- | --- | --- |
@@ -43,9 +45,7 @@ Seven pieces the owner writes by hand, because interviews test writing, not read
 | 6 | Commute matching query | `services/detector/matching.py` | M3 | Joins with time logic, idempotent inserts |
 | 7 | Cluster bootstrap | `analysis/bootstrap.py` | M6 | Statistics in code, reproducibility |
 
-**Rewrite drill:** one week after each piece merges, rewrite it from a blank file in 45 minutes without looking. If that fails, study it and repeat three days later.
-
-If a milestone is slipping, Claude may write piece 5 or 7, and the owner then does the rewrite drill twice. Pieces 1, 2, 3, 4, and 6 are always owner-written.
+~~Rewrite drill~~ and the owner-written rule: dropped by ADR-022. Rewriting a piece from a blank file is still good interview practice if there's time.
 
 ## 4. Daily schedule (12 hours, 6 days a week)
 
@@ -56,9 +56,9 @@ If a milestone is slipping, Claude may write piece 5 or 7, and the owner then do
 | Project | 6 | The loop in section 2 |
 | Fundamentals | 1 | Reading matched to the milestone (section 5) |
 | Interview prep and outreach | 1 | Behavioral stories, explaining the project aloud, rider outreach, applications |
-| Review | 1 | Yesterday's quiz misses; rewrite drills; flashcards for definitions |
+| Review | 1 | Optional: quiz misses; `interview-decisions.md` aloud; flashcards for definitions |
 
-Take the seventh day off. Stop the project block if the quiz score falls: more hours past that point produce code the owner can't explain.
+Take the seventh day off. (The old rule to stop the project block when quiz scores fall is dropped, ADR-022.)
 
 ## 5. Concept map: what to learn when
 
@@ -85,7 +85,7 @@ Every seventh project day, 60 minutes, recorded:
 4. **One timed SQL problem and one timed DSA problem.**
 5. **Decide:** what was weakest; which block gets an extra hour next week.
 
-Record the scores in `docs/learning/checkpoints.md`. Two weak checkpoints in a row mean the next milestone's P1 items are dropped in favor of consolidation.
+Record the scores in `docs/learning/checkpoints.md`. Checkpoints are optional practice and gate nothing (ADR-022).
 
 ## 7. Question bank
 
@@ -147,8 +147,7 @@ Write each as situation, action, result, and what changed afterwards, in 90 seco
 ## 9. What Claude Code does differently because of this file
 
 - Explains as it goes; defines each new term once; never assumes background the owner hasn't shown
-- Asks for the prediction before presenting a plan
-- Refuses to write the seven owner-written pieces, and says why
+- Writes the seven core pieces to the ADR-022 test bar and gets each one independently reviewed
 - Keeps PRs small enough to explain in 15 minutes (under about 400 changed lines, excluding generated files)
 - Ends each working session by asking the owner to state, in two sentences, what was built and why
 - Flags when the owner's answers show a gap, and proposes a short exercise to close it

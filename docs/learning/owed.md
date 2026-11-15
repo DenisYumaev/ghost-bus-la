@@ -1,14 +1,14 @@
 # Owed learning work
 
-Everything the owner still has to do for each PR. The owner deferred these on 2026-11-12 so the build could keep moving. Claude adds a row with every new PR and ticks items off when they're done.
+A study backlog, not a blocker. Since ADR-022 (2026-11-15), quizzes and "What I learned" notes are optional and gate neither merges nor milestones. Claude still adds a row with every new PR and ticks items off when they're done. For interview prep, start with `interview-decisions.md`.
 
 **How to clear an item**
 
 - **Quiz:** open the file from its link, write your answers under each question, tell Claude, and get graded (4 of 5 to pass).
 - **What I learned:** write 3 to 5 sentences in the space below, in your own words. Claude copies it into the PR description.
-- **Why rewrite:** edit the ADR's "Why" section directly and delete its `OWNER` marker line.
+- **Why rewrite:** no longer needed; Claude writes ADR "Why" sections (ADR-022). The column is kept for history.
 
-All quizzes are in `docs/learning/quizzes/` on `main`. PRs merge with their quiz owed; everything here is due before the milestone closes (ADR-003).
+All quizzes are in `docs/learning/quizzes/` on `main`. Take them whenever you have time. Quiz headers that say "You need 4 of 5 before M0 closes" predate ADR-022; they no longer apply.
 
 ## Status
 
@@ -16,7 +16,7 @@ All quizzes are in `docs/learning/quizzes/` on `main`. PRs merge with their quiz
 | --- | --- | --- | --- | --- | --- |
 | [#1](https://github.com/DenisYumaev/ghost-bus-la/pull/1) | ADR-021, realtime source | [ ] [001](quizzes/001-adr-021.md) | [ ] | [x] ADR-021 | n/a |
 | [#2](https://github.com/DenisYumaev/ghost-bus-la/pull/2) | Repo scaffold | [ ] [002](quizzes/002-scaffold.md) | [ ] | n/a | n/a |
-| [#3](https://github.com/DenisYumaev/ghost-bus-la/pull/3) | ADR-003 and ADR-004 | [ ] [003](quizzes/003-adr-003-004.md) | [ ] | [ ] ADR-003, [ ] ADR-004 | n/a |
+| [#3](https://github.com/DenisYumaev/ghost-bus-la/pull/3) | ADR-003 and ADR-004 | [ ] [003](quizzes/003-adr-003-004.md) | [ ] | n/a (ADR-022) | n/a |
 | [#4](https://github.com/DenisYumaev/ghost-bus-la/pull/4) | Terraform state bucket | [ ] [004](quizzes/004-infra-bootstrap.md) | [ ] | n/a | Yes, 2026-11-12 |
 | [#5](https://github.com/DenisYumaev/ghost-bus-la/pull/5) | Data bucket import, policy, budget | [ ] [005](quizzes/005-infra-data-bucket.md) | [ ] | n/a | Yes, 2026-11-12 |
 | [#7](https://github.com/DenisYumaev/ghost-bus-la/pull/7) | VM, role, recovery alarms | [ ] [006](quizzes/006-infra-vm.md) | [ ] | n/a | Yes, 2026-11-12 |
@@ -30,9 +30,9 @@ All quizzes are in `docs/learning/quizzes/` on `main`. PRs merge with their quiz
 | [#16](https://github.com/DenisYumaev/ghost-bus-la/pull/16) | Service entry point | [ ] [014](quizzes/014-ingest-service.md) | [ ] | n/a | n/a |
 | [#17](https://github.com/DenisYumaev/ghost-bus-la/pull/17) | Health check and heartbeat | [ ] [015](quizzes/015-ingest-health.md) | [ ] | n/a | n/a |
 | [#18](https://github.com/DenisYumaev/ghost-bus-la/pull/18) | Docker image and CI build | [ ] [016](quizzes/016-ingest-image.md) | [ ] | n/a | n/a |
-| [#19](https://github.com/DenisYumaev/ghost-bus-la/pull/19) | Deploy ingest to the VM | [ ] [017](quizzes/017-deploy-ingest.md) | [ ] | n/a | Not yet |
+| [#19](https://github.com/DenisYumaev/ghost-bus-la/pull/19) | Deploy ingest to the VM | [ ] [017](quizzes/017-deploy-ingest.md) | [ ] | n/a | Yes, running since 2026-11-13 05:54 UTC |
 
-**Suggested order:** 004, 005, and 006 first, because they describe what is live in AWS right now. Then 002, 001, and 003.
+**Suggested order, if you take them:** 004, 005, and 006 first, because they describe what is live in AWS right now. Then 002, 001, and 003.
 
 ## What I learned (drafts)
 

@@ -1,6 +1,6 @@
 # ADR-003: Operating standards: explain-back merge gate, SLOs, incident log, tools on evidence
 
-- **Status:** Proposed
+- **Status:** Accepted 2026-11-15. Decision 1 (the explain-back gate) is superseded by ADR-022; decisions 2 to 4 stand
 - **Date:** 2026-11-12
 - **Evidence:** `docs/spec/06-learning.md` (the loop and merge gate); `docs/spec/05-infra-ops.md` sections 8 (SLOs) and 14 (incidents); ADR-002 (the project's purpose)
 
@@ -19,15 +19,13 @@ One person owns this system, and a coding agent writes most of its code. That cr
 
 ## Why
 
-<!-- OWNER: rewrite this paragraph in your own words before this PR merges (SPEC.md section 5). -->
-
 When an agent writes the code, typing stops being the bottleneck and understanding becomes it. A merge gate the owner must pass keeps every file explainable, which is the whole point of a portfolio project. SLOs turn "it runs" into a number someone can check, and the error budget makes the trade-off between features and reliability a rule instead of a mood. Incident write-ups turn failures into evidence and into interview stories. Requiring evidence for new tools keeps the system small enough for one person to run and explain.
 
 ## Alternatives considered
 
 - **No gate; read the diff and merge.** Fastest, but the code stops being the owner's, and the first deep-dive interview exposes it.
 - **Quiz before every merge**, the original rule. It keeps understanding in step with the code, but with the owner's quizzes deferred it stacks PRs on top of each other, and every fix low in the stack must be carried up through the branches above it. Enforcing at the milestone keeps the requirement and lets work flow.
-- **Predictions mandatory on every PR**, as the learning spec first said. Better for learning, but slower. The owner chose speed here, and the quiz still enforces understanding before merge.
+- **Predictions mandatory on every PR**, as the learning spec first said. Better for learning, but slower. The owner chose speed here, and the milestone quiz gate still enforces understanding.
 - **A 99.9% capture target.** Unrealistic on one VM that deploys in place: 43 minutes a month leaves no room for one bad deploy.
 - **Adopt tools freely, as they seem useful.** Each one adds operations, cost, and something to explain. Kafka, Redis, and Kubernetes are named non-goals for this reason (`docs/SPEC.md` section 5).
 
@@ -36,7 +34,7 @@ When an agent writes the code, typing stops being the bottleneck and understandi
 - Code can reach `main` before the owner can explain it. The milestone gate bounds that gap to one milestone, and `docs/learning/owed.md` keeps it visible.
 - `docs/learning/` becomes part of the repo's evidence: quizzes, scores, and the daily log show how understanding grew.
 - An SLO breach or incident is visible work with a written result, not something quietly fixed.
-- This ADR changes two learning-spec rules: predictions may be skipped only for boilerplate, and a PR merges only after its quiz. Both the learning spec and `CLAUDE.md` are updated to match.
+- This ADR changes two learning-spec rules: predictions become optional, and the quiz gate moves from each merge to each milestone. Both the learning spec and `CLAUDE.md` are updated to match.
 
 ## Would change if
 
