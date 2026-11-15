@@ -1,4 +1,4 @@
-"""The ingest service: both streams and the uploader in one process (SPEC section 3.2).
+"""The ingest service: both streams, the GTFS download, and the uploader in one process (SPEC 3.2).
 
 Run with `python -m ghostbus_ingest`. Settings come from environment variables:
 
@@ -34,12 +34,13 @@ import boto3
 import httpx
 
 from ghostbus_ingest.fetch_log import FetchLog
+from ghostbus_ingest.gtfs import GtfsConfig, GtfsDownloader, load_gtfs
 from ghostbus_ingest.health import FeedHealth, serve_health
 from ghostbus_ingest.heartbeat import Heartbeat, resolve_heartbeat_url
 from ghostbus_ingest.logs import log_event
 from ghostbus_ingest.s3 import S3Client
 from ghostbus_ingest.spool import Spool
-from ghostbus_ingest.stream import FeedConfig, StreamRunner, load_feeds
+from ghostbus_ingest.stream import USER_AGENT, FeedConfig, StreamRunner, load_feeds
 from ghostbus_ingest.uploader import Uploader
 
 INGEST_VERSION = version("ghostbus-ingest")
@@ -88,6 +89,8 @@ async def run_service(
     s3: S3Client,
     stop: asyncio.Event,
     heartbeat: Heartbeat | None = None,
+    gtfs: GtfsConfig | None = None,
+    http: httpx.AsyncClient | None = None,
 ) -> int:
     """Run until `stop` is set or something crashes. Returns the process exit code."""
     settings.spool_dir.mkdir(parents=True, exist_ok=True)
@@ -101,6 +104,7 @@ async def run_service(
         version=INGEST_VERSION,
         feeds=sorted(feeds),
         heartbeat=heartbeat is not None,
+        gtfs=gtfs is not None,
     )
     loop = asyncio.get_running_loop()
     crashed = False
@@ -142,7 +146,19 @@ async def run_service(
             log_event("stream_crashed", feed=feed.name, error=repr(error))
             stop.set()
 
-    await asyncio.gather(*(run_stream(feed) for feed in feeds.values()))
+    async def run_gtfs(config: GtfsConfig, client: httpx.AsyncClient) -> None:
+        nonlocal crashed
+        try:
+            await GtfsDownloader(config, spool, fetch_log, client).run(stop)
+        except Exception as error:  # a bug: same treatment as a crashed stream
+            crashed = True
+            log_event("gtfs_crashed", error=repr(error))
+            stop.set()
+
+    tasks = [run_stream(feed) for feed in feeds.values()]
+    if gtfs is not None and http is not None:
+        tasks.append(run_gtfs(gtfs, http))
+    await asyncio.gather(*tasks)
     health_server.close()
     await health_server.wait_closed()
     if pings:
@@ -161,21 +177,27 @@ async def run_service(
 
 
 async def _main_async(
-    settings: Settings, feeds: Mapping[str, FeedConfig], s3: S3Client, heartbeat_url: str | None
+    settings: Settings,
+    feeds: Mapping[str, FeedConfig],
+    s3: S3Client,
+    heartbeat_url: str | None,
+    gtfs: GtfsConfig | None,
 ) -> int:
     stop = asyncio.Event()
     loop = asyncio.get_running_loop()
     for sig in (signal.SIGTERM, signal.SIGINT):
         loop.add_signal_handler(sig, stop.set)
-    async with httpx.AsyncClient() as client:
+    headers = {"User-Agent": USER_AGENT}
+    async with httpx.AsyncClient(headers=headers, follow_redirects=True) as client:
         heartbeat = Heartbeat(heartbeat_url, client) if heartbeat_url else None
-        return await run_service(settings, feeds, s3, stop, heartbeat)
+        return await run_service(settings, feeds, s3, stop, heartbeat, gtfs, client)
 
 
 def main() -> int:
     try:
         settings = Settings.from_env(os.environ)
         feeds = load_feeds(settings.feeds_config)
+        gtfs = load_gtfs(settings.feeds_config)
     except (ValueError, OSError) as error:
         log_event("config_error", error=str(error))
         return 2
@@ -183,7 +205,7 @@ def main() -> int:
     s3 = boto3.client("s3", region_name=settings.region)
     ssm = boto3.client("ssm", region_name=settings.region)
     heartbeat_url = resolve_heartbeat_url(os.environ, ssm)
-    return asyncio.run(_main_async(settings, feeds, s3, heartbeat_url))
+    return asyncio.run(_main_async(settings, feeds, s3, heartbeat_url, gtfs))
 
 
 if __name__ == "__main__":

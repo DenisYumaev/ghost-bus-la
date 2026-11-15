@@ -65,6 +65,14 @@ The trade-offs in Ghost Bus LA you should be able to defend out loud. Each entry
 - **Why it matters downstream:** the fetch log lets the pipeline tell a feed outage from a quiet feed. That is what keeps an outage from being counted as missed trips.
 - **Record:** ADR-021 decision 4; `docs/research/ws-cycle-timing.md`.
 
+### 8a. The schedule download: store only new bytes, reject what isn't a ZIP
+
+- **Decision:** fetch Metro's GTFS ZIP on start and daily at 03:00 Los Angeles time. Store it, byte for byte, only when its hash changes; each new hash is a schedule version. Refuse a body that isn't a ZIP, and wait a day instead of retrying on a permanent 4xx.
+- **Why:** the hash is the only reliable version signal (Metro leaves `feed_version` empty). Bronze can never be deleted, so a stored HTML error page would become a permanent fake schedule version. Retrying a 404 every minute would hammer someone else's server for nothing.
+- **The DST detail:** the next run is built from tomorrow's local date at 03:00, not "last run plus 24 hours". Otherwise it would drift to 02:00 or 04:00 after a clock change.
+- **Rejected:** downloading on a fixed 24-hour timer (drifts); polling hourly with full downloads (22 MB each for a file that changes about weekly). Conditional requests (`ETag`, `304`) are the upgrade if same-day freshness ever matters.
+- **Record:** `docs/spec/01-data-pipeline.md` sections 2.3 and 4; quiz 018.
+
 ### 9. Watching the watcher: an external heartbeat
 
 - **Decision:** after each good cut, ping an external heartbeat service, but only while every feed is healthy. `/healthz` on localhost reports per-feed health.

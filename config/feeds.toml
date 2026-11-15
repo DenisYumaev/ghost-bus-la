@@ -1,4 +1,4 @@
-# Realtime feeds ingest archives (ADR-021; pipeline spec, section 2.2).
+# Feeds ingest archives (ADR-021; pipeline spec, section 2.2).
 # URLs live here, never in code. Cadences are provisional until the M0 measured day.
 
 [feeds.vehicle_positions]
@@ -8,3 +8,9 @@ interval_s = 30
 [feeds.trip_updates]
 url = "wss://api.metro.net/ws/LACMTA/trip_updates"
 interval_s = 60
+
+# The bus schedule ZIP (ADR-021 decision 6). Fetched on start and daily at daily_at, Los Angeles
+# time; stored only when its bytes change.
+[gtfs_static]
+url = "https://gitlab.com/LACMTA/gtfs_bus/raw/master/gtfs_bus.zip"
+daily_at = "03:00"

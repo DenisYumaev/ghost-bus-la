@@ -43,12 +43,17 @@ class UploadReport:
     error: str | None = None
 
 
-def _matches_name(path_name_sha16: str, gz_bytes: bytes) -> bool:
-    try:
-        data = gzip.decompress(gz_bytes)
-    except (OSError, EOFError, zlib.error):
-        return False
-    return hashlib.sha256(data).hexdigest()[:16] == path_name_sha16
+CONTENT_TYPES = {".ndjson.gz": "application/gzip", ".zip": "application/zip"}
+
+
+def _matches_name(path_name_sha16: str, body: bytes, gzipped: bool) -> bool:
+    """A snapshot's name hashes its uncompressed lines; a ZIP's name hashes the file itself."""
+    if gzipped:
+        try:
+            body = gzip.decompress(body)
+        except (OSError, EOFError, zlib.error):
+            return False
+    return hashlib.sha256(body).hexdigest()[:16] == path_name_sha16
 
 
 class Uploader:
@@ -67,14 +72,15 @@ class Uploader:
             key = spool_object_key(path)
             body = path.read_bytes()
             _cut, sha16 = parse_spool_name(path)
-            if not _matches_name(sha16, body):
+            ext = ".zip" if path.name.endswith(".zip") else ".ndjson.gz"
+            if not _matches_name(sha16, body, gzipped=ext == ".ndjson.gz"):
                 self.spool.set_aside_corrupt(path)
                 self.fetch_log.record_upload(now, path.name, None, "corrupt", "hash mismatch")
                 report.corrupt += 1
                 continue
             try:
                 outcome = conditional_put(
-                    self.s3, self.bucket, key, body, content_type="application/gzip"
+                    self.s3, self.bucket, key, body, content_type=CONTENT_TYPES[ext]
                 )
             except UPLOAD_ERRORS as error:
                 self.fetch_log.record_upload(now, path.name, key, "error", repr(error))

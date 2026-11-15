@@ -72,6 +72,8 @@ jobs:
         run: |
           docker build -q -f services/ingest/Dockerfile -t ingest:smoke .
           docker run --rm --entrypoint python ingest:smoke -c "import ghostbus_ingest.service"
+          # The GTFS schedule runs at 03:00 Los Angeles time: the image must have zone data.
+          docker run --rm --entrypoint python ingest:smoke -c "from zoneinfo import ZoneInfo; ZoneInfo('America/Los_Angeles')"
           # No GHOSTBUS_BUCKET: the service must log config_error and exit 2, not crash.
           code=0; docker run --rm ingest:smoke || code=$?
           test "$code" -eq 2

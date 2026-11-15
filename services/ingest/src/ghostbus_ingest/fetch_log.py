@@ -113,6 +113,50 @@ class FetchLog:
         }
         self._append(cut.cut_at, record)
 
+    def record_download(
+        self,
+        at: float,
+        feed: str,
+        url_key: str,
+        outcome: Literal["written", "duplicate", "http_error", "network_error", "spool_error"],
+        *,
+        result: SpoolResult | None = None,
+        http_status: int | None = None,
+        latency_ms: int | None = None,
+        body_len: int | None = None,
+        sha256: str | None = None,
+        error: str | None = None,
+    ) -> None:
+        """Log one HTTPS download attempt (the GTFS ZIP). Same `fetch` event and keys as a
+        snapshot, so one reader handles both; stream-only fields are null."""
+        self._append(
+            at,
+            {
+                "event": "fetch",
+                "fetched_at": iso_utc(at),
+                "feed": feed,
+                "url_key": url_key,
+                "http_status": http_status,
+                "latency_ms": latency_ms,
+                "bytes": body_len,
+                "bytes_gz": None,
+                "content_hash": sha256,
+                "object_key": result.object_key if result else None,
+                "spool_file": result.path.name if result and result.path else None,
+                "outcome": outcome,
+                "feed_header_ts": None,
+                "n_entities": None,
+                "n_messages": None,
+                "n_unkeyed": None,
+                "n_unframed": None,
+                "partial": False,
+                "error": error,
+                "connected_s": None,
+                "interval_s": None,
+                "ingest_version": self.ingest_version,
+            },
+        )
+
     def record_connection(
         self,
         feed: str,
