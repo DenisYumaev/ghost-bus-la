@@ -6,7 +6,7 @@ A study backlog, not a blocker. Since ADR-022 (2026-11-15), quizzes and "What I 
 
 - **Quiz:** open the file from its link, write your answers under each question, tell Claude, and get graded (4 of 5 to pass).
 - **What I learned:** write 3 to 5 sentences in the space below, in your own words. Claude copies it into the PR description.
-- **Why rewrite:** edit the ADR's "Why" section directly and delete its `OWNER` marker line.
+- **Why rewrite:** no longer needed; Claude writes ADR "Why" sections (ADR-022). The column is kept for history.
 
 All quizzes are in `docs/learning/quizzes/` on `main`. Take them whenever you have time.
 
@@ -16,7 +16,7 @@ All quizzes are in `docs/learning/quizzes/` on `main`. Take them whenever you ha
 | --- | --- | --- | --- | --- | --- |
 | [#1](https://github.com/DenisYumaev/ghost-bus-la/pull/1) | ADR-021, realtime source | [ ] [001](quizzes/001-adr-021.md) | [ ] | [x] ADR-021 | n/a |
 | [#2](https://github.com/DenisYumaev/ghost-bus-la/pull/2) | Repo scaffold | [ ] [002](quizzes/002-scaffold.md) | [ ] | n/a | n/a |
-| [#3](https://github.com/DenisYumaev/ghost-bus-la/pull/3) | ADR-003 and ADR-004 | [ ] [003](quizzes/003-adr-003-004.md) | [ ] | [ ] ADR-003, [ ] ADR-004 | n/a |
+| [#3](https://github.com/DenisYumaev/ghost-bus-la/pull/3) | ADR-003 and ADR-004 | [ ] [003](quizzes/003-adr-003-004.md) | [ ] | n/a (ADR-022) | n/a |
 | [#4](https://github.com/DenisYumaev/ghost-bus-la/pull/4) | Terraform state bucket | [ ] [004](quizzes/004-infra-bootstrap.md) | [ ] | n/a | Yes, 2026-11-12 |
 | [#5](https://github.com/DenisYumaev/ghost-bus-la/pull/5) | Data bucket import, policy, budget | [ ] [005](quizzes/005-infra-data-bucket.md) | [ ] | n/a | Yes, 2026-11-12 |
 | [#7](https://github.com/DenisYumaev/ghost-bus-la/pull/7) | VM, role, recovery alarms | [ ] [006](quizzes/006-infra-vm.md) | [ ] | n/a | Yes, 2026-11-12 |

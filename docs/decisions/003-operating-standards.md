@@ -1,6 +1,6 @@
 # ADR-003: Operating standards: explain-back merge gate, SLOs, incident log, tools on evidence
 
-- **Status:** Proposed. Decision 1 (the explain-back gate) superseded by ADR-022 on 2026-11-15; decisions 2 to 4 stand
+- **Status:** Accepted 2026-11-15. Decision 1 (the explain-back gate) is superseded by ADR-022; decisions 2 to 4 stand
 - **Date:** 2026-11-12
 - **Evidence:** `docs/spec/06-learning.md` (the loop and merge gate); `docs/spec/05-infra-ops.md` sections 8 (SLOs) and 14 (incidents); ADR-002 (the project's purpose)
 
@@ -18,8 +18,6 @@ One person owns this system, and a coding agent writes most of its code. That cr
 4. **New tools are adopted on evidence.** A dependency, service, or tool outside the stack list in `CLAUDE.md` needs an ADR that names the measured problem it solves and the simpler option it beat. Small libraries that are the standard way to use a tool already in the stack (for example, boto3 as the client for S3) are recorded in the ADR that first needs them rather than getting an ADR of their own.
 
 ## Why
-
-<!-- OWNER: rewrite this paragraph in your own words before this PR merges (SPEC.md section 5). -->
 
 When an agent writes the code, typing stops being the bottleneck and understanding becomes it. A merge gate the owner must pass keeps every file explainable, which is the whole point of a portfolio project. SLOs turn "it runs" into a number someone can check, and the error budget makes the trade-off between features and reliability a rule instead of a mood. Incident write-ups turn failures into evidence and into interview stories. Requiring evidence for new tools keeps the system small enough for one person to run and explain.
 

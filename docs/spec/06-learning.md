@@ -20,7 +20,7 @@ By M8 the owner can, without notes:
 | 2. Predict | Owner | Write 5 to 10 lines in `docs/learning/predictions/NNN-<topic>.md`: how would I build this, and what could go wrong? No peeking |
 | 3. Plan | Claude | Present the plan; compare it with the prediction; name what the prediction missed and what it got right |
 | 4. Build | Claude | Tests first, then implementation, in small commits |
-| 5. Walkthrough | Claude | Explain the diff file by file: what, why, the main alternative rejected. Define every new term once |
+| 5. Walkthrough | Claude | Written in the PR description (ADR-022): each file, what, why, the main alternative rejected. Define every new term once |
 | 6. Quiz | Claude asks, owner answers | Five questions: two "what does this do", two "what breaks if…", one "how would you change it to…". Log questions and answers in `docs/learning/quiz-log.md` |
 | 7. Break | Owner | Break one thing on purpose (delete a line, feed bad input) and predict the failure before running it |
 | 8. Log | Owner | Three lines in `docs/learning/daily-log.md`: learned, confused by, question for tomorrow |
@@ -29,7 +29,9 @@ By M8 the owner can, without notes:
 
 **When time is short,** steps 2 and 7 may be skipped for pure boilerplate (config, Dockerfiles, CI plumbing). Step 5 is never skipped; step 6 is recorded, not taken (ADR-022).
 
-## 3. Owner-written core
+## 3. Owner-written core (superseded by ADR-022)
+
+**Since 2026-11-15, Claude writes all seven pieces**, with property-based tests, hand-checked fixtures, and an independent reviewer pass (ADR-022). The rewrite drill is dropped. The table stays as the list of the project's most important code, worth studying for interviews.
 
 Seven pieces the owner writes by hand, because interviews test writing, not reading. For each, Claude writes the tests and fixtures first, gives hints only when asked, and reviews the result like a staff engineer: correctness, edge cases, naming, performance. Claude does not write the implementation.
 
@@ -148,7 +150,7 @@ Write each as situation, action, result, and what changed afterwards, in 90 seco
 
 - Explains as it goes; defines each new term once; never assumes background the owner hasn't shown
 - Asks for the prediction before presenting a plan
-- Refuses to write the seven owner-written pieces, and says why
+- Writes the seven core pieces to the ADR-022 test bar and gets each one independently reviewed
 - Keeps PRs small enough to explain in 15 minutes (under about 400 changed lines, excluding generated files)
 - Ends each working session by asking the owner to state, in two sentences, what was built and why
 - Flags when the owner's answers show a gap, and proposes a short exercise to close it

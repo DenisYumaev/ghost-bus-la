@@ -26,15 +26,15 @@ Precedence: accepted ADRs, then component specs, then `docs/SPEC.md`, then this 
 
 ## How to work with the owner
 
-Follow the loop in `docs/spec/06-learning.md` section 2 on every PR, trimmed by ADR-022: **brief → plan → build (tests first) → walkthrough → record the quiz.**
+Every PR, per ADR-022: **brief → plan → build (tests first) → independent review → written walkthrough in the PR description → record the quiz.** The owner wants it finished fast and at high quality: cut ceremony, never tests or review.
 
 - Predictions are optional and paused at the owner's request since 2026-11-12 (ADR-003). When they resume, ask for the prediction before showing your plan.
 - Explain each non-trivial choice in one or two sentences, with the main alternative you rejected. Define a new term the first time it appears.
-- **Do not write the seven owner-written pieces** (learning spec, section 3). Write their tests and fixtures, leave the implementation as a marked TODO, then review his work like a staff engineer.
+- **Claude writes everything**, including the seven core pieces in learning spec section 3 and every ADR's "Why". Those pieces need property-based tests (Hypothesis) for pure logic, hand-checked fixtures for SQL covering the edge cases the specs name, and dbt grain tests.
+- **Before each merge, run an independent review:** the `reviewer` agent on every PR, plus `sql-reviewer` on SQL and dbt changes. Give it the diff and the spec, not your reasoning. Fix the findings or answer them in the PR description.
 - Keep PRs small enough to explain in 15 minutes (about 400 changed lines, generated files aside).
 - After the walkthrough, record five quiz questions in `docs/learning/quizzes/` and add the PR to `docs/learning/owed.md`. Don't ask the owner to take them; they gate nothing (ADR-022). If he does answer one, grade it strictly.
 - In every PR that makes or changes a decision worth defending, add or update its entry in `docs/learning/interview-decisions.md`.
-- When reviewing his code, point out problems and let him fix them. Don't rewrite silently.
 - The owner is new to SQL and to most of this stack, and strong in Python and statistics. Pitch explanations accordingly.
 
 ## Hard rules
@@ -86,7 +86,8 @@ Add `make dbt`, `make backfill START= END=`, and `make resume-metrics` as those 
 - [ ] Idempotency and failure behavior covered by a test where relevant
 - [ ] Docs updated: spec if behavior changed, runbook if an alert was added, ADR if a decision was made
 - [ ] No new `VERIFY` left unrecorded
-- [ ] Walkthrough given; quiz recorded and listed in `docs/learning/owed.md` (optional for the owner, ADR-022)
+- [ ] Independent review run (`reviewer`, plus `sql-reviewer` for SQL); findings fixed or answered
+- [ ] Written walkthrough in the PR description; quiz recorded and listed in `docs/learning/owed.md` (optional for the owner, ADR-022)
 - [ ] `docs/learning/interview-decisions.md` updated if a decision was made or changed
 - [ ] PR description: what, why, how tested, spec section, trade-offs
 
@@ -99,9 +100,9 @@ Branches `<type>/<short-topic>` (`feat/…`, `fix/…`, `docs/…`, `infra/…`,
 Update this section at the end of every session.
 
 - **As of Nov 15, 2026 (M0 in progress, two days past its dates). Nothing is archiving yet:** the deploy tooling is merged but has never been run against the VM.
-- **Merged (PRs #1–#19):** ADR-021, ADR-003, ADR-004 (all Proposed; see their status lines); repo scaffold with CI; conditional-write self-test (`make selftest-s3`); WebSocket fixtures; the whole ingest service: snapshot core, spool and fetch log, S3 write with backoff, uploader, stream runner, entry point, `/healthz` and heartbeat, Docker image built in CI and published to GHCR, laptop deploy tool with health-gated rollback, runbook entries.
+- **Merged (PRs #1–#19):** ADR-021 (Proposed until the measured day), ADR-003 and ADR-004 (accepted in the ADR-022 PR); repo scaffold with CI; conditional-write self-test (`make selftest-s3`); WebSocket fixtures; the whole ingest service: snapshot core, spool and fetch log, S3 write with backoff, uploader, stream runner, entry point, `/healthz` and heartbeat, Docker image built in CI and published to GHCR, laptop deploy tool with health-gated rollback, runbook entries.
 - **Live in AWS (Terraform, owner-approved applies):** state bucket `ghost-bus-la-tfstate-<acct>` (bootstrap, local state in `infra/bootstrap/terraform.tfstate`); data bucket `la-ghost-bus-bronze-<acct>` and budget `la-ghost-bus-monthly`, imported from the scrapped repo, with the ADR-004 policy and 50/80/100% alerts; VM `i-047b5f055d9425e38` (t4g.small, SSM only, no inbound), role `ghost-bus-la-app`, status-check alarms to SNS `ghost-bus-la-ops-alerts`. Main config state is in S3; `infra/backend.hcl` and `infra/terraform.tfvars` are local and gitignored.
-- **Learning (ADR-022, 2026-11-15):** no quiz gate. Quizzes 001–017 are recorded and optional. Interview prep lives in `docs/learning/interview-decisions.md`. Predictions are paused. Still open: the owner's Why rewrites for ADR-003, ADR-004 and ADR-022.
+- **Learning (ADR-022, 2026-11-15):** no quiz gate. Quizzes 001–017 are recorded and optional. Interview prep lives in `docs/learning/interview-decisions.md`. Claude writes all code, including the former owner-written pieces, and every ADR's Why. Independent review replaces the owner as second reader.
 - **Measured** (`docs/research/ws-cycle-timing.md`): every entity reappears within 6.74 s; first size estimate about 0.65 GB a day gzipped across both feeds.
 - **Next in M0:** first deploy (archive starts), GTFS download, the measured day, drills 1 and 2. Owed by the owner: request a Swiftly key, read Metro's terms, confirm the SNS email subscription.
 - **Workflow notes:** merge with merge commits, not squash. Retarget stacked PRs to `main` before merging their parent with `--delete-branch` (deleting a base branch closes child PRs).

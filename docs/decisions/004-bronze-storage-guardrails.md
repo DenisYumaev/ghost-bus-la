@@ -1,6 +1,6 @@
 # ADR-004: Bronze storage and guardrails: content-addressed keys, conditional writes, deny-delete, instance role, remote state
 
-- **Status:** Proposed. Both `VERIFY` items were confirmed on 2026-11-12 (results below). Accepted once the owner's "Why" rewrite lands, because accepted ADRs can't be edited (CLAUDE.md hard rule 13)
+- **Status:** Accepted 2026-11-15, on the `VERIFY` results below (confirmed 2026-11-12). Claude writes the "Why" (ADR-022)
 - **Date:** 2026-11-12
 - **Supersedes:** ADR-001 decision 6's key format and duplicate check. Its partitioning by UTC fetch date and its fetch log stand
 - **Evidence:** `docs/spec/01-data-pipeline.md` sections 2.4, 2.5, and 3; `docs/spec/05-infra-ops.md` section 2; ADR-021
@@ -70,8 +70,6 @@ ADR-001 decision 6 keyed objects as `<fetched_at>_<sha16>` and skipped a write "
 Both `VERIFY` items hold. Cleanup deleted every version, and the bucket held 0 objects and 0 delete markers afterwards. The deny applied to an administrator, which confirms it covers every principal.
 
 ## Why
-
-<!-- OWNER: rewrite this paragraph in your own words before this PR merges (SPEC.md section 5). -->
 
 If the key is a hash of the content, the same snapshot always lands on the same key, so a retry, a restart, or a second uploader can't create a duplicate. With a conditional write, the "does it exist?" check and the write happen as one step inside S3, so there is no race to lose. Putting the deny rules in the bucket policy means "bronze is sacred" holds even when the code has a bug or a person makes a mistake at the terminal. An instance role means there is no long-lived key on the VM to leak, which matters after the November 10 incident.
 

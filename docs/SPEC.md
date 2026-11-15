@@ -276,7 +276,7 @@ Each service has its own `pyproject.toml`, `Dockerfile`, and `tests/`. Shared lo
 
 ## 5. Decision register
 
-ADR-001 and ADR-002 are written and accepted. Rows 003 onward are decisions already made in this spec; Claude Code writes each as an ADR when the related work starts, and the owner rewrites the "why" paragraph in his own words (learning spec).
+ADR-001 and ADR-002 are written and accepted. Rows 003 onward are decisions already made in this spec; Claude Code writes each as an ADR when the related work starts (ADR-022).
 
 | # | Decision | Why | Rejected, and why | Scale-up path |
 | --- | --- | --- | --- | --- |
@@ -338,7 +338,7 @@ The realtime stream shows only the present. Every day without the archive is his
 
 **Accept when:** for any past service date, one query answers "how many trips did line 754 schedule, and how many ran?"; the reconciliation identity holds (scheduled = sum of outcomes); the advance-notice ADR is written.
 **Resume claim unlocked:** bullet 4, first numbers.
-**Owner-written:** service-date math, schedule expansion SQL, trip matching v1, outcome classification v1 (learning spec).
+**Formerly owner-written, now Claude-written with the ADR-022 test bar:** service-date math, schedule expansion SQL, trip matching v1, outcome classification v1 (learning spec).
 **Chaos drill:** run the same day twice; outputs must be identical.
 
 ### M2 · Nov 21–27 · Public read-only product (P0)
@@ -351,7 +351,7 @@ The realtime stream shows only the present. Every day without the archive is his
 
 **Accept when:** the public URL shows real reliability numbers for every Metro-operated line, refreshed within 15 minutes; a merge to `main` deploys with a health check and automatic rollback.
 **Resume claim unlocked:** "live at `<URL>`"; start applying with the link.
-**Owner-written:** one endpoint end to end (`GET /v1/lines/{line}/reliability`).
+**Formerly owner-written, now Claude-written with the ADR-022 test bar:** one endpoint end to end (`GET /v1/lines/{line}/reliability`).
 **Chaos drill:** deploy a build that fails its health check; confirm rollback.
 
 ### M3 · Nov 28–Dec 4 · Alerts (P0)
@@ -364,7 +364,7 @@ The realtime stream shows only the present. Every day without the archive is his
 
 **Accept when:** a replayed day of real cancellation snapshots produces exactly one alert per (commute, trip) no matter how many times it is replayed or where the process is killed; p95 detection-to-send is under 120 s in production.
 **Resume claims unlocked:** bullets 1 and 2.
-**Owner-written:** the commute-matching query.
+**Formerly owner-written, now Claude-written with the ADR-022 test bar:** the commute-matching query.
 **Chaos drill:** kill the worker mid-send; kill the detector mid-transaction; replay a snapshot 10 times.
 
 ### M4 · Dec 5–11 · Trust (P0 and P1)
@@ -377,7 +377,7 @@ The realtime stream shows only the present. Every day without the archive is his
 
 **Accept when:** a full-history backfill completes from bronze with no network calls and reproduces published numbers; match rate stays above 95% across the service change; every line differing from Metro's report by more than 2 points has a written explanation.
 **Resume claims unlocked:** `[recon]`; story 4.
-**Owner-written:** the full decision table in `fct_trip_outcomes`.
+**Formerly owner-written, now Claude-written with the ADR-022 test bar:** the full decision table in `fct_trip_outcomes`.
 **Chaos drills:** load a day twice; drop a feed for 6 hours; swap in a new schedule mid-week.
 
 ### M5 · Dec 12–18 · Production quality (P0 and P1)
@@ -402,7 +402,7 @@ The realtime stream shows only the present. Every day without the archive is his
 
 **Accept when:** three findings each have a method note, an interval, and a hand-check record; 20 real riders have active commutes.
 **Resume claims unlocked:** bullet 5; story 8.
-**Owner-written:** the cluster bootstrap.
+**Formerly owner-written, now Claude-written with the ADR-022 test bar:** the cluster bootstrap.
 
 ### M7 · Dec 26–Jan 1 · Polish and rehearsal (P1 and P2)
 
