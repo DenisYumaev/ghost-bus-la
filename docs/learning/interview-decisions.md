@@ -18,7 +18,7 @@ The trade-offs in Ghost Bus LA you should be able to defend out loud. Each entry
 - **Decision:** keep one long-lived WebSocket connection per stream (vehicle positions, trip updates). Keep the latest message per vehicle or trip in memory, and cut a snapshot every 30 s (vehicles) or 60 s (trips).
 - **Why:** the day-1 probe found Metro's REST realtime endpoints empty and its canceled-service API dead since 2022. The WebSocket is live and needs no key. The server re-sends the whole fleet every 3 to 4 s, so storing every message would be roughly 10 to 20 times the volume (a 30 or 60 s cut versus a 3 to 4 s loop) for no new information.
 - **Rejected:** waiting for a Swiftly key (loses days of history); writing every message (10 to 20 times the volume, and every reader would have to rebuild snapshots); several connections per stream (undocumented limits on someone else's server).
-- **Measured (2026-11-14):** 100% of scheduled cuts attempted; 0.49 GB a day gzipped across both feeds (raw is about 7 GB, so gzip saves 9 to 16×); about 15 GB of storage a month. The measurement set the cadences, not a guess.
+- **Measured (2026-11-14):** 100% of scheduled cuts attempted (4 trip-update minutes came back empty because Metro sent nothing; they count as `unknown`, not missed); 0.49 GB a day gzipped across both feeds (raw is about 7 GB, so gzip saves 9 to 16×); about 15 GB of storage a month. The measurement set the cadences, not a guess.
 - **Would change if:** Metro throttles long connections, or a Swiftly key arrives and this stream proves unreliable.
 - **Record:** ADR-021; `docs/research/day1-probe.md`; `docs/research/measured-day-2026-11-14.md`.
 

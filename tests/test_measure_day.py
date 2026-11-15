@@ -34,6 +34,18 @@ def test_counts_outcomes_and_bytes_only_for_the_requested_utc_date() -> None:
     assert (tu.raw_bytes, tu.disconnects) == (0, 1)
 
 
+def test_partial_counts_only_stored_cuts_and_empty_cuts_report_their_reason() -> None:
+    empty = json.dumps(
+        {"event": "fetch", "feed": "trip_updates", "fetched_at": "2026-11-14T02:00:00Z",
+         "outcome": "network_error", "bytes": None, "bytes_gz": None, "partial": True,
+         "error": "no_messages"}
+    )  # fmt: skip
+    lines = {empty, fetch("trip_updates", "2026-11-14T02:01:00Z", "written", 10, 1, True)}
+    day = summarize(lines, "2026-11-14")["trip_updates"]
+    assert day.partial == 1  # the empty cut stored nothing, so it isn't a partial snapshot
+    assert day.empty_reasons == {"no_messages": 1}
+
+
 def test_duplicate_lines_from_a_reuploaded_hour_count_once() -> None:
     line = fetch("trip_updates", "2026-11-14T05:00:00Z", "written", 10, 1)
     days = summarize({line, line}, "2026-11-14")  # a set: the union of both uploads

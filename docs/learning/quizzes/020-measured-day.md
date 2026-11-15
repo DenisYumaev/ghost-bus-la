@@ -15,7 +15,7 @@ Where do the measured-day numbers come from, and why from there rather than from
 <details>
 <summary>Model answer</summary>
 
-From the **fetch log**: `scripts/measure_day.py` reads `bronze/_fetch_log/dt=2026-11-14/`, takes the union of lines, and sums the `fetch` events. Listing S3 objects would show only what was stored. The fetch log also records what was **attempted**, including the four `network_error` cuts that stored nothing, and the uncompressed size (`bytes`) next to the stored size (`bytes_gz`). The "99% of scheduled polls attempted" criterion can only be checked from the log.
+From the **fetch log**: `scripts/measure_day.py` reads `bronze/_fetch_log/dt=2026-11-14/`, takes the union of lines, and sums the `fetch` events. Listing S3 objects would show only what was stored. The fetch log also records what was **attempted**, including the four empty `network_error` minutes that stored nothing (reason `no_messages`), and the uncompressed size (`bytes`) next to the stored size (`bytes_gz`). The "99% of scheduled polls attempted" criterion can only be checked from the log.
 
 </details>
 
@@ -60,7 +60,7 @@ It may no longer be true. Fleet size, service levels, or message shapes change, 
 <details>
 <summary>Model answer</summary>
 
-The saving is tiny: storage costs about $0.35 a month more each month, and positions are about a quarter of it. The cost: gaps between position samples grow to 2 minutes, so short stops and a bus's movement near a rider's stop get blurred. The "likely missing" detector in M5 to M6 relies on seeing a vehicle's progress, and that history can't be recovered later. The measurement showed no reason to cut, so the decision kept 30 s and 60 s.
+The saving is tiny: storage costs about $0.35 a month more each month, and positions are about a quarter of it. The cost: gaps between position samples grow to 2 minutes, so a bus's arrival at each stop is known less precisely. Stop-level reliability (M5) and inferring which vehicle runs which block (M4) both depend on that, and the history can't be recovered later. (The likely-missing detector would still work: its signal is "no vehicle seen by start + 10 minutes", which 120 s sampling still catches.) The measurement showed no reason to cut, so the decision kept 30 s and 60 s.
 
 </details>
 
@@ -75,6 +75,6 @@ The saving is tiny: storage costs about $0.35 a month more each month, and posit
 <details>
 <summary>Model answer</summary>
 
-Run the same aggregation daily, from the pipeline (cron now, Airflow from M4), over the previous UTC day. Store one row per feed per day (`attempted`, outcomes, raw and gzipped bytes) in a small table, and alert when a value moves outside a band, say ±30% of the trailing 7-day median, or attempts fall below 99%. The second condition is the capture SLO itself (ADR-003), so it belongs in M5's SLO work. The schema-fingerprint check (pipeline spec, section 10) catches the shape change directly.
+Run the same aggregation daily, from the pipeline (cron now, Airflow from M4), over the previous UTC day. Store one row per feed per day (`attempted`, outcomes, raw and gzipped bytes) in a small table, and alert when a value moves outside a band, say ±30% of the trailing 7-day median, or captured minutes fall below the capture SLO (99.5% of minutes per feed per month, ADR-003), which belongs in M5's SLO work. (The 99% of polls attempted figure is M0's one-time acceptance test, not the SLO.) The schema-fingerprint check (pipeline spec, section 10) catches the shape change directly.
 
 </details>

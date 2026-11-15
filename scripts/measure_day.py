@@ -26,10 +26,12 @@ class FeedDay:
     expected: int
     attempted: int = 0
     outcomes: Counter[str] = field(default_factory=Counter)
-    partial: int = 0
+    partial: int = 0  # stored snapshots whose connection dropped part of the interval
+    empty_reasons: Counter[str] = field(default_factory=Counter)  # network_error causes
     raw_bytes: int = 0
     gz_bytes: int = 0
     disconnects: int = 0
+    connect_failed: int = 0
 
     @property
     def attempted_pct(self) -> float:
@@ -50,12 +52,16 @@ def summarize(lines: set[str], date: str) -> dict[str, FeedDay]:
         if rec["event"] == "fetch":
             day.attempted += 1
             day.outcomes[rec["outcome"]] += 1
-            day.partial += bool(rec.get("partial"))
             if rec["outcome"] == "written":
+                day.partial += bool(rec.get("partial"))
                 day.raw_bytes += rec["bytes"]
                 day.gz_bytes += rec["bytes_gz"]
+            elif rec["outcome"] == "network_error":
+                day.empty_reasons[rec.get("error") or "unknown"] += 1
         elif rec["event"] == "disconnect":
             day.disconnects += 1
+        elif rec["event"] == "connect_failed":
+            day.connect_failed += 1
     return days
 
 
@@ -81,6 +87,11 @@ def report(days: dict[str, FeedDay]) -> str:
             f"({d.attempted_pct:.2f}%) | {outcomes} | {d.partial} | "
             f"{d.raw_bytes / 1e9:.3f} GB | {d.gz_bytes / 1e6:.1f} MB | {d.disconnects} |"
         )
+    for d in days.values():
+        if d.empty_reasons or d.connect_failed:
+            reasons = ", ".join(f"{k} {v}" for k, v in sorted(d.empty_reasons.items()))
+            rows.append(f"\n{d.feed}: empty cuts by reason: {reasons or 'none'}; "
+                        f"failed connection attempts: {d.connect_failed}")  # fmt: skip
     total = sum(d.gz_bytes for d in days.values())
     rows.append(f"\nTotal gzipped: {total / 1e9:.3f} GB")
     return "\n".join(rows)

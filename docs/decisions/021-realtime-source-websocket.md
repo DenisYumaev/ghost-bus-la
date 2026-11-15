@@ -2,7 +2,7 @@
 
 - **Status:** Accepted 2026-11-15, on the measured day (`docs/research/measured-day-2026-11-14.md`). Decision 3's cadences are final
 - **Date:** 2026-11-12
-- **Supersedes:** ADR-001 decisions 1 and 3 (on acceptance)
+- **Supersedes:** ADR-001 decisions 1 and 3
 - **Evidence:** `docs/research/day1-probe.md`, run 2026-11-11
 
 ## Context
@@ -51,9 +51,9 @@ Metro's realtime data only shows what's happening right now, so if I'm not recor
 
 ## Consequences
 
-- `trip_updates` is the critical stream: the alerts and the M1 advance-notice gate depend on it, and it is about 85% of the raw volume.
+- `trip_updates` is the critical stream: the alerts and the M1 advance-notice gate depend on it, and it is about 83% of the raw volume (74% of what's stored), measured 2026-11-14.
 - The fetch log's `http_status` is `null` for WebSocket feeds. Each disconnect is logged with its close code. The example in `docs/spec/01-data-pipeline.md` section 2.5, with a `.pb` key and HTTP status 200, predates this ADR and is corrected in the ingest PRs.
-- S3 writes at these cadences: 4,316 snapshot uploads on the measured day (expected 4,320, 2,880 plus 1,440, less four cuts with no connection), plus 24 fetch-log files and the occasional GTFS ZIP. Cost is in the measured-day report.
+- S3 writes at these cadences: 4,316 snapshots written on the measured day (expected 4,320, 2,880 plus 1,440, less four empty minutes when the connection was up but Metro sent nothing), plus 24 fetch-log files and the occasional GTFS ZIP. Cost is in the measured-day report.
 - The local duplicate shortcut (`docs/spec/01-data-pipeline.md` section 2.4, step 2) will rarely fire on streams that change every few seconds. Content-addressed keys with conditional writes remain the real idempotency guarantee (ADR-004).
 - Ingest identifies itself with `User-Agent: ghost-bus-la/<version> (+https://github.com/DenisYumaev/ghost-bus-la)`. The repository is the contact route; no personal email address is sent to Metro.
 - If the stream changes shape, the raw bytes are still archived, and the schema-fingerprint check (pipeline spec, section 10) flags it.
