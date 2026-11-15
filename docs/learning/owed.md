@@ -8,7 +8,7 @@ A study backlog, not a blocker. Since ADR-022 (2026-11-15), quizzes and "What I 
 - **What I learned:** write 3 to 5 sentences in the space below, in your own words. Claude copies it into the PR description.
 - **Why rewrite:** no longer needed; Claude writes ADR "Why" sections (ADR-022). The column is kept for history.
 
-All quizzes are in `docs/learning/quizzes/` on `main`. Take them whenever you have time.
+All quizzes are in `docs/learning/quizzes/` on `main`. Take them whenever you have time. Quiz headers that say "You need 4 of 5 before M0 closes" predate ADR-022; they no longer apply.
 
 ## Status
 
@@ -30,7 +30,7 @@ All quizzes are in `docs/learning/quizzes/` on `main`. Take them whenever you ha
 | [#16](https://github.com/DenisYumaev/ghost-bus-la/pull/16) | Service entry point | [ ] [014](quizzes/014-ingest-service.md) | [ ] | n/a | n/a |
 | [#17](https://github.com/DenisYumaev/ghost-bus-la/pull/17) | Health check and heartbeat | [ ] [015](quizzes/015-ingest-health.md) | [ ] | n/a | n/a |
 | [#18](https://github.com/DenisYumaev/ghost-bus-la/pull/18) | Docker image and CI build | [ ] [016](quizzes/016-ingest-image.md) | [ ] | n/a | n/a |
-| [#19](https://github.com/DenisYumaev/ghost-bus-la/pull/19) | Deploy ingest to the VM | [ ] [017](quizzes/017-deploy-ingest.md) | [ ] | n/a | Not yet |
+| [#19](https://github.com/DenisYumaev/ghost-bus-la/pull/19) | Deploy ingest to the VM | [ ] [017](quizzes/017-deploy-ingest.md) | [ ] | n/a | Yes, running since 2026-11-13 05:54 UTC |
 
 **Suggested order, if you take them:** 004, 005, and 006 first, because they describe what is live in AWS right now. Then 002, 001, and 003.
 

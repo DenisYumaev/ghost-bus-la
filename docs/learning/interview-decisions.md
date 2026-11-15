@@ -16,8 +16,8 @@ The trade-offs in Ghost Bus LA you should be able to defend out loud. Each entry
 ### 2. WebSocket snapshots as the realtime source
 
 - **Decision:** keep one long-lived WebSocket connection per stream (vehicle positions, trip updates). Keep the latest message per vehicle or trip in memory, and cut a snapshot every 30 s (vehicles) or 60 s (trips).
-- **Why:** the day-1 probe found Metro's REST realtime endpoints empty and its canceled-service API dead since 2022. The WebSocket is live and needs no key. The server re-sends the whole fleet every 3 to 4 s, so storing every message would be about 20 times the volume for no new information.
-- **Rejected:** waiting for a Swiftly key (loses days of history); writing every message (20 times the volume, and every reader would have to rebuild snapshots); several connections per stream (undocumented limits on someone else's server).
+- **Why:** the day-1 probe found Metro's REST realtime endpoints empty and its canceled-service API dead since 2022. The WebSocket is live and needs no key. The server re-sends the whole fleet every 3 to 4 s, so storing every message would be roughly 10 to 20 times the volume (a 30 or 60 s cut versus a 3 to 4 s loop) for no new information.
+- **Rejected:** waiting for a Swiftly key (loses days of history); writing every message (10 to 20 times the volume, and every reader would have to rebuild snapshots); several connections per stream (undocumented limits on someone else's server).
 - **Would change if:** Metro throttles long connections, or a Swiftly key arrives and this stream proves unreliable.
 - **Record:** ADR-021; `docs/research/day1-probe.md`.
 
@@ -33,14 +33,15 @@ The trade-offs in Ghost Bus LA you should be able to defend out loud. Each entry
 - **Decision:** the S3 key is a hash of the content (`bronze/<feed>/dt=…/<sha16>.ndjson.gz`), written with `If-None-Match: *`. A `412` response means "already stored" and counts as success.
 - **Why:** the same bytes always land on the same key, and S3 checks for an existing key and writes in one atomic step. A retry, a restart or a second writer can't create a duplicate or overwrite anything.
 - **Rejected:** fetch time in the key with a list-before-write check. That's two requests, so two writers can both see nothing and both write: a race.
-- **Know the edge case:** a 16-hex-character hash could in theory collide. At about 2,880 snapshots per feed per day, the chance is about 2 in 10 trillion per day, and the full hash in the fetch log would reveal it.
+- **Know the edge case:** a 16-hex-character hash could in theory collide. At most 2,880 snapshots per feed per day (vehicle positions; trip updates is 1,440), the chance is at most about 2 in 10 trillion per day, and the full hash in the fetch log would reveal it.
 - **Record:** ADR-004 decisions 1 and 2.
 
 ### 5. "Bronze is sacred" is enforced by AWS, not by code
 
 - **Decision:** the bucket policy denies deletes on `bronze/*` and any write without `If-None-Match`, for every principal including admins. The bucket also has versioning and `prevent_destroy` in Terraform.
-- **Why:** rules in a README don't stop a bug or a tired human at a terminal; a bucket policy does. Verified on 2026-11-12: an unconditional write returned `403` even for an administrator.
-- **Rejected:** S3 Object Lock. It's stronger, but it can never be turned off once enabled. A deny policy only comes off through a reviewed Terraform change, which is enough against the realistic threats (bugs and accidents).
+- **Why:** rules in a README don't stop a bug or a tired human at a terminal; a bucket policy does. Verified on 2026-11-12: an unconditional write to `selftest/`, covered by the same policy statement as `bronze/`, returned `403` even for an administrator. Deletes on `bronze/` weren't tested directly.
+- **Rejected:** S3 Object Lock. It's stronger, but it can never be turned off once enabled.
+- **Know the limit (an interviewer will probe this):** the deny policy stops bugs and accidents, not a determined admin. An administrator, and always the root user, can delete the bucket policy outside Terraform. That residual risk is accepted for a one-person project; if insiders were the threat, Object Lock in compliance mode is the answer.
 - **Record:** ADR-004 decision 3 and its `VERIFY` results.
 
 ### 6. Spool to local disk first, then upload
@@ -87,7 +88,7 @@ The trade-offs in Ghost Bus LA you should be able to defend out loud. Each entry
 ### 12. Deploys: immutable SHA tags, health-gated, automatic rollback
 
 - **Decision:** CI builds an image tagged with the full git SHA. The laptop deploy tool sends the deploy through SSM. The VM waits up to 180 s for Docker's health check to report healthy, records the SHA only if it's healthy, and otherwise rolls back to the previous good SHA.
-- **Why full SHAs:** a moving tag like `main` makes rollback ambiguous ("previous" would mean whatever `main` points to now). The deploy tool accepts only `^[0-9a-f]{40}$`, because the value is put into a shell command that runs as root on the VM. That regex blocks command injection.
+- **Why full SHAs:** a moving tag like `main` makes rollback ambiguous ("previous" would mean whatever `main` points to now). The deploy tool accepts only `^[0-9a-f]{40}$`, because the value is put into a shell command that runs as root on the VM. That allow-list blocks command injection. (Known nit: the code uses `re.match` with `$`, which also accepts a trailing newline. It isn't exploitable, but `fullmatch` is stricter; a fix is queued.)
 - **Rejected:** deploying a moving tag such as `main` or `latest`.
 - **Record:** quizzes 016 and 017; `docs/runbook.md`.
 
@@ -99,9 +100,10 @@ The trade-offs in Ghost Bus LA you should be able to defend out loud. Each entry
 
 ### 14. Times in UTC; service date by the GTFS rule
 
-- **Decision:** store UTC. A trip's service date follows GTFS, so 25:10 belongs to the previous day, computed in `America/Los_Angeles`.
+- **Decision:** store UTC. GTFS times count from "noon minus 12 hours" on the service date in `America/Los_Angeles`, and can pass 24:00. A trip at 25:10 on service date D runs at 01:10 local on D+1.
 - **Why:** local time is ambiguous during the daylight-saving change (1:30 a.m. happens twice). Using the calendar date puts every after-midnight trip on the wrong day.
-- **Record:** ADR-001 decision 5. (You hand-write this code in M1.)
+- **The DST trap:** on a clock-change day, "noon minus 12 hours" is 23:00 or 01:00, not midnight. So "seconds since local midnight" is wrong; compute from noon minus 12 hours.
+- **Record:** ADR-001 decision 5; `docs/spec/01-data-pipeline.md`. (Claude writes this in M1 with property-based tests, ADR-022.)
 
 ### 15. Never join on `trip_id` directly; use a crosswalk
 

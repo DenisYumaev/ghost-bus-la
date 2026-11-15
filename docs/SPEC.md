@@ -85,7 +85,7 @@ Each is a real problem with a decision, a trade-off, and a result. The milestone
 7. **Why not Kafka, RDS, or Kubernetes.** Streaming judged against a measured baseline (ADR-005); cost and simplicity decisions with stated scale-up paths [M2, M5, M6]
 8. **What the first users changed.** A feature cut or added because of rider feedback [M6, M8]
 9. **The leaked AWS key.** Caught, rotated in minutes, habits changed [already happened; write it down]
-10. **Running a coding agent against real infrastructure.** Hard rules, plan-before-apply, and the explain-back merge gate (ADR-003) [every milestone]
+10. **Running a coding agent against real infrastructure.** Hard rules, plan-before-apply, tests first, and an independent reviewer agent on every PR (ADR-022) [every milestone]
 
 ## 2. Product
 
@@ -282,7 +282,7 @@ ADR-001 and ADR-002 are written and accepted. Rows 003 onward are decisions alre
 | --- | --- | --- | --- | --- |
 | 001 | Ingestion: Metro API first, raw bytes, 30/60 s cadence, crosswalk, UTC | Accepted; decisions 1 and 3 superseded by 021; see file | See file | |
 | 002 | Product direction: a rider-facing app with an API and alerts, on top of the pipeline | Accepted; see file | See file | |
-| 003 | Operating standards: explain-back merge gate, SLOs with an error budget, incident log, new tools adopted only on evidence | "It runs" is a claim; a met SLO is evidence. Understanding, not typing, is the bottleneck when an agent writes the code | No gate: fast, but the code stops being the owner's. A 99.9% capture target: unrealistic on one VM | |
+| 003 | Operating standards: explain-back merge gate (superseded by 022), SLOs with an error budget, incident log, new tools adopted only on evidence | "It runs" is a claim; a met SLO is evidence. Understanding, not typing, is the bottleneck when an agent writes the code | No gate: fast, but the code stops being the owner's. A 99.9% capture target: unrealistic on one VM | |
 | 004 | Bronze storage and guardrails: content-addressed keys written with `If-None-Match`, a rebuildable `derived/` prefix, deletes on `bronze/*` denied by bucket policy, an instance role, Terraform state in S3. Supersedes the key format in ADR-001 decision 6 | Deduplication is atomic in S3, with no lookup and no race; "bronze is sacred" is enforced by AWS, not by a README | Fetch time in the key with list-before-write: a race. Moving raw files to cold storage: per-object fees exceed the saving | |
 | 005 | Likely-missing detector: a 1-minute micro-batch baseline first; a streaming version only if the baseline misses its latency or precision bars | A tool should beat a measured baseline before it is adopted | Redpanda and a stateful consumer from the start: cost and operations with no proven need | Redpanda with event-time timers and replay |
 | 006 | Hot path separate from batch path | Alerts need seconds; stats need correctness | One pipeline for both: couples alert latency to batch runtime | |
@@ -301,10 +301,11 @@ ADR-001 and ADR-002 are written and accepted. Rows 003 onward are decisions alre
 | 019 | No staging environment; preview deploys for web, feature flags and a compose-based smoke test for backend | Cost; one engineer | Full staging stack | Staging VM |
 | 020 | Dataset published on Hugging Face and GitHub Releases, not a public S3 bucket | No egress bill surprises; discoverable | Public S3 bucket | |
 | 021 | Realtime source: snapshots cut from the Metro API WebSocket; announced cancellations read from trip updates. Supersedes ADR-001 decisions 1 and 3 | The probe found the REST realtime endpoints empty and the canceled-service API dead since 2022; the WebSocket is live and needs no key | Waiting for a Swiftly key before archiving: loses days of history | Swiftly GTFS-realtime as a second source |
+| 022 | Claude writes all code and ADRs; quizzes logged, not gated; tests and independent review replace the owner gates. Supersedes 003 decision 1 | Finish fast without lowering quality; an independent reviewer is a better second reader than a quiz | Keep the learning gates: the backlog blocks M1. Drop gates with no replacement: author-only review | Second reviewer, or owner review of the riskiest pieces |
 
 ## 6. Milestones
 
-Day 1 is Thursday, November 12, 2026. Project time is about 36 hours a week (6 hours a day, 6 days); the rest of the day is interview prep (learning spec). Each milestone ends with a tagged release, a short demo to yourself recorded on video, and the quiz in the learning spec.
+Day 1 is Thursday, November 12, 2026. Project time is about 36 hours a week (6 hours a day, 6 days); the rest of the day is interview prep (learning spec). Each milestone ends with a tagged release, and a short demo to yourself recorded on video.
 
 **Finals week:** mark your exam dates now and move M4's P1 items into M5 if they collide. The ingest and alert services keep running regardless.
 
@@ -410,7 +411,7 @@ The realtime stream shows only the present. Every day without the archive is his
 - Rebuild the whole stack from Terraform on a scratch account or region in under 30 minutes
 - `make resume-metrics`; demo video; three mock deep-dives with the question bank
 
-**Accept when:** every bracket in section 1.2 prints a real value; the owner answers all 30 bank questions without notes.
+**Accept when:** every bracket in section 1.2 prints a real value. (The 30 bank questions are optional practice, ADR-022.)
 
 ### M8 · Jan 2–8 · Launch (P0)
 
@@ -454,7 +455,7 @@ Definition of done for a PR is in `CLAUDE.md`.
 | Cancellations announced too late to be useful | Medium | M1 gate; reliability lookup and the likely-missing list as the fallback heroes |
 | Too few riders | High | Outreach is scheduled work from M1; soft launch before public launch; advocates as distribution |
 | Scope: four systems, one person | High | P0/P1/P2 tags, cut order, milestones with acceptance tests |
-| Learning lags behind the code Claude writes | High | Merge gate: the owner must pass the quiz for every PR (learning spec) |
+| Learning lags behind the code Claude writes | High | Accepted risk (ADR-022): `docs/learning/interview-decisions.md` kept current, written walkthroughs, quizzes logged for study; independent review replaces the owner as second reader |
 | Email lands in spam | Medium | Authenticated domain (SPF, DKIM, DMARC), plain emails, low volume, easy unsubscribe |
 | Storing rider emails and commute patterns | Medium | Minimal data, deletion endpoint, no third-party trackers, encrypted backups |
 | Untracked buses inflate missed counts | High | Block inference, hand validation, stated limitation |
