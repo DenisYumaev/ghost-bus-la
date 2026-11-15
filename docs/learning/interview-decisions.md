@@ -98,7 +98,7 @@ The trade-offs in Ghost Bus LA you should be able to defend out loud. Each entry
 ### 12. Deploys: immutable SHA tags, health-gated, automatic rollback
 
 - **Decision:** CI builds an image tagged with the full git SHA. The laptop deploy tool sends the deploy through SSM. The VM waits up to 180 s for Docker's health check to report healthy, records the SHA only if it's healthy, and otherwise rolls back to the previous good SHA.
-- **Why full SHAs:** a moving tag like `main` makes rollback ambiguous ("previous" would mean whatever `main` points to now). The deploy tool accepts only `^[0-9a-f]{40}$`, because the value is put into a shell command that runs as root on the VM. That allow-list blocks command injection. (Known nit: the code uses `re.match` with `$`, which also accepts a trailing newline. It isn't exploitable, but `fullmatch` is stricter; a fix is queued.)
+- **Why full SHAs:** a moving tag like `main` makes rollback ambiguous ("previous" would mean whatever `main` points to now). The deploy tool accepts only exactly 40 lowercase hex characters, because the value is put into a shell command that runs as root on the VM. That allow-list blocks command injection. It uses `fullmatch`, because `re.match` with `$` also accepts a trailing newline (the review caught this; fixed in PR #22).
 - **Rejected:** deploying a moving tag such as `main` or `latest`.
 - **Record:** quizzes 016 and 017; `docs/runbook.md`.
 

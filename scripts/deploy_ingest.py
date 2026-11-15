@@ -27,7 +27,7 @@ from botocore.exceptions import ClientError
 
 IMAGE_REPO = "denisyumaev/ghost-bus-la-ingest"
 REMOTE_SCRIPT_PATH = "/tmp/ghost-bus-la-deploy.sh"  # noqa: S108 - on the VM, written by root
-_SHA = re.compile(r"^[0-9a-f]{40}$")
+_SHA = re.compile(r"[0-9a-f]{40}")  # used with fullmatch: no trailing newline sneaks through
 _MANIFEST_TYPES = ", ".join(
     [
         "application/vnd.oci.image.index.v1+json",
@@ -70,7 +70,7 @@ def deploy(
     poll_s: float = 5.0,
 ) -> tuple[bool, str]:
     """Run the deploy; return (succeeded, the VM's output)."""
-    if not _SHA.match(sha):
+    if not _SHA.fullmatch(sha):
         raise ValueError(f"deploy needs a full 40-character lowercase git SHA, got {sha!r}")
     if not image_exists(sha, http):
         raise RuntimeError(f"image ghcr.io/{IMAGE_REPO}:{sha} is not published (or not public)")
