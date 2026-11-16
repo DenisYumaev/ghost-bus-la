@@ -34,7 +34,7 @@ Measured message shapes, counts, and sizes are in `docs/research/day1-probe.md`.
 | `trip_updates` | WebSocket, one long-lived connection | 60 s | `ndjson.gz` |
 | `gtfs_static` | HTTPS download; daily 03:00 America/Los_Angeles, plus on start | on hash change | `zip` |
 
-These cadences are starting points. Uncompressed, they come to about 1.3 GB a day for positions and 5 GB a day for trip updates. Measure a full day, raw and compressed, in M0, then fix the cadences and record the cost in ADR-021.
+These cadences are final (ADR-021, accepted 2026-11-15). Measured on 2026-11-14: 1.18 GB uncompressed and 129.5 MB gzipped a day for positions, 5.85 GB and 364.0 MB for trip updates (`docs/research/measured-day-2026-11-14.md`; rerun with `scripts/measure_day.py`).
 
 ### 2.3 Stream behavior
 
