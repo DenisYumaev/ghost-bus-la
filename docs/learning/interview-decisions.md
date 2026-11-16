@@ -51,7 +51,7 @@ The trade-offs in Ghost Bus LA you should be able to defend out loud. Each entry
 - **Why:** an S3 outage must not lose data; the spool drains when S3 comes back (that's the M0 chaos drill). Spool files are written atomically: write to `.tmp`, `fsync` the file, rename, then `fsync` the directory. A crash therefore never leaves a half-written file that looks complete.
 - **Why different names:** the spool needs time order (the detector processes oldest first), and two identical snapshots at different times must not overwrite each other. In S3, deduplication is the goal, so the key is the hash.
 - **Rejected:** writing straight to S3. Simpler, but any S3 or network hiccup loses snapshots.
-- **Proven (drill 2, 2026-11-16):** S3 blocked for 10 minutes; 17 upload errors, 38 snapshots kept spooling, the spool drained 20 s after the block lifted, nothing lost, no restart.
+- **Proven (drill 2, 2026-11-16):** S3 blocked for about 10 minutes; 17 upload errors, 38 snapshots kept spooling, uploads resumed on the first retry after the block (9 s later), pending count 0 at the next check, nothing lost, no restart.
 - **Record:** `docs/spec/01-data-pipeline.md` section 2.4; quizzes 010 and 012.
 
 ### 7. The uploader is paranoid about what counts as success
