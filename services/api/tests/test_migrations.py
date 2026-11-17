@@ -62,12 +62,17 @@ INSERT_RUN = text(
 @pytest.mark.parametrize(
     "bad",
     [
-        {"status": "done"},  # not an allowed status
+        {"status": "done", "error": "x"},  # not an allowed status (and nothing else wrong)
         {"row_count": -1},
         {"status": "succeeded", "row_count": None},  # a success must say how many rows
         {"status": "succeeded", "error": "boom"},  # a success has no error
         {"status": "failed", "error": None},  # a failure must say why
         {"finished_at": datetime(2026, 11, 17, 18, 0, tzinfo=UTC)},  # finished before it started
+        {"status": "failed", "row_count": None, "error": "  "},  # a failure must say why
+        {"source": ""},
+        {"table_name": "Reliability"},  # the API looks tables up by exact lowercase name
+        {"table_name": "reliability "},
+        {"table_name": "reliability__new"},  # record the live name, not the staging table
     ],
 )
 def test_publish_run_rejects_inconsistent_rows(
@@ -100,8 +105,17 @@ def test_publish_run_accepts_a_success_and_a_failure(empty_db: Engine, database_
             " VALUES ('buses', now(), 'pipeline')",
             {},
         ),
-        ("INSERT INTO ops.deploy (git_sha, outcome) VALUES ('abc123', 'succeeded')", {}),
         ("INSERT INTO ops.deploy (git_sha, outcome) VALUES (:sha, 'maybe')", {"sha": "a" * 40}),
+        *[
+            ("INSERT INTO ops.deploy (git_sha, outcome) VALUES (:sha, 'succeeded')", {"sha": sha})
+            for sha in ("abc123", "a" * 39, "a" * 41, "A" * 40, "a" * 40 + "\n")
+        ],
+        (
+            "INSERT INTO ops.deploy (git_sha, previous_sha, outcome)"
+            " VALUES (:sha, 'abc', 'failed')",
+            {"sha": "a" * 40},
+        ),
+        ("INSERT INTO ops.consumer_cursor (consumer, position) VALUES ('detector', '')", {}),
     ],
 )
 def test_ops_tables_reject_values_outside_their_domain(
@@ -123,3 +137,58 @@ def test_consumer_cursor_is_one_row_per_consumer(empty_db: Engine, database_url:
         con.execute(upsert, {"p": "b.pb"})
         rows = con.execute(text("SELECT consumer, position FROM ops.consumer_cursor")).all()
     assert [tuple(r) for r in rows] == [("detector", "b.pb")]
+
+
+@pytest.mark.parametrize(
+    ("sql", "params"),
+    [
+        *[
+            (
+                "INSERT INTO ops.feed_status (feed, last_success_at, updated_by)"
+                " VALUES (:feed, now(), :by)",
+                {"feed": feed, "by": by},
+            )
+            for feed in ("vehicle_positions", "trip_updates", "gtfs_static")
+            for by in ("pipeline", "detector")
+        ],
+        *[
+            (
+                "INSERT INTO ops.deploy (git_sha, previous_sha, outcome) VALUES (:sha, :prev, :o)",
+                {"sha": "a" * 40, "prev": prev, "o": outcome},
+            )
+            for outcome in ("succeeded", "failed", "rollback_failed")
+            for prev in (None, "b" * 40)
+        ],
+    ],
+)
+def test_ops_tables_accept_every_value_in_their_domain(
+    empty_db: Engine, database_url: str, sql: str, params: dict[str, str | None]
+) -> None:
+    upgrade_to_head(database_url)
+    with empty_db.begin() as con:
+        con.execute(text(sql), params)
+
+
+def test_recording_the_same_load_twice_is_rejected(empty_db: Engine, database_url: str) -> None:
+    upgrade_to_head(database_url)
+    row = _publish_run()
+    with empty_db.begin() as con:
+        con.execute(INSERT_RUN, row)
+    with pytest.raises(IntegrityError), empty_db.begin() as con:
+        con.execute(INSERT_RUN, row)
+
+
+def test_finished_at_defaults_to_the_server_clock(empty_db: Engine, database_url: str) -> None:
+    upgrade_to_head(database_url)
+    with empty_db.begin() as con:
+        con.execute(
+            text(
+                "INSERT INTO ops.publish_run (run_id, table_name, status, row_count, source,"
+                " started_at) VALUES (:id, 'reliability', 'succeeded', 1, 'test', now())"
+            ),
+            {"id": uuid.uuid4()},
+        )
+        lag = con.execute(
+            text("SELECT extract(epoch FROM clock_timestamp() - finished_at) FROM ops.publish_run")
+        ).scalar_one()
+    assert 0 <= lag < 60
