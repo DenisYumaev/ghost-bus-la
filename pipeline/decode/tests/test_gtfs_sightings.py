@@ -201,4 +201,8 @@ def test_s3_bucket_follows_pagination_and_reads_bodies() -> None:
         bucket.put("derived/x", b"1")
         with pytest.raises(BronzeWriteRefused):
             bucket.put("bronze/gtfs_static/dt=2026-11-15/x.zip", b"1")
+        stub.add_response("delete_object", {}, {"Bucket": "b", "Key": "derived/x"})
+        bucket.delete("derived/x")
+        with pytest.raises(BronzeWriteRefused):
+            bucket.delete("bronze/gtfs_static/dt=2026-11-15/x.zip")
         stub.assert_no_pending_responses()

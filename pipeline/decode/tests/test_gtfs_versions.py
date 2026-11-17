@@ -84,6 +84,7 @@ class FakeBucket:
     def __init__(self, objects: dict[str, bytes]) -> None:
         self.objects = objects
         self.puts: list[str] = []
+        self.deleted: list[str] = []
 
     def list_keys(self, prefix: str) -> list[str]:
         return sorted(k for k in self.objects if k.startswith(prefix))
@@ -94,6 +95,10 @@ class FakeBucket:
     def put(self, key: str, body: bytes) -> None:
         self.puts.append(key)
         self.objects[key] = body
+
+    def delete(self, key: str) -> None:
+        self.deleted.append(key)
+        del self.objects[key]
 
 
 def bucket_with_metros_zip() -> FakeBucket:
