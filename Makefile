@@ -4,7 +4,7 @@
 # never an apply target (CLAUDE.md hard rule 8).
 
 .DEFAULT_GOAL := help
-.PHONY: help install test lint fmt hooks tf-test plan-bootstrap plan selftest-s3 deploy-ingest gtfs-versions
+.PHONY: help install test lint fmt hooks tf-test plan-bootstrap plan selftest-s3 deploy-ingest gtfs-versions gtfs-load
 
 help:  ## List the targets
 	@grep -E '^[a-z0-9-]+:.*## ' $(MAKEFILE_LIST) | awk -F':.*## ' '{printf "  %-15s %s\n", $$1, $$2}'
@@ -49,3 +49,6 @@ deploy-ingest:  ## Deploy ingest to the VM over SSM: make deploy-ingest SHA=<ful
 
 gtfs-versions:  ## Rebuild dim_schedule_version in derived/ from the GTFS ZIPs in bronze (reads bronze only)
 	uv run python -m ghostbus_decode.gtfs_versions --bucket "$$(terraform -chdir=infra output -raw data_bucket_name)"
+
+gtfs-load:  ## Rebuild dim_schedule_version and extract every new GTFS version's tables to derived/
+	uv run python -m ghostbus_decode.gtfs_tables --bucket "$$(terraform -chdir=infra output -raw data_bucket_name)"

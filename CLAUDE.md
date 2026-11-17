@@ -75,6 +75,7 @@ make lint      # ruff, mypy, fixture size check (add eslint and tsc when web/ ex
 make fmt
 make plan      # terraform plan; there is deliberately no apply target
 make gtfs-versions  # rebuild dim_schedule_version in derived/ from the GTFS ZIPs in bronze
+make gtfs-load      # that, plus extract each new version's tables to derived/decoded/gtfs/<version>/
 ```
 
 Add `make dbt`, `make backfill START= END=`, and `make resume-metrics` as those pieces arrive.

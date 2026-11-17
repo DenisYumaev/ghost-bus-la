@@ -110,6 +110,7 @@ Decoded tables:
 ## 4. GTFS static and schedule versions
 
 - Every downloaded ZIP with a new file hash is a **schedule version**. Store the ZIP in bronze and extract its tables to `derived/decoded/gtfs/<version>/…`.
+- Extraction (`make gtfs-load`): `routes`, `trips`, `stops`, `stop_times`, `calendar`, `calendar_dates`, `feed_info` to `<table>.parquet`, every row stamped `schedule_version`. Columns stay text as published, except dates (`DATE`), numeric codes and coordinates, and the two stop times, which keep their text and gain `arrival_s`/`departure_s` (GTFS seconds; SQL checked against `ghostbus_core.service_date`). Any value that fails to parse refuses the version. `_SUCCESS` is written last; a version that has it is skipped. `shapes.txt` and fares aren't extracted yet.
 - `dim_schedule_version`: `version_id` (hash prefix), `first_seen_at`, `feed_start_date`, `feed_end_date` (from `feed_info.txt` when present), `valid_from`, `valid_to`.
 - `valid_from` = the later of `feed_start_date` and the date first seen. `valid_to` = the day before the next version's `valid_from`. The version in force for service date D is the one whose range contains D.
 - "Date first seen" is the America/Los_Angeles calendar date of `first_seen_at`, since `valid_from` is compared with service dates. "Next version" means next by `valid_from`, then by `first_seen_at`: a service change published early waits for its start date. A ZIP first seen mid-day replaces that day's version for the whole service date on the next rebuild.
