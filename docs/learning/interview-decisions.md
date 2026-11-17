@@ -176,6 +176,13 @@ The trade-offs in Ghost Bus LA you should be able to defend out loud. Each entry
 - **What's left to the next layer:** the alerts spec withdraws a cancellation only while the trip's start is still ahead, which needs the schedule. Silver exposes `reinstated_at` and `int_trip_observations` applies the cutoff (4 of 121 reinstatements on Nov 15 came after the start).
 - **Record:** `docs/research/duplicate-trip-reports.md`; `pipeline/dbt/models/staging/stg_trip_reports.sql`, `stg_cancellations.sql`; quiz 028.
 
+### 15g. Schedule expansion, checked two ways
+
+- **Decision:** `int_schedule_expanded` lists every trip that should run on each service date: the version in force, then `calendar` (weekday flag within its dates), plus `calendar_dates` additions, minus removals; first and last stop times converted with the noon-minus-12-hours rule.
+- **How it's proven:** the SQL time macro is tested against the same 16 hand-checked cases as the Python rule (one CSV, used as a dbt seed). A mutation to a midnight anchor fails 10 of them. The day's count was re-derived independently in plain Python from the raw GTFS: 9,534 trips on Sunday 2026-11-15 in both.
+- **Scope:** only service dates the local copy covers completely (`_sync.json`), because the UTC days around the range are partial.
+- **Record:** `pipeline/dbt/models/intermediate/`, `pipeline/dbt/macros/gtfs_to_utc.sql`; quiz 029.
+
 ### 16. Ingest every line; scope the headline numbers
 
 - **Decision:** archive all lines, and compute headline metrics on Metro-operated lines only.

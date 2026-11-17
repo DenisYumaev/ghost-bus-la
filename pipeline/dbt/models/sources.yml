@@ -24,6 +24,13 @@ sources:
         meta:
           external_location: "read_parquet('{{ var('data_dir') }}/gtfs/dim_schedule_version.parquet')"
 
+  - name: sync
+    description: The service-date range make dbt-sync copied (data/_sync.json).
+    tables:
+      - name: sync_range
+        meta:
+          external_location: "read_json('{{ var('data_dir') }}/_sync.json')"
+
   - name: raw
     tables:
       - name: fetch_log

@@ -166,7 +166,8 @@ Engine: dbt-duckdb reading Parquet from S3. Materialize silver and gold as Parqu
 
 | Model | Grain | Purpose |
 | --- | --- | --- |
-| `int_schedule_expanded` | scheduled trip × service date | Every trip that should run: apply `calendar` and `calendar_dates` for the version in force. Columns: `trip_id, route_id, line, direction_id, block_id, first_stop_id, sched_start_utc, sched_end_utc, n_stops, schedule_version` |
+| `int_service_dates` | service date | The dates `make dbt-sync` covered completely (`data/_sync.json` start..end), each with the version in force; a date with none warns |
+| `int_schedule_expanded` | scheduled trip × service date | Every trip that should run: apply `calendar` and `calendar_dates` for the version in force (weekly ∪ added − removed). Columns: `trip_id, route_id, line, direction_id, block_id, first_stop_id, sched_start_utc, sched_end_utc, n_stops, schedule_version` (plus `service_id`, `start_s`, `end_s`). Times via the `gtfs_to_utc` macro, tested against the same `tests/fixtures/gtfs_time_cases.csv` as the Python rule (a dbt seed). Real check, Sunday 2026-11-15: 9,534 trips, matching an independent Python count from the raw GTFS |
 | `int_trip_crosswalk` | realtime trip key × service date | Maps observed trips to scheduled trips with `match_method` (`exact`, `fuzzy`, `unmatched`) and `match_confidence` |
 | `int_trip_observations` | scheduled trip × service date | `first_seen_utc, last_seen_utc, max_stop_sequence, vehicle_ids, n_positions, n_updates, rt_canceled` |
 | `int_feed_health_5min` | feed × 5 minutes | Healthy if at least one successful fetch whose feed header is under 3 minutes old |

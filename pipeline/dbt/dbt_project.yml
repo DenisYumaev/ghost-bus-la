@@ -11,6 +11,9 @@ flags:
 
 model-paths: [models]
 test-paths: [tests]
+macro-paths: [macros]
+# The hand-checked GTFS time cases are shared with the Python tests (pipeline spec, section 5).
+seed-paths: ["../../tests/fixtures"]
 
 vars:
   # Local folder filled by `ghostbus_decode.sync` with marker-listed files only.
@@ -19,3 +22,12 @@ vars:
 models:
   ghostbus:
     +materialized: table
+
+seeds:
+  ghostbus:
+    gtfs_time_cases:
+      +column_types:
+        service_date: varchar
+        gtfs_time: varchar
+        expected_utc: varchar
+        why: varchar
