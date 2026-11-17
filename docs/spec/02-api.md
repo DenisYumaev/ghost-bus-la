@@ -66,7 +66,7 @@ Never return a stack trace. Never reveal whether an email has an account.
 | `GET /v1/system/feed-health?hours=` | Feed status for the status page |
 | `GET /v1/meta/method` | Thresholds and definitions currently in force |
 
-`window` is `28d` (default), `90d`, or `all`. `day_type` is `weekday`, `saturday`, or `sunday`.
+`window` is `28d` (default), `90d`, or `all`. `day_type` is `weekday`, `saturday`, or `sunday`. Definitions (ADR-025): a holiday on Sunday service is a `sunday`; `hour_local` is the local hour of the scheduled start, and a trip after midnight belongs to its service day (Friday's 1:30 AM bus is in `weekday`, hour 1); windows end at the last service date with data (return it as `data_through`, since `data_as_of` is only the publish time).
 
 Example, `GET /v1/lines/720/reliability?direction_id=0&window=28d`:
 
