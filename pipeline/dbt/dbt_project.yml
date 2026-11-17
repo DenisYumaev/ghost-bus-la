@@ -1,0 +1,17 @@
+# Ghost Bus LA dbt project (pipeline spec, section 6). Run from the repo root:
+#   make dbt            # sync must have filled data/ first (make dbt-sync START= END=)
+name: ghostbus
+version: "1.0"
+profile: ghostbus
+config-version: 2
+
+model-paths: [models]
+test-paths: [tests]
+
+vars:
+  # Local folder filled by `ghostbus_decode.sync` with marker-listed files only.
+  data_dir: data
+
+models:
+  ghostbus:
+    +materialized: table

@@ -78,9 +78,11 @@ make gtfs-versions  # rebuild dim_schedule_version in derived/ from the GTFS ZIP
 make gtfs-load      # that, plus extract each new version's tables to derived/decoded/gtfs/<version>/
 make compact DAY=2026-11-14  # one closed UTC day of snapshots into derived/compacted/
 make decode DAY=2026-11-14   # that day's compacted snapshots into typed tables in derived/decoded/
+make dbt-sync START=2026-11-14 END=2026-11-14  # marker-listed derived data into data/
+make dbt      # build and test every dbt model over data/
 ```
 
-Add `make dbt`, `make backfill START= END=`, and `make resume-metrics` as those pieces arrive.
+Add `make backfill START= END=` and `make resume-metrics` as those pieces arrive.
 
 ## Definition of done for a PR
 

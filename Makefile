@@ -4,7 +4,7 @@
 # never an apply target (CLAUDE.md hard rule 8).
 
 .DEFAULT_GOAL := help
-.PHONY: help install test lint fmt hooks tf-test plan-bootstrap plan selftest-s3 deploy-ingest gtfs-versions gtfs-load compact decode
+.PHONY: help install test lint fmt hooks tf-test plan-bootstrap plan selftest-s3 deploy-ingest gtfs-versions gtfs-load compact decode dbt-sync dbt
 
 help:  ## List the targets
 	@grep -E '^[a-z0-9-]+:.*## ' $(MAKEFILE_LIST) | awk -F':.*## ' '{printf "  %-15s %s\n", $$1, $$2}'
@@ -60,3 +60,11 @@ compact:  ## Compact one closed UTC day of snapshots into derived/compacted/: ma
 decode:  ## Decode one compacted UTC day into typed tables in derived/decoded/: make decode DAY=YYYY-MM-DD
 	@test -n "$(DAY)" || (echo "usage: make decode DAY=YYYY-MM-DD" && exit 2)
 	uv run python -m ghostbus_decode.decode --bucket "$$(terraform -chdir=infra output -raw data_bucket_name)" --day $(DAY)
+
+dbt-sync:  ## Copy marker-listed derived data for service dates START..END into data/: make dbt-sync START= END=
+	@test -n "$(START)" || (echo "usage: make dbt-sync START=YYYY-MM-DD END=YYYY-MM-DD" && exit 2)
+	@test -n "$(END)" || (echo "usage: make dbt-sync START=YYYY-MM-DD END=YYYY-MM-DD" && exit 2)
+	uv run python -m ghostbus_decode.sync --bucket "$$(terraform -chdir=infra output -raw data_bucket_name)" --start $(START) --end $(END)
+
+dbt:  ## Build and test every dbt model over data/ (run dbt-sync first)
+	uv run dbt build --project-dir pipeline/dbt --profiles-dir pipeline/dbt

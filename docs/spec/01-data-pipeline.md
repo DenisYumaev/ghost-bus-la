@@ -140,11 +140,14 @@ Facts about Metro's schedule that the loader must handle (from the probe):
 - Conversion: `utc_ts = local_noon(service_date, tz) − 12 h + gtfs_seconds`, then convert to UTC. Using noon makes days with a daylight-saving change come out right.
 - Prefer `start_date` from the GTFS-rt trip descriptor as the service date. If absent, derive it from the schedule: the service date whose trip window (start −30 min to end +60 min) contains the observation.
 - Partition silver and gold by **service date**, never by arrival time.
+- SQL never relies on the session time zone: convert with `timezone('UTC', ts)` (or `'America/Los_Angeles'`) explicitly before formatting, truncating, or comparing with a date. A laptop's DuckDB session is Los Angeles, and a check run that way on 2026-11-17 shifted every count by 8 hours.
 - Tests must cover: a trip past 24:00; the March 2027 spring-forward date; a fall-back date; a trip that spans midnight UTC.
 
 ## 6. dbt models
 
 Engine: dbt-duckdb reading Parquet from S3. Materialize silver and gold as Parquet partitioned by service date; rebuild whole partitions with overwrite, never append.
+
+**As built (M1):** `make dbt-sync START= END=` (`ghostbus_decode.sync`) copies the marker-listed decoded parts, fetch-log hours and extracted schedule versions for those service dates (UTC days `START..END+1`) into the gitignored `data/`, and `make dbt` builds a DuckDB file there (`pipeline/dbt/`). Reading a local copy rather than S3 keeps readers on marker-listed files only (a glob over S3 could see a half-written run) and S3 credentials out of DuckDB. Models are DuckDB tables for now; publishing Parquet to S3 comes with serving (section 13). Each external source has a thin `src_*` view, because dbt unit tests can't mock an external source. `pipeline/decode/tests/test_dbt.py` runs `dbt build`, with every data and unit test, over a synthetic world pushed through the real Python steps.
 
 ### 6.1 Silver
 

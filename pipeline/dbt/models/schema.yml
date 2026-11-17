@@ -1,0 +1,101 @@
+version: 2
+
+models:
+  - name: stg_fetch_log
+    description: One row per fetch attempt; identical lines from re-uploaded hour files collapse.
+    columns:
+      - name: fetch_key
+        data_tests: [unique, not_null]
+      - name: outcome
+        data_tests:
+          - accepted_values:
+              arguments:
+                values: [written, duplicate, network_error, spool_error, http_error]
+
+  - name: dim_schedule_version
+    columns:
+      - name: version_id
+        data_tests: [unique, not_null]
+
+  - name: dim_routes
+    data_tests:
+      - unique_combination:
+          arguments: {columns: [schedule_version, route_id]}
+    columns:
+      - name: line
+        data_tests: [not_null]
+
+  - name: dim_trips
+    data_tests:
+      - unique_combination:
+          arguments: {columns: [schedule_version, trip_id]}
+    columns:
+      - name: service_id
+        data_tests: [not_null]
+
+  - name: dim_stops
+    data_tests:
+      - unique_combination:
+          arguments: {columns: [schedule_version, stop_id]}
+
+  - name: dim_stop_times
+    data_tests:
+      - unique_combination:
+          arguments: {columns: [schedule_version, trip_id, stop_sequence]}
+
+  - name: dim_calendar
+    data_tests:
+      - unique_combination:
+          arguments: {columns: [schedule_version, service_id]}
+
+  - name: dim_calendar_dates
+    data_tests:
+      - unique_combination:
+          arguments: {columns: [schedule_version, service_id, service_date]}
+    columns:
+      - name: exception_type
+        data_tests:
+          - accepted_values:
+              arguments: {values: [1, 2]}
+
+unit_tests:
+  - name: stg_fetch_log_collapses_repeated_lines_and_keeps_only_fetches
+    model: stg_fetch_log
+    given:
+      - input: ref('src_fetch_log')
+        rows:
+          - {event: fetch, feed: vehicle_positions, fetched_at: "2026-11-14T05:00:00Z", outcome: written}
+          - {event: fetch, feed: vehicle_positions, fetched_at: "2026-11-14T05:00:00Z", outcome: written}
+          - {event: disconnect, feed: vehicle_positions}
+          - {event: fetch, feed: trip_updates, fetched_at: "2026-11-14T05:01:00.400Z", outcome: network_error}
+    expect:
+      rows:
+        - {fetch_key: "vehicle_positions@2026-11-14T05:00:00.000000", outcome: written}
+        - {fetch_key: "trip_updates@2026-11-14T05:01:00.400000", outcome: network_error}
+
+  - name: dim_trips_treats_an_empty_block_id_as_none
+    model: dim_trips
+    given:
+      - input: ref('src_gtfs_trips')
+        rows:
+          - {schedule_version: v1, trip_id: T1, route_id: R, service_id: S, block_id: "2065100"}
+          - {schedule_version: v1, trip_id: T2, route_id: R, service_id: S, block_id: ""}
+    expect:
+      rows:
+        - {trip_id: T1, block_id: "2065100"}
+        - {trip_id: T2, block_id: null}
+
+  - name: dim_routes_falls_back_to_the_route_number_for_lines_without_a_short_name
+    model: dim_routes
+    given:
+      - input: ref('src_gtfs_routes')
+        rows:
+          - {schedule_version: v1, route_id: "2-13201", route_short_name: "2"}
+          - {schedule_version: v1, route_id: "901-13201", route_short_name: null,
+             route_long_name: "Metro G Line (Orange) 901"}
+          - {schedule_version: v1, route_id: "854-13201", route_short_name: "Dodger Stadium Express"}
+    expect:
+      rows:
+        - {route_id: "2-13201", line: "2"}
+        - {route_id: "901-13201", line: "901"}
+        - {route_id: "854-13201", line: "Dodger Stadium Express"}

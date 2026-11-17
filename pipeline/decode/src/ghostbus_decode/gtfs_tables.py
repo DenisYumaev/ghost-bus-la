@@ -38,7 +38,7 @@ from typing import cast
 import duckdb
 
 from ghostbus_decode.gtfs_sql import gtfs_seconds_sql, trim_sql
-from ghostbus_decode.s3 import Bucket
+from ghostbus_decode.s3 import Bucket, ReadBucket
 
 # Bump when the output changes (columns, typing, rules), so existing versions are redone.
 EXTRACTOR_VERSION = 2
@@ -106,7 +106,7 @@ def version_prefix(version_id: str) -> str:
     return f"{GTFS_DERIVED}{version_id}/"
 
 
-def is_extracted(bucket: Bucket, version_id: str) -> bool:
+def is_extracted(bucket: ReadBucket, version_id: str) -> bool:
     """True if the version has a `_SUCCESS` written by this extractor version."""
     key = version_prefix(version_id) + SUCCESS
     if key not in bucket.list_keys(version_prefix(version_id)):

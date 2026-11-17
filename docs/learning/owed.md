@@ -41,6 +41,7 @@ All quizzes are in `docs/learning/quizzes/` on `main`. Take them whenever you ha
 | [#29](https://github.com/DenisYumaev/ghost-bus-la/pull/29) | GTFS loader part 2: strict table extraction | [ ] [024](quizzes/024-gtfs-tables.md) | [ ] | n/a | Extracted to `derived/decoded/gtfs/cb1a2283abecc0af/`, 2026-11-17 |
 | [#30](https://github.com/DenisYumaev/ghost-bus-la/pull/30) | Compaction | [ ] [025](quizzes/025-compaction.md) | [ ] | n/a | Compacted 2026-11-14 to `derived/compacted/`, 2026-11-17 |
 | [#31](https://github.com/DenisYumaev/ghost-bus-la/pull/31) | Decode realtime frames to typed tables | [ ] [026](quizzes/026-decode.md) | [ ] | n/a | Decoded 2026-11-14 to `derived/decoded/`, 2026-11-17 |
+| [#32](https://github.com/DenisYumaev/ghost-bus-la/pull/32) | dbt setup, sync, fetch log and schedule dims | [ ] [027](quizzes/027-dbt-setup.md) | [ ] | n/a | n/a (local build over synced Nov 14) |
 
 **Suggested order, if you take them:** 004, 005, and 006 first, because they describe what is live in AWS right now. Then 002, 001, and 003.
 
