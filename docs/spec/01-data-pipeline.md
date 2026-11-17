@@ -112,6 +112,8 @@ Decoded tables:
 - Every downloaded ZIP with a new file hash is a **schedule version**. Store the ZIP in bronze and extract its tables to `derived/decoded/gtfs/<version>/…`.
 - `dim_schedule_version`: `version_id` (hash prefix), `first_seen_at`, `feed_start_date`, `feed_end_date` (from `feed_info.txt` when present), `valid_from`, `valid_to`.
 - `valid_from` = the later of `feed_start_date` and the date first seen. `valid_to` = the day before the next version's `valid_from`. The version in force for service date D is the one whose range contains D.
+- "Date first seen" is the America/Los_Angeles calendar date of `first_seen_at`, since `valid_from` is compared with service dates. "Next version" means next by `valid_from`, then by `first_seen_at`: a service change published early waits for its start date. A ZIP first seen mid-day replaces that day's version for the whole service date on the next rebuild.
+- If two versions share a `valid_from`, the one seen last wins that day. The other keeps its row with an empty range (`valid_to` = `valid_from` − 1 day), so anything already matched against it still resolves. Code: `ghostbus_core.schedule_versions`.
 - Weekly `calendar_dates.txt` updates produce new versions with the same trip IDs; service changes produce new trip IDs. Both are handled by the same rule: always resolve trip IDs against the version in force.
 - Never overwrite or delete a version.
 - Versions are identified by `content_hash`, not by object key: the same ZIP can, rarely, sit under two `dt=` partitions. The loader takes the earliest `first_seen_at` per hash.
