@@ -117,6 +117,7 @@ Decoded tables:
 - Weekly `calendar_dates.txt` updates produce new versions with the same trip IDs; service changes produce new trip IDs. Both are handled by the same rule: always resolve trip IDs against the version in force.
 - Never overwrite or delete a version.
 - Versions are identified by `content_hash`, not by object key: the same ZIP can, rarely, sit under two `dt=` partitions. The loader takes the earliest `first_seen_at` per hash.
+- The loader (`make gtfs-versions`) locates each ZIP from the bronze listing and dates it from its earliest `written` fetch-log line, never from a `duplicate` line (whose `object_key` names the duplicate's own day). A ZIP stored today or yesterday (UTC) with no `written` line yet is skipped as waiting: the fetch-log hour uploads only when the hour closes. An older ZIP with no `written` line stops the load rather than getting a guessed date.
 
 Facts about Metro's schedule that the loader must handle (from the probe):
 

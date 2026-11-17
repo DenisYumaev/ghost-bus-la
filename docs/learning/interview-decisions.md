@@ -133,7 +133,8 @@ The trade-offs in Ghost Bus LA you should be able to defend out loud. Each entry
 - **Why:** Metro's `feed_version` is empty, so the hash is the only reliable signal. Ordering by start date lets a service change published a week early wait for its date. Keeping superseded rows means anything already matched against them (an alert sent that morning) still resolves.
 - **Known limits, recorded rather than guessed:** a revert to an older ZIP's exact bytes isn't detected, and a postponed service change still takes effect on its original date (SPEC section 10; the Dec 13 service change is the live test).
 - **How it's proven:** hand-checked cases, plus a brute-force oracle property and a property that every hash gets exactly one row. The first draft's structure-only properties would have passed a function returning `[]`. A mutation to the UTC date fails two tests.
-- **Record:** `docs/spec/01-data-pipeline.md` section 4; `packages/ghostbus_core/src/ghostbus_core/schedule_versions.py`; quiz 022.
+- **Loading it from bronze:** the bronze listing says which ZIPs exist; the earliest `written` fetch-log line says when each was first seen. A `duplicate` line's `object_key` is never used, because ingest builds it from the duplicate's own day, where nothing is stored (true of both duplicates in the real bucket). A ZIP with no `written` line stops the load instead of getting a guessed date, since that date decides the schedule in force. The pipeline's S3 wrapper refuses any write under `bronze/`, a second layer behind the bucket policy.
+- **Record:** `docs/spec/01-data-pipeline.md` section 4; `packages/ghostbus_core/src/ghostbus_core/schedule_versions.py`; `pipeline/decode/src/ghostbus_decode/gtfs_versions.py`; quizzes 022 and 023.
 
 ### 16. Ingest every line; scope the headline numbers
 

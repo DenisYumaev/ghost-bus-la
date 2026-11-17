@@ -74,6 +74,7 @@ make test      # all offline tests; keep under 5 minutes
 make lint      # ruff, mypy, fixture size check (add eslint and tsc when web/ exists)
 make fmt
 make plan      # terraform plan; there is deliberately no apply target
+make gtfs-versions  # rebuild dim_schedule_version in derived/ from the GTFS ZIPs in bronze
 ```
 
 Add `make dbt`, `make backfill START= END=`, and `make resume-metrics` as those pieces arrive.

@@ -105,6 +105,22 @@ def test_missing_section_means_no_download(tmp_path: Path) -> None:
 
 
 @async_test
+async def test_a_zips_key_and_its_written_line_share_one_utc_day(tmp_path: Path) -> None:
+    # Contract with pipeline/decode (gtfs_sightings): the loader reads only the fetch log of
+    # the ZIP key's dt= day, so both must come from the same timestamp, even at 23:59:59.9.
+    late = datetime(2026, 11, 15, 23, 59, 59, 900000, tzinfo=UTC).timestamp()
+    dl, spool = downloader(tmp_path, serving(httpx.Response(200, content=make_zip())))
+    assert await dl.download_once(late) == "written"
+    [path] = spool.pending()
+    [line] = read_log(tmp_path)
+    assert spool_object_key(path).split("/")[2] == "dt=2026-11-15"
+    assert line["object_key"] == spool_object_key(path)
+    assert line["fetched_at"].startswith("2026-11-15T23:59:59")
+    assert (tmp_path / "_fetch_log" / "dt=2026-11-15").is_dir()
+    assert not (tmp_path / "_fetch_log" / "dt=2026-11-16").exists()
+
+
+@async_test
 async def test_new_zip_is_spooled_byte_for_byte_and_logged(tmp_path: Path) -> None:
     body = make_zip()
     dl, spool = downloader(tmp_path, serving(httpx.Response(200, content=body)))

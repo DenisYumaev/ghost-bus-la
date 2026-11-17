@@ -13,11 +13,12 @@ WORKDIR /app
 # workspace member's pyproject.toml to check the lockfile.
 COPY pyproject.toml uv.lock ./
 COPY packages/ghostbus_core/pyproject.toml packages/ghostbus_core/pyproject.toml
+COPY pipeline/decode/pyproject.toml pipeline/decode/pyproject.toml
 COPY services/ingest/pyproject.toml services/ingest/pyproject.toml
 RUN uv sync --locked --no-dev --package ghostbus-ingest --no-install-workspace
 
-# Then ingest itself, installed as a normal (non-editable) package. ghostbus_core is never
-# copied: ingest doesn't depend on it (hard rule 3).
+# Then ingest itself, installed as a normal (non-editable) package. ghostbus_core and
+# ghostbus_decode code is never copied: ingest depends on neither (hard rule 3).
 COPY services/ingest/src services/ingest/src
 RUN uv sync --locked --no-dev --package ghostbus-ingest --no-editable
 

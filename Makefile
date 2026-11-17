@@ -4,7 +4,7 @@
 # never an apply target (CLAUDE.md hard rule 8).
 
 .DEFAULT_GOAL := help
-.PHONY: help install test lint fmt hooks tf-test plan-bootstrap plan selftest-s3 deploy-ingest
+.PHONY: help install test lint fmt hooks tf-test plan-bootstrap plan selftest-s3 deploy-ingest gtfs-versions
 
 help:  ## List the targets
 	@grep -E '^[a-z0-9-]+:.*## ' $(MAKEFILE_LIST) | awk -F':.*## ' '{printf "  %-15s %s\n", $$1, $$2}'
@@ -19,7 +19,7 @@ test:  ## Run all offline tests with coverage
 lint:  ## Lint, format check, type check, fixture sizes
 	uv run ruff check .
 	uv run ruff format --check .
-	uv run mypy packages/ghostbus_core/src services/ingest/src scripts tests packages/ghostbus_core/tests services/ingest/tests
+	uv run mypy packages/ghostbus_core/src services/ingest/src pipeline/decode/src scripts tests packages/ghostbus_core/tests services/ingest/tests pipeline/decode/tests
 	uv run python scripts/check_fixture_size.py
 
 fmt:  ## Auto-fix lint issues and format
@@ -46,3 +46,6 @@ selftest-s3:  ## Prove conditional writes and the no-overwrite policy on the rea
 deploy-ingest:  ## Deploy ingest to the VM over SSM: make deploy-ingest SHA=<full git sha on main>
 	@test -n "$(SHA)" || (echo "usage: make deploy-ingest SHA=<full git sha>" && exit 2)
 	uv run python scripts/deploy_ingest.py $(SHA)
+
+gtfs-versions:  ## Rebuild dim_schedule_version in derived/ from the GTFS ZIPs in bronze (reads bronze only)
+	uv run python -m ghostbus_decode.gtfs_versions --bucket "$$(terraform -chdir=infra output -raw data_bucket_name)"

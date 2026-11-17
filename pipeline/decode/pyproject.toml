@@ -1,0 +1,20 @@
+[project]
+name = "ghostbus-decode"
+version = "0.1.0"
+description = "Compaction and decode: bronze to typed Parquet, starting with GTFS schedule versions."
+requires-python = ">=3.12,<3.13"
+dependencies = [
+    "ghostbus-core",  # service_date, schedule_versions
+    # stop_times.txt is about 2.1 million rows: load it in DuckDB, not row by row in Python
+    # (pipeline spec, section 4). DuckDB is in the stack list. uv.lock pins the tested version.
+    "duckdb>=1.1",
+    "boto3>=1.36",  # read bronze, write derived/
+]
+
+[tool.uv.sources]
+ghostbus-core = { workspace = true }  # the local package, not PyPI
+
+[build-system]
+# uv's own build backend; it expects the code in src/<package_name>/.
+requires = ["uv_build>=0.13,<0.14"]
+build-backend = "uv_build"
