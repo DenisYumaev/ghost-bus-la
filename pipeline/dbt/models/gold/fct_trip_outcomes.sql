@@ -15,7 +15,8 @@ with trips as (
 ),
 
 health as (
-    select bucket_start, bool_and(healthy) as both_healthy
+    -- Both feeds: exactly two healthy rows (not "every row present is healthy").
+    select bucket_start, count(*) filter (where healthy) = 2 as both_healthy
     from {{ ref('int_feed_health_5min') }}
     group by bucket_start
 ),
@@ -34,7 +35,7 @@ shares as (
 classified as (
     select
         t.*,
-        coalesce(s.feed_healthy_share, 0.0) as feed_healthy_share,
+        s.feed_healthy_share,  -- NULL if the window has no buckets (outside the synced days)
         t.max_stop_sequence / t.n_stops as stop_coverage
     from trips as t
     left join shares as s using (service_date, schedule_version, trip_id)
@@ -53,7 +54,8 @@ select
     case
         when observed_running and stop_coverage >= {{ var('min_stop_coverage') }} then 'ran'
         when observed_running then 'partial'
-        when feed_healthy_share < {{ var('min_feed_healthy_share') }} then 'unknown'
+        when feed_healthy_share is null
+            or feed_healthy_share < {{ var('min_feed_healthy_share') }} then 'unknown'
         else 'missed'
     end as outcome,
     rt_canceled as announced,

@@ -177,7 +177,7 @@ Engine: dbt-duckdb reading Parquet from S3. Materialize silver and gold as Parqu
 
 | Model | Grain | Answers |
 | --- | --- | --- |
-| `fct_trip_outcomes` | scheduled trip × service date | `outcome`, `announced`, `announce_source`, `advance_notice_s`, `stop_coverage`, `match_method`, `is_metro_operated`. M1 (ADR-024): rules 1, 2, 3, 5; updates-only observed trips are `partial`; `is_metro_operated` NULL until the contracted-lines seed. Acceptance query: `scripts/line_day_summary.py` (line 754, 2026-11-15: 110 scheduled, 105 ran, 5 partial; reconciliation holds) |
+| `fct_trip_outcomes` | scheduled trip × service date | `outcome`, `announced`, `announce_source`, `advance_notice_s`, `stop_coverage`, `match_method`, `is_metro_operated`. M1 (ADR-024): rules 1, 2, 3, 5; updates-only observed trips are `partial`; `is_metro_operated` NULL until the contracted-lines seed. Observed running needs evidence at or after the scheduled start (ADR-024). Acceptance query: `scripts/line_day_summary.py` (internal check, not quotable: line 754 on 2026-11-15, 110 scheduled, 105 ran, 4 partial, 1 missed; reconciliation holds) |
 | `fct_stop_service` | scheduled trip × stop × service date (P1) | Whether the trip served each stop |
 | `fct_reliability` | line × direction × day type × hour × window | Trip counts and rates with intervals; windows `28d`, `90d`, `all` |
 | `fct_stop_reliability` | line × direction × stop × day type × hour × window (P1) | Same, at the stop |

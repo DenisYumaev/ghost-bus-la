@@ -70,6 +70,15 @@ QUERIES = {
         SELECT count(*) FILTER (WHERE after_start = 0 AND before_start > 0),
                count(*) FILTER (WHERE observed_running)
         FROM ({POS})""",
+    "feed timestamp age at successful fetches, seconds (p50, p99; max), all synced days": """
+        SELECT feed, quantile_cont(epoch(fetched_at) - epoch(feed_header_ts), [0.5, 0.99]),
+               max(epoch(fetched_at) - epoch(feed_header_ts))
+        FROM stg_fetch_log
+        WHERE outcome IN ('written', 'duplicate') AND feed <> 'gtfs_static'
+        GROUP BY 1 ORDER BY 1""",
+    "outcomes (fct_trip_outcomes)": f"""
+        SELECT outcome, count(*), count(*) FILTER (WHERE announced)
+        FROM fct_trip_outcomes WHERE service_date = {D} GROUP BY 1 ORDER BY 1""",
     "observed by positions: coverage (max_stop_sequence / n_stops) p10/p25/p50": f"""
         SELECT quantile_cont(max_stop_sequence / n_stops, [0.1, 0.25, 0.5])
         FROM int_trip_observations WHERE service_date = {D} AND n_positions > 0""",

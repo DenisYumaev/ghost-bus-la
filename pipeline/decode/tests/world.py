@@ -8,7 +8,7 @@ schemas the pipeline writes. Nothing here touches the network.
 import gzip
 import hashlib
 import json
-from datetime import date, timedelta
+from datetime import date, datetime, timedelta
 from pathlib import Path
 
 from ghostbus_decode.compact import compact_day
@@ -65,9 +65,11 @@ def add_snapshots(bucket: Bucket, feed: str, cuts: list[tuple[str, list[str]]]) 
         bucket.objects[f"bronze/{feed}/dt={at[:10]}/{sha[:16]}.ndjson.gz"] = gzip.compress(
             data, mtime=0
         )
+        header = datetime.fromisoformat(at) - timedelta(seconds=5)  # newest entity, 5 s earlier
         lines.append(json.dumps({"event": "fetch", "feed": feed, "fetched_at": at,
                                  "outcome": "written", "content_hash": sha,
-                                 "partial": False, "n_entities": len(frames)}))  # fmt: skip
+                                 "partial": False, "n_entities": len(frames),
+                                 "feed_header_ts": f"{header:%Y-%m-%dT%H:%M:%SZ}"}))  # fmt: skip
     _log(bucket, cuts[0][0][:10], cuts[0][0][11:13], feed, lines)
 
 

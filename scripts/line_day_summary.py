@@ -39,8 +39,11 @@ def main() -> None:
     print(f"line {line}, service date {day}:")
     for name in names:
         print(f"  {name:>20}: {row[name]}")
+    ok = row["scheduled"] > 0 and parts == row["scheduled"]
     print(f"  reconciliation: scheduled {row['scheduled']} = outcomes {parts}: "
-          f"{'ok' if parts == row['scheduled'] else 'MISMATCH'}")  # fmt: skip
+          f"{'ok' if ok else 'MISMATCH or nothing scheduled'}")  # fmt: skip
+    if not ok:
+        sys.exit(1)
 
 
 if __name__ == "__main__":

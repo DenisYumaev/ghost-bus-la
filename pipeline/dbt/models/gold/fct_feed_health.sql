@@ -8,5 +8,6 @@ select
     n_fetches - n_success as n_errors,
     case when n_fetches > 0 then (n_fetches - n_success) / n_fetches end as error_rate,
     freshest_age_s,
-    healthy
+    healthy,
+    is_padding  -- exclude from the capture SLO
 from {{ ref('int_feed_health_5min') }}

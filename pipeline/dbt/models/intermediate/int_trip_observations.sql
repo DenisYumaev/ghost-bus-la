@@ -16,8 +16,10 @@
 -- - Trip updates: only each fetch's chosen report (a non-chosen duplicate can be a stale
 --   SCHEDULED report still carrying a vehicle next to a newer cancellation). n_updates counts
 --   chosen SCHEDULED reports; n_updates_with_vehicle those with a vehicle.
--- - observed_running (spec section 8): a matched SCHEDULED position, or a chosen SCHEDULED
---   trip update with a vehicle, in the window. A CANCELED report is not an observation.
+-- - observed_running (spec section 8 as refined by ADR-024): a matched SCHEDULED position,
+--   or a chosen SCHEDULED trip update with a vehicle, at or after the scheduled start and
+--   inside the window. A CANCELED report is not an observation. seen_in_window also counts
+--   the 30 minutes before the start (a bus waiting at the first stop).
 -- - rt_canceled: marked CANCELED and not reinstated before the scheduled start (pipeline
 --   spec section 8; the alerts spec also withdraws on leaving the stream, an open question).
 with scheduled as (
@@ -69,6 +71,10 @@ updates as (
         list(distinct r.vehicle_id order by r.vehicle_id) filter (
             where r.trip_schedule_relationship = 'SCHEDULED' and r.vehicle_id is not null
         ) as update_vehicle_ids,
+        count(*) filter (
+            where r.trip_schedule_relationship = 'SCHEDULED' and r.vehicle_id is not null
+              and r.fetched_at >= s.sched_start_utc
+        ) as n_updates_with_vehicle_after_start,
         min(r.fetched_at) filter (
             where r.trip_schedule_relationship = 'SCHEDULED' and r.vehicle_id is not null
         ) as first_update_with_vehicle_at,
@@ -115,11 +121,16 @@ select
     p.last_position_fetched_at,
     coalesce(u.n_updates, 0) as n_updates,
     coalesce(u.n_updates_with_vehicle, 0) as n_updates_with_vehicle,
+    coalesce(u.n_updates_with_vehicle_after_start, 0) as n_updates_with_vehicle_after_start,
     u.update_vehicle_ids,
     least(p.first_position_at, u.first_update_with_vehicle_at) as first_seen_utc,
     greatest(p.last_position_at, u.last_update_with_vehicle_at) as last_seen_utc,
+    -- ADR-024: evidence at or after the scheduled start. A bus seen only waiting before
+    -- departure didn't run the trip (seen_in_window keeps the looser signal).
+    coalesce(p.n_positions_after_start, 0) > 0
+        or coalesce(u.n_updates_with_vehicle_after_start, 0) > 0 as observed_running,
     coalesce(p.n_positions, 0) > 0 or coalesce(u.n_updates_with_vehicle, 0) > 0
-        as observed_running,
+        as seen_in_window,
     c.trip_id is not null
         and (c.reinstated_at is null or c.reinstated_at >= s.sched_start_utc) as rt_canceled,
     c.first_seen_at as canceled_first_seen_at,

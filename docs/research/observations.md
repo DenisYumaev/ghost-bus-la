@@ -19,6 +19,17 @@
 | All observed trips with positions only before the start | 23 of 9,405 |
 | All trips observed by positions: coverage p10 / p25 / p50 | 0.97 / 0.99 / 1.00 |
 
+## Feed health and outcomes (added after ADR-024)
+
+| Measure | Value |
+| --- | --- |
+| Feed timestamp age at successful fetches, all synced days (Nov 14–16): trip updates p50 / p99 / max | 13 / 45 / 72 s |
+| …vehicle positions p50 / p99 / max | 10 / 14 / 98 s |
+| Outcomes, service date Nov 15 (ADR-024): ran / partial / missed / unknown | 9,068 / 312 / 154 / 0 |
+| …announced among them | 6 / 93 / 148 / 0 |
+
+The "feed timestamp" is the newest entity timestamp in the snapshot (the WebSocket stream has no feed header, ADR-021). Every age is far below ADR-024's 180 s limit, so on these days feed health is decided by whether fetches happened at all. Outcome counts are internal: M1's `missed` includes trips M4 may call `likely_untracked`.
+
 ## What it means
 
 - Exact matching works on this date: every in-scope realtime key matched the version in force.

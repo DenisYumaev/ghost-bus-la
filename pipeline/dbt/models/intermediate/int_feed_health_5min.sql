@@ -49,7 +49,12 @@ select
     coalesce(p.n_fetches, 0) as n_fetches,
     coalesce(p.n_success, 0) as n_success,
     p.freshest_age_s,
-    coalesce(p.freshest_age_s < {{ var('feed_fresh_max_s') }}, false) as healthy
+    coalesce(p.freshest_age_s < {{ var('feed_fresh_max_s') }}, false) as healthy,
+    -- The padding UTC days around the requested range (start-1, end+1): synced for trips that
+    -- cross midnight, but not part of the range's capture SLO.
+    cast(b.bucket_start at time zone 'UTC' as date) not between
+        (select cast("start" as date) from {{ ref('src_sync_range') }})
+        and (select cast("end" as date) from {{ ref('src_sync_range') }}) as is_padding
 from buckets as b
 cross join feeds as f
 left join per_bucket as p
