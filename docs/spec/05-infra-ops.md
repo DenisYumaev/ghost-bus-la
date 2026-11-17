@@ -136,7 +136,7 @@ Every rule notifies by email and a Discord webhook and links to its entry in `do
 
 | Alert | Condition | First response |
 | --- | --- | --- |
-| `ingest_heartbeat_missed` | No heartbeat for 3 minutes | Check the VM and the `ingest` container; the spool protects data only while the process runs |
+| `ingest_heartbeat_missed` | No heartbeat for one 1-minute period plus 3 minutes of grace (about 4 minutes) | Check the VM and the `ingest` container; the spool protects data only while the process runs |
 | `feed_stale` | A feed has no success for 5 minutes | Check Metro's status; confirm backoff; no action if upstream is down |
 | `spool_disk_high` | Disk above 70% | Check the uploader and S3 permissions |
 | `detector_blocked` | Detector can't parse or schema not approved | Inspect the snapshot; approve the schema or fix the parser; replay |
