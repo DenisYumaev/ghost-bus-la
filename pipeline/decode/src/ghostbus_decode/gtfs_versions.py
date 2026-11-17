@@ -11,6 +11,7 @@ import io
 import tempfile
 import zipfile
 from collections.abc import Sequence
+from dataclasses import dataclass
 from datetime import date
 from pathlib import Path
 
@@ -52,13 +53,20 @@ def read_feed_dates(zip_bytes: bytes) -> tuple[date | None, date | None]:
     return _date(row.get("feed_start_date")), _date(row.get("feed_end_date"))
 
 
-def build_versions(bucket: ReadBucket) -> list[ScheduleVersion]:
-    """Every stored version with its validity range. Reads each ZIP once (about 22 MB)."""
+@dataclass(frozen=True)
+class VersionBuild:
+    versions: list[ScheduleVersion]
+    waiting: list[str]  # ZIPs stored too recently to have a sighting; next run picks them up
+
+
+def build_versions(bucket: ReadBucket, today: date | None = None) -> VersionBuild:
+    """Every stored version with its validity range. Reads one ZIP at a time (about 22 MB)."""
+    found = load_sightings(bucket, today)
     zips = []
-    for seen in load_sightings(bucket):
+    for seen in found.zips:
         start, end = read_feed_dates(bucket.get(seen.object_key))
         zips.append(SeenZip(seen.sha256, seen.first_seen_at, start, end))
-    return resolve_versions(zips)
+    return VersionBuild(resolve_versions(zips), found.waiting)
 
 
 def versions_parquet(versions: Sequence[ScheduleVersion]) -> bytes:
@@ -80,10 +88,10 @@ def versions_parquet(versions: Sequence[ScheduleVersion]) -> bytes:
         return out.read_bytes()
 
 
-def write_dim(bucket: Bucket) -> list[ScheduleVersion]:
-    versions = build_versions(bucket)
-    bucket.put(DIM_KEY, versions_parquet(versions))
-    return versions
+def write_dim(bucket: Bucket, today: date | None = None) -> VersionBuild:
+    build = build_versions(bucket, today)
+    bucket.put(DIM_KEY, versions_parquet(build.versions))
+    return build
 
 
 def _date(text: str | None) -> date | None:
@@ -91,15 +99,16 @@ def _date(text: str | None) -> date | None:
     return parse_service_date(text) if text else None
 
 
-def report(versions: Sequence[ScheduleVersion]) -> str:
-    lines = [f"{len(versions)} schedule version(s):"]
-    for v in versions:
+def report(build: VersionBuild) -> str:
+    lines = [f"{len(build.versions)} schedule version(s):"]
+    for v in build.versions:
         to = v.valid_to.isoformat() if v.valid_to else "open"
         state = "" if v.ever_in_force else "  (superseded the day it took effect)"
         lines.append(
             f"  {v.version_id}  first seen {v.first_seen_at:%Y-%m-%d %H:%M}Z  "
             f"feed {v.feed_start_date}..{v.feed_end_date}  valid {v.valid_from}..{to}{state}"
         )
+    lines += [f"  waiting for its fetch-log hour (next run): {k}" for k in build.waiting]
     return "\n".join(lines)
 
 
@@ -116,8 +125,8 @@ def main() -> None:  # pragma: no cover - thin CLI over tested functions
     parser.add_argument("--dry-run", action="store_true", help="print, don't write")
     args = parser.parse_args()
     bucket = S3Bucket(boto3.client("s3", region_name="us-west-2"), args.bucket)
-    versions = build_versions(bucket) if args.dry_run else write_dim(bucket)
-    print(report(versions))
+    build = build_versions(bucket) if args.dry_run else write_dim(bucket)
+    print(report(build))
     if not args.dry_run:
         print(f"wrote s3://{args.bucket}/{DIM_KEY}")
 

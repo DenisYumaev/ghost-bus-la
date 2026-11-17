@@ -72,6 +72,7 @@ def test_a_malformed_date_is_rejected() -> None:
 
 SHA = "cb1a2283abecc0af1619365ea0626262bc3d93d5e6bdd0df03288cd6120f6058"
 KEY = f"{GTFS_PREFIX}dt=2026-11-15/{SHA[:16]}.zip"
+TODAY = date(2026, 11, 25)
 LOG = "bronze/_fetch_log/dt=2026-11-15/hour=15/aaaa.jsonl"
 WRITTEN = json.dumps(
     {"event": "fetch", "feed": "gtfs_static", "fetched_at": "2026-11-15T15:13:04.305Z",
@@ -100,7 +101,7 @@ def bucket_with_metros_zip() -> FakeBucket:
 
 
 def test_builds_one_version_from_the_real_history() -> None:
-    [v] = build_versions(bucket_with_metros_zip())
+    [v] = build_versions(bucket_with_metros_zip(), TODAY).versions
     assert (v.version_id, v.valid_from, v.valid_to) == (SHA[:16], date(2026, 11, 15), None)
     assert (v.feed_start_date, v.feed_end_date) == (date(2026, 6, 7), date(2026, 12, 12))
 
@@ -119,7 +120,9 @@ def read_parquet(body: bytes, tmp_path: Path) -> list[tuple[object, ...]]:
 
 
 def test_parquet_has_one_typed_row_per_version(tmp_path: Path) -> None:
-    rows = read_parquet(versions_parquet(build_versions(bucket_with_metros_zip())), tmp_path)
+    rows = read_parquet(
+        versions_parquet(build_versions(bucket_with_metros_zip(), TODAY).versions), tmp_path
+    )
     [(vid, sha, seen_at, start, end, vfrom, vto, live)] = rows
     assert (vid, sha, start, end, vfrom, vto, live) == (
         SHA[:16], SHA, date(2026, 6, 7), date(2026, 12, 12), date(2026, 11, 15), None, True,
@@ -133,17 +136,34 @@ def test_an_empty_dimension_still_has_its_columns(tmp_path: Path) -> None:
 
 def test_write_dim_overwrites_the_whole_file_and_is_idempotent(tmp_path: Path) -> None:
     bucket = bucket_with_metros_zip()
-    write_dim(bucket)
+    write_dim(bucket, TODAY)
     first = bucket.objects[DIM_KEY]
-    write_dim(bucket)
+    write_dim(bucket, TODAY)
     assert bucket.puts == [DIM_KEY, DIM_KEY]
     assert read_parquet(bucket.objects[DIM_KEY], tmp_path) == read_parquet(first, tmp_path)
 
 
-def test_write_dim_never_writes_under_bronze() -> None:
-    bucket = bucket_with_metros_zip()
-    write_dim(bucket)
-    assert all(not k.startswith("bronze/") for k in bucket.puts)
+def test_the_dimension_lives_under_derived() -> None:
+    # The real guard against bronze writes is S3Bucket.put (tested in test_gtfs_sightings).
+    assert DIM_KEY.startswith("derived/")
+
+
+def test_parquet_orders_versions_and_marks_superseded_ones(tmp_path: Path) -> None:
+    from datetime import UTC, datetime
+
+    from ghostbus_core.schedule_versions import SeenZip, resolve_versions
+
+    versions = resolve_versions(
+        [SeenZip("a" * 64, datetime(2026, 11, 15, 16, tzinfo=UTC), None),
+         SeenZip("b" * 64, datetime(2026, 11, 15, 22, tzinfo=UTC), None),
+         SeenZip("c" * 64, datetime(2026, 11, 20, 16, tzinfo=UTC), None)]
+    )  # fmt: skip
+    rows = read_parquet(versions_parquet(versions), tmp_path)
+    assert [(str(r[0])[0], r[5], r[6], r[7]) for r in rows] == [
+        ("a", date(2026, 11, 15), date(2026, 11, 14), False),
+        ("b", date(2026, 11, 15), date(2026, 11, 19), True),
+        ("c", date(2026, 11, 20), None, True),
+    ]
 
 
 def test_a_header_only_feed_info_gives_none() -> None:
@@ -154,10 +174,13 @@ def test_a_header_only_feed_info_gives_none() -> None:
 
 
 def test_main_prints_the_versions(capsys: pytest.CaptureFixture[str]) -> None:
-    from ghostbus_decode.gtfs_versions import report
+    from ghostbus_decode.gtfs_versions import VersionBuild, report
 
-    print(report(build_versions(bucket_with_metros_zip())))
+    print(report(build_versions(bucket_with_metros_zip(), TODAY)))
+    print(report(VersionBuild(build_versions(bucket_with_metros_zip(), TODAY).versions,
+                              ["bronze/gtfs_static/dt=2026-11-25/x.zip"])))  # fmt: skip
     out = capsys.readouterr().out
     assert SHA[:16] in out
     assert "2026-11-15" in out
     assert "open" in out
+    assert "waiting for its fetch-log hour" in out

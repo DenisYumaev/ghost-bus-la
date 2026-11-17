@@ -4,7 +4,7 @@ The fetch-log lines below copy the shape of real lines from 2026-11-15 to 2026-1
 """
 
 import json
-from datetime import UTC, datetime
+from datetime import UTC, date, datetime
 
 import pytest
 from ghostbus_decode.gtfs_sightings import (
@@ -21,6 +21,7 @@ SHA = "cb1a2283abecc0af1619365ea0626262bc3d93d5e6bdd0df03288cd6120f6058"
 SHA_B = "b" * 64
 KEY = f"{GTFS_PREFIX}dt=2026-11-15/{SHA[:16]}.zip"
 KEY_B = f"{GTFS_PREFIX}dt=2026-11-20/{SHA_B[:16]}.zip"
+TODAY = date(2026, 11, 25)  # well after every key below, unless a test says otherwise
 
 
 def gtfs_line(at: str, outcome: str, sha: str = SHA, key: str | None = None) -> str:
@@ -39,7 +40,7 @@ DUP_2 = gtfs_line("2026-11-17T02:31:41.011Z", "duplicate")
 
 
 def test_real_history_gives_one_zip_dated_from_its_written_line() -> None:
-    [z] = find_zips([KEY], scan_lines([DUP_2, WRITTEN, DUP_1]))
+    [z] = find_zips([KEY], scan_lines([DUP_2, WRITTEN, DUP_1]), TODAY).zips
     assert z.sha256 == SHA
     assert z.object_key == KEY
     assert z.first_seen_at == datetime(2026, 11, 15, 15, 13, 4, 305000, tzinfo=UTC)
@@ -70,20 +71,43 @@ def test_lines_that_are_not_stored_gtfs_zips_are_ignored() -> None:
 def test_a_zip_stored_under_two_days_counts_from_the_earlier() -> None:
     later_key = f"{GTFS_PREFIX}dt=2026-11-19/{SHA[:16]}.zip"
     rewritten = gtfs_line("2026-11-19T11:00:00Z", "written", key=later_key)
-    [z] = find_zips([later_key, KEY], scan_lines([rewritten, WRITTEN]))
+    [z] = find_zips([later_key, KEY], scan_lines([rewritten, WRITTEN]), TODAY).zips
     assert (z.object_key, z.first_seen_at.day) == (KEY, 15)
 
 
 def test_an_object_without_a_written_line_stops_the_load() -> None:
     # Don't guess a first-seen time: it decides which schedule is in force.
     with pytest.raises(MissingSighting, match=SHA_B[:16]):
-        find_zips([KEY, KEY_B], scan_lines([WRITTEN]))
+        find_zips([KEY, KEY_B], scan_lines([WRITTEN]), TODAY)
+
+
+def test_location_comes_from_the_listing_not_from_a_written_line() -> None:
+    # Day 15: written to the spool but the volume was lost before upload. Day 20: written
+    # again and uploaded. The earliest sighting is still day 15, but only day 20's key exists.
+    stored = f"{GTFS_PREFIX}dt=2026-11-20/{SHA[:16]}.zip"
+    rewritten = gtfs_line("2026-11-20T11:00:00Z", "written", key=stored)
+    [z] = find_zips([stored], scan_lines([WRITTEN, rewritten]), TODAY).zips
+    assert (z.object_key, z.first_seen_at.day) == (stored, 15)
+
+
+def test_a_zip_stored_today_or_yesterday_without_a_sighting_waits() -> None:
+    # The ZIP uploads within seconds; its fetch-log hour only when the hour closes.
+    found = find_zips([KEY, KEY_B], scan_lines([WRITTEN]), date(2026, 11, 21))
+    assert [z.sha256 for z in found.zips] == [SHA]
+    assert found.waiting == [KEY_B]
+    assert find_zips([KEY_B], scan_lines([]), date(2026, 11, 20)).waiting == [KEY_B]
+
+
+def test_a_corrupted_written_line_is_counted_not_fatal() -> None:
+    broken = json.dumps({"event": "fetch", "feed": "gtfs_static", "outcome": "written"})
+    scan = scan_lines([broken, WRITTEN])
+    assert (scan.skipped, list(scan.written)) == (1, [SHA])
 
 
 def test_a_written_zip_not_uploaded_yet_is_left_for_the_next_run() -> None:
     written_b = gtfs_line("2026-11-20T11:00:00Z", "written", sha=SHA_B)
     scan = scan_lines([WRITTEN, written_b])
-    assert [z.sha256 for z in find_zips([KEY], scan)] == [SHA]
+    assert [z.sha256 for z in find_zips([KEY], scan, TODAY).zips] == [SHA]
 
 
 def test_unparseable_lines_are_counted_not_fatal() -> None:
@@ -93,12 +117,12 @@ def test_unparseable_lines_are_counted_not_fatal() -> None:
 
 def test_rejects_a_key_that_is_not_a_gtfs_zip() -> None:
     with pytest.raises(ValueError, match="not a GTFS ZIP key"):
-        find_zips(["bronze/gtfs_static/dt=2026-11-15/notahash.zip"], scan_lines([]))
+        find_zips(["bronze/gtfs_static/dt=2026-11-15/notahash.zip"], scan_lines([]), TODAY)
 
 
 @given(st.permutations([WRITTEN, DUP_1, DUP_2, gtfs_line("2026-11-15T15:20:00Z", "written")]))
 def test_line_order_does_not_matter_and_the_earliest_written_wins(lines: list[str]) -> None:
-    [z] = find_zips([KEY], scan_lines(lines))
+    [z] = find_zips([KEY], scan_lines(lines), TODAY).zips
     assert z.first_seen_at == datetime(2026, 11, 15, 15, 13, 4, 305000, tzinfo=UTC)
 
 
@@ -130,7 +154,7 @@ def test_load_reads_only_the_fetch_log_days_that_hold_a_zip() -> None:
             log.format("2026-11-16", "11", "cccc"): (DUP_1 + "\n").encode(),
         }
     )
-    [z] = load_sightings(bucket)
+    [z] = load_sightings(bucket, TODAY).zips
     assert z.object_key == KEY
     assert all("dt=2026-11-15" in k for k in bucket.read)  # not Nov 16, and not the ZIP itself
     assert len(bucket.read) == 2
@@ -138,7 +162,7 @@ def test_load_reads_only_the_fetch_log_days_that_hold_a_zip() -> None:
 
 def test_load_with_no_zips_reads_nothing() -> None:
     bucket = FakeBucket({"bronze/_fetch_log/dt=2026-11-15/hour=15/a.jsonl": WRITTEN.encode()})
-    assert load_sightings(bucket) == []
+    assert load_sightings(bucket, TODAY).zips == []
     assert bucket.read == []
 
 

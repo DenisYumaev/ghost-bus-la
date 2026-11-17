@@ -490,6 +490,7 @@ Still open:
 | Is "My Canceled Bus" still live anywhere? | Differentiation | M1 |
 | Email provider free-tier limits and idempotency-key support | Alert delivery | M3 |
 | If Metro republishes an older schedule's exact bytes, should it be in force again? Today a hash is dated from its earliest sighting, so a revert isn't detected (the fetch log does record the re-sighting as `duplicate`) | Exact matching fails if a bad publish is reverted | Watch around the Dec 13 service change; ADR if it happens |
+| If a fetch-log hour is lost for good (VM disk lost before the hour uploaded), a stored ZIP has no `written` line and `make gtfs-versions` stops. Fall back to S3 `LastModified` (an upper bound on the fetch time) with a flag? | Recovery from a rare loss without guessing silently | Decide if it ever happens; ADR then |
 | How does Metro publish around a service change: does the single ZIP switch to the future schedule early, and can it switch back or postpone? Versions are ordered by `valid_from`, so a postponed change still takes effect on its original date | Version in force for each service date | Dec 13 service change |
 
 ## 11. Sources
