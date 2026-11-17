@@ -1,13 +1,24 @@
 version: 2
 
+# Grain tests (unique_combination) also fail on a NULL key. Links between GTFS tables hold
+# within one schedule version, so they're composite (relationship_combination).
+
 models:
   - name: stg_fetch_log
     description: One row per fetch attempt; identical lines from re-uploaded hour files collapse.
     columns:
       - name: fetch_key
         data_tests: [unique, not_null]
+      - name: feed
+        data_tests:
+          - not_null
+          - accepted_values:
+              arguments: {values: [vehicle_positions, trip_updates, gtfs_static]}
+      - name: fetched_at
+        data_tests: [not_null]
       - name: outcome
         data_tests:
+          - not_null
           - accepted_values:
               arguments:
                 values: [written, duplicate, network_error, spool_error, http_error]
@@ -16,6 +27,8 @@ models:
     columns:
       - name: version_id
         data_tests: [unique, not_null]
+      - name: valid_from
+        data_tests: [not_null]
 
   - name: dim_routes
     data_tests:
@@ -29,9 +42,18 @@ models:
     data_tests:
       - unique_combination:
           arguments: {columns: [schedule_version, trip_id]}
+      - relationship_combination:
+          arguments:
+            columns: [schedule_version, route_id]
+            to: ref('dim_routes')
+            to_columns: [schedule_version, route_id]
     columns:
       - name: service_id
         data_tests: [not_null]
+      - name: direction_id
+        data_tests:
+          - accepted_values:
+              arguments: {values: [0, 1]}
 
   - name: dim_stops
     data_tests:
@@ -42,11 +64,31 @@ models:
     data_tests:
       - unique_combination:
           arguments: {columns: [schedule_version, trip_id, stop_sequence]}
+      - relationship_combination:
+          arguments:
+            columns: [schedule_version, trip_id]
+            to: ref('dim_trips')
+            to_columns: [schedule_version, trip_id]
+      - relationship_combination:
+          arguments:
+            columns: [schedule_version, stop_id]
+            to: ref('dim_stops')
+            to_columns: [schedule_version, stop_id]
 
   - name: dim_calendar
     data_tests:
       - unique_combination:
           arguments: {columns: [schedule_version, service_id]}
+    columns:
+      - name: start_date
+        data_tests: [not_null]
+      - name: end_date
+        data_tests: [not_null]
+      - name: sunday
+        data_tests:
+          - not_null
+          - accepted_values:
+              arguments: {values: [0, 1]}
 
   - name: dim_calendar_dates
     data_tests:
@@ -55,6 +97,7 @@ models:
     columns:
       - name: exception_type
         data_tests:
+          - not_null
           - accepted_values:
               arguments: {values: [1, 2]}
 
@@ -70,20 +113,23 @@ unit_tests:
           - {event: fetch, feed: trip_updates, fetched_at: "2026-11-14T05:01:00.400Z", outcome: network_error}
     expect:
       rows:
+        # In UTC whatever the session zone: test_dbt.py runs dbt in Los Angeles time.
         - {fetch_key: "vehicle_positions@2026-11-14T05:00:00.000000", outcome: written}
         - {fetch_key: "trip_updates@2026-11-14T05:01:00.400000", outcome: network_error}
 
-  - name: dim_trips_treats_an_empty_block_id_as_none
+  - name: dim_trips_treats_a_blank_block_id_as_none
     model: dim_trips
     given:
       - input: ref('src_gtfs_trips')
         rows:
           - {schedule_version: v1, trip_id: T1, route_id: R, service_id: S, block_id: "2065100"}
-          - {schedule_version: v1, trip_id: T2, route_id: R, service_id: S, block_id: ""}
+          - {schedule_version: v1, trip_id: T2, route_id: R, service_id: S, block_id: "  "}
+          - {schedule_version: v1, trip_id: T3, route_id: R, service_id: S, block_id: null}
     expect:
       rows:
         - {trip_id: T1, block_id: "2065100"}
         - {trip_id: T2, block_id: null}
+        - {trip_id: T3, block_id: null}
 
   - name: dim_routes_falls_back_to_the_route_number_for_lines_without_a_short_name
     model: dim_routes
@@ -91,11 +137,14 @@ unit_tests:
       - input: ref('src_gtfs_routes')
         rows:
           - {schedule_version: v1, route_id: "2-13201", route_short_name: "2"}
-          - {schedule_version: v1, route_id: "901-13201", route_short_name: null,
-             route_long_name: "Metro G Line (Orange) 901"}
-          - {schedule_version: v1, route_id: "854-13201", route_short_name: "Dodger Stadium Express"}
+          - {schedule_version: v1, route_id: "901-13201", route_short_name: null}
+          - {schedule_version: v1, route_id: "910-13201", route_short_name: "  "}
+          - {schedule_version: v1, route_id: "R7", route_short_name: ""}
+          - {schedule_version: v1, route_id: "854-13201", route_short_name: " Dodger Stadium Express "}
     expect:
       rows:
         - {route_id: "2-13201", line: "2"}
         - {route_id: "901-13201", line: "901"}
+        - {route_id: "910-13201", line: "910"}
+        - {route_id: "R7", line: "R7"}
         - {route_id: "854-13201", line: "Dodger Stadium Express"}

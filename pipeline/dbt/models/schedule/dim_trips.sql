@@ -6,6 +6,6 @@ select
     route_id,
     service_id,
     direction_id,
-    nullif(block_id, '') as block_id,  -- 713 of Metro's trips have none
+    nullif(trim(block_id), '') as block_id,  -- 713 of Metro's trips have none
     shape_id
 from {{ ref('src_gtfs_trips') }}

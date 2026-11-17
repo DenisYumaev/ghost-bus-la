@@ -394,3 +394,20 @@ def test_one_refused_version_doesnt_stop_the_others(tmp_path: Path) -> None:
     assert list(result.failed) == [bad_sha[:16]]
     assert version_prefix(VERSION) + SUCCESS in bucket.objects  # the good one still loaded
     assert any("REFUSED" in line for line in result.lines)
+    # The refused version gets no date range: the good one stays in force past Nov 16.
+    from ghostbus_decode.gtfs_versions import DIM_KEY
+
+    dim = tmp_path / "dim.parquet"
+    dim.write_bytes(bucket.objects[DIM_KEY])
+    with duckdb.connect() as con:
+        in_dim = con.execute("SELECT version_id, valid_to FROM read_parquet(?)", [str(dim)])
+        assert in_dim.fetchall() == [(VERSION, None)]
+
+
+def test_optional_text_columns_a_version_lacks_become_nulls(tmp_path: Path) -> None:
+    lean = "stop_id,stop_name,stop_lat,stop_lon\n1,Paramount / Slauson,33.97,-118.11\n"
+    bucket = FakeBucket({ZIP_KEY: make_zip({**FILES, "stops.txt": lean})})
+    extract_version(bucket, VERSION, ZIP_KEY, workdir=tmp_path)
+    got = query(bucket, "stops", "SELECT stop_code, parent_station, typeof(parent_station) "
+                "FROM stops", tmp_path)  # fmt: skip
+    assert got == [(None, None, "VARCHAR")]

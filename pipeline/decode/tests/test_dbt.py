@@ -31,8 +31,15 @@ CANCELED = json.dumps({"id": "T2-JUNE26", "tripUpdate": {
 def run_dbt(data: Path, tmp: Path) -> Path:
     """`dbt build` into a fresh DuckDB file; returns a copy safe to open from the test."""
     db = tmp / "ghostbus.duckdb"
-    old = os.environ.get("GHOSTBUS_DUCKDB")
-    os.environ["GHOSTBUS_DUCKDB"] = str(db)  # profiles.yml reads it
+    env = {
+        "GHOSTBUS_DUCKDB": str(db),  # profiles.yml reads it
+        # Los Angeles, not UTC: SQL that relies on the session zone must fail here
+        # (pipeline spec, section 5).
+        "GHOSTBUS_DBT_TZ": "America/Los_Angeles",
+        "DBT_SEND_ANONYMOUS_USAGE_STATS": "false",  # offline (hard rule 10)
+    }
+    old = {k: os.environ.get(k) for k in env}
+    os.environ.update(env)
     try:
         result = dbtRunner().invoke([
             "build", "--project-dir", str(DBT), "--profiles-dir", str(DBT),
@@ -40,10 +47,11 @@ def run_dbt(data: Path, tmp: Path) -> Path:
             "--target-path", str(tmp / "target"), "--log-path", str(tmp / "logs"), "--quiet",
         ])  # fmt: skip
     finally:
-        if old is None:
-            del os.environ["GHOSTBUS_DUCKDB"]
-        else:
-            os.environ["GHOSTBUS_DUCKDB"] = old
+        for k, v in old.items():
+            if v is None:
+                os.environ.pop(k, None)
+            else:
+                os.environ[k] = v
     results: list[Any] = list(getattr(result.result, "results", None) or [])
     failures = [f"{r.node.name}: {r.status}: {r.message}" for r in results
                 if str(r.status) not in ("success", "pass")]  # fmt: skip

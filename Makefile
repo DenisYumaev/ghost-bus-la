@@ -47,8 +47,8 @@ deploy-ingest:  ## Deploy ingest to the VM over SSM: make deploy-ingest SHA=<ful
 	@test -n "$(SHA)" || (echo "usage: make deploy-ingest SHA=<full git sha>" && exit 2)
 	uv run python scripts/deploy_ingest.py $(SHA)
 
-gtfs-versions:  ## Rebuild dim_schedule_version in derived/ from the GTFS ZIPs in bronze (reads bronze only)
-	uv run python -m ghostbus_decode.gtfs_versions --bucket "$$(terraform -chdir=infra output -raw data_bucket_name)"
+gtfs-versions:  ## Preview which schedule version is in force (read-only; make gtfs-load writes it)
+	uv run python -m ghostbus_decode.gtfs_versions --bucket "$$(terraform -chdir=infra output -raw data_bucket_name)" --dry-run
 
 gtfs-load:  ## Rebuild dim_schedule_version and extract every new GTFS version's tables to derived/
 	uv run python -m ghostbus_decode.gtfs_tables --bucket "$$(terraform -chdir=infra output -raw data_bucket_name)"

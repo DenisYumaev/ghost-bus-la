@@ -4,89 +4,106 @@ import json
 from datetime import date
 from pathlib import Path
 
-from ghostbus_decode.sync import sync, utc_days_for
+import pytest
+from ghostbus_decode.gtfs_tables import EXTRACTOR_VERSION
+from ghostbus_decode.sync import IncompleteRange, sync, utc_days_for
+
+DAYS = ("2026-11-13", "2026-11-14", "2026-11-15")
+V_GOOD, V_OLD = "a" * 16, "b" * 16
 
 
 class FakeBucket:
     def __init__(self, objects: dict[str, bytes]) -> None:
         self.objects = objects
+        self.fail_on: str | None = None
 
     def list_keys(self, prefix: str) -> list[str]:
         return sorted(k for k in self.objects if k.startswith(prefix))
 
     def get(self, key: str) -> bytes:
+        if self.fail_on and self.fail_on in key:
+            raise ConnectionError(key)
         return self.objects[key]
 
 
-def marker(parts: dict[str, list[str]]) -> bytes:
-    return json.dumps({"part_keys": parts, "run": "r1"}).encode()
+def decoded_day(day: str, table: str) -> dict[str, bytes]:
+    prefix = f"derived/decoded/{table}/dt={day}/"
+    part = prefix + "run=r1/part-0-0.parquet"
+    marker = {"part_keys": {table: [part], "schema_fingerprint": [], "quarantine": []}}
+    return {part: f"{table} {day}".encode(), prefix + "run=r0/part-0-0.parquet": b"stale",
+            prefix + "_SUCCESS": json.dumps(marker).encode()}  # fmt: skip
 
 
-VP_DAY = "derived/decoded/vehicle_position/dt=2026-11-14/"
-VP_PART = VP_DAY + "run=r1/part-0-0.parquet"
-STALE = VP_DAY + "run=r0/part-0-0.parquet"  # an older run not in the marker
-LOG = "bronze/_fetch_log/dt=2026-11-14/hour=05/abcd.jsonl"
-
-
-def bucket() -> FakeBucket:
-    return FakeBucket({
-        VP_PART: b"vp parquet", STALE: b"stale",
-        VP_DAY + "_SUCCESS": marker({"vehicle_position": [VP_PART], "schema_fingerprint": [],
-                                     "quarantine": []}),
-        LOG: b'{"event": "fetch"}\n',
-    })  # fmt: skip
-
-
-def test_a_service_date_needs_its_utc_day_and_the_next() -> None:
-    # Service date D runs from about 03:00 LA on D to past 01:00 LA on D+1, which ends on
-    # UTC day D+1; the observation window adds an hour after the last scheduled end.
-    assert utc_days_for(date(2026, 11, 14), date(2026, 11, 15)) == [
-        date(2026, 11, 14), date(2026, 11, 15), date(2026, 11, 16),
-    ]  # fmt: skip
-
-
-def test_copies_only_marker_listed_parts(tmp_path: Path) -> None:
-    report = sync(bucket(), date(2026, 11, 14), date(2026, 11, 14), tmp_path)
-    copied = sorted(p.relative_to(tmp_path).as_posix() for p in tmp_path.rglob("*.parquet"))
-    assert copied == ["decoded/vehicle_position/dt=2026-11-14/part-0-0.parquet"]
-    assert (tmp_path / "decoded/vehicle_position/dt=2026-11-14/part-0-0.parquet").read_bytes() == (
-        b"vp parquet"
-    )
-    assert report["missing"]["trip_update"] == ["2026-11-14", "2026-11-15"]
-    assert report["missing"]["vehicle_position"] == ["2026-11-15"]
-
-
-def test_copies_the_fetch_log_hours(tmp_path: Path) -> None:
-    sync(bucket(), date(2026, 11, 14), date(2026, 11, 14), tmp_path)
-    [log] = (tmp_path / "fetch_log/dt=2026-11-14").iterdir()
-    assert log.read_bytes() == b'{"event": "fetch"}\n'
-    assert log.name == "hour=05-abcd.jsonl"
-
-
-def test_a_resync_replaces_a_day_wholesale(tmp_path: Path) -> None:
-    day_dir = tmp_path / "decoded/vehicle_position/dt=2026-11-14"
-    day_dir.mkdir(parents=True)
-    (day_dir / "part-9-9.parquet").write_bytes(b"left over from an older run")
-    sync(bucket(), date(2026, 11, 14), date(2026, 11, 14), tmp_path)
-    assert sorted(p.name for p in day_dir.iterdir()) == ["part-0-0.parquet"]
-
-
-def test_gtfs_versions_with_a_current_success_marker_are_copied(tmp_path: Path) -> None:
-    from ghostbus_decode.gtfs_tables import EXTRACTOR_VERSION
-
-    good, old = "a" * 16, "b" * 16
-    b = bucket()
-    b.objects.update({
+def bucket(days: tuple[str, ...] = DAYS) -> FakeBucket:
+    objects: dict[str, bytes] = {}
+    for day in days:
+        objects |= decoded_day(day, "vehicle_position") | decoded_day(day, "trip_update")
+        objects[f"bronze/_fetch_log/dt={day}/hour=05/abcd.jsonl"] = b'{"event": "fetch"}\n'
+    objects |= {
         "derived/decoded/gtfs/dim_schedule_version.parquet": b"dim",
-        f"derived/decoded/gtfs/{good}/trips.parquet": b"trips",
-        f"derived/decoded/gtfs/{good}/_SUCCESS":
-            json.dumps({"extractor_version": EXTRACTOR_VERSION}).encode(),
-        f"derived/decoded/gtfs/{old}/trips.parquet": b"old trips",
-        f"derived/decoded/gtfs/{old}/_SUCCESS": json.dumps({"extractor_version": 0}).encode(),
-    })  # fmt: skip
-    report = sync(b, date(2026, 11, 14), date(2026, 11, 14), tmp_path)
-    assert (tmp_path / "gtfs/dim_schedule_version.parquet").read_bytes() == b"dim"
-    assert (tmp_path / f"gtfs/{good}/trips.parquet").read_bytes() == b"trips"
-    assert not (tmp_path / f"gtfs/{old}").exists()
-    assert report["gtfs_versions"] == [good]
-    assert report["gtfs_not_extracted"] == [old]
+        f"derived/decoded/gtfs/{V_GOOD}/trips.parquet": b"trips",
+        f"derived/decoded/gtfs/{V_GOOD}/shapes.parquet": b"not in the marker",
+        f"derived/decoded/gtfs/{V_GOOD}/_SUCCESS": json.dumps(
+            {"extractor_version": EXTRACTOR_VERSION, "rows": {"trips": 2}}).encode(),
+        f"derived/decoded/gtfs/{V_OLD}/trips.parquet": b"old trips",
+        f"derived/decoded/gtfs/{V_OLD}/_SUCCESS": json.dumps(
+            {"extractor_version": 0, "rows": {"trips": 2}}).encode(),
+    }  # fmt: skip
+    return FakeBucket(objects)
+
+
+ONE_DAY = (date(2026, 11, 14), date(2026, 11, 14))
+
+
+def files(root: Path) -> list[str]:
+    return sorted(p.relative_to(root).as_posix() for p in root.rglob("*") if p.is_file())
+
+
+def test_a_service_date_needs_the_utc_days_around_it() -> None:
+    # The previous UTC day for early cancellation notices; the next for trips past midnight LA.
+    assert [d.isoformat() for d in utc_days_for(*ONE_DAY)] == list(DAYS)
+
+
+def test_copies_exactly_the_marker_listed_files(tmp_path: Path) -> None:
+    report = sync(bucket(), *ONE_DAY, tmp_path)
+    assert files(tmp_path) == [
+        "_sync.json",
+        *[f"decoded/{t}/dt={d}/part-0-0.parquet" for t in ("trip_update", "vehicle_position")
+          for d in DAYS],
+        *[f"fetch_log/dt={d}/hour=05-abcd.jsonl" for d in DAYS],
+        "gtfs/aaaaaaaaaaaaaaaa/trips.parquet",  # not shapes: the marker doesn't list it
+        "gtfs/dim_schedule_version.parquet",
+    ]  # fmt: skip
+    assert report["gtfs_versions"] == [V_GOOD]
+    assert report["gtfs_not_extracted"] == [V_OLD]
+    assert json.loads((tmp_path / "_sync.json").read_text())["start"] == "2026-11-14"
+
+
+def test_a_missing_decoded_day_fails_and_changes_nothing(tmp_path: Path) -> None:
+    sync(bucket(), *ONE_DAY, tmp_path)
+    before = files(tmp_path)
+    with pytest.raises(IncompleteRange, match="2026-11-15"):
+        sync(bucket(DAYS[:2]), *ONE_DAY, tmp_path)  # Nov 15 not decoded
+    assert files(tmp_path) == before
+
+
+def test_an_interrupted_sync_leaves_the_previous_copy_intact(tmp_path: Path) -> None:
+    sync(bucket(), *ONE_DAY, tmp_path)
+    before = {p: (tmp_path / p).read_bytes() for p in files(tmp_path)}
+    broken = bucket()
+    broken.fail_on = "dt=2026-11-15"
+    with pytest.raises(ConnectionError):
+        sync(broken, *ONE_DAY, tmp_path)
+    assert {p: (tmp_path / p).read_bytes() for p in files(tmp_path)} == before
+
+
+def test_nothing_outside_the_new_range_survives(tmp_path: Path) -> None:
+    stale = tmp_path / "decoded/vehicle_position/dt=2026-10-01/part-0-0.parquet"
+    stale.parent.mkdir(parents=True)
+    stale.write_bytes(b"old day")
+    old_version = tmp_path / "gtfs/cccccccccccccccc/trips.parquet"
+    old_version.parent.mkdir(parents=True)
+    old_version.write_bytes(b"refused or stale version")
+    sync(bucket(), *ONE_DAY, tmp_path)
+    assert not stale.exists()
+    assert not old_version.exists()

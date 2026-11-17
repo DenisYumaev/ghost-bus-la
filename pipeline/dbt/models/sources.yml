@@ -38,4 +38,7 @@ sources:
             fetched_at: 'VARCHAR', outcome: 'VARCHAR', content_hash: 'VARCHAR',
             partial: 'BOOLEAN', n_entities: 'BIGINT', bytes: 'BIGINT', bytes_gz: 'BIGINT',
             error: 'VARCHAR', connected_s: 'DOUBLE', interval_s: 'INTEGER',
-            feed_header_ts: 'VARCHAR', ingest_version: 'VARCHAR'{{ '}}' }})
+            feed_header_ts: 'VARCHAR', ingest_version: 'VARCHAR', url_key: 'VARCHAR',
+            object_key: 'VARCHAR', spool_file: 'VARCHAR', n_messages: 'BIGINT',
+            n_unkeyed: 'BIGINT', n_unframed: 'BIGINT', http_status: 'INTEGER',
+            latency_ms: 'BIGINT'{{ '}}' }})

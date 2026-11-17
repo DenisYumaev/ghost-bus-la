@@ -63,6 +63,7 @@ class VersionBuild:
     versions: list[ScheduleVersion]
     waiting: list[str]  # ZIPs stored too recently to have a sighting; next run picks them up
     zip_keys: dict[str, str] = field(default_factory=dict)  # version_id -> bronze key
+    zips: list[SeenZip] = field(default_factory=list)  # the inputs, to re-resolve a subset
 
 
 def build_versions(bucket: ReadBucket, today: date | None = None) -> VersionBuild:
@@ -73,7 +74,7 @@ def build_versions(bucket: ReadBucket, today: date | None = None) -> VersionBuil
         start, end = read_feed_dates(bucket.get(seen.object_key))
         zips.append(SeenZip(seen.sha256, seen.first_seen_at, start, end))
     keys = {z.sha256[:VERSION_ID_LEN]: z.object_key for z in found.zips}
-    return VersionBuild(resolve_versions(zips), found.waiting, keys)
+    return VersionBuild(resolve_versions(zips), found.waiting, keys, zips)
 
 
 def versions_parquet(versions: Sequence[ScheduleVersion]) -> bytes:

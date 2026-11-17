@@ -5,6 +5,10 @@ version: "1.0"
 profile: ghostbus
 config-version: 2
 
+# Tests run offline (hard rule 10): no usage tracking.
+flags:
+  send_anonymous_usage_stats: false
+
 model-paths: [models]
 test-paths: [tests]
 
