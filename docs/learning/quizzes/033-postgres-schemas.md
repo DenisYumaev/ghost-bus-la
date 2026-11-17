@@ -30,7 +30,7 @@ Why does migration `0001` create the `serving` schema but no serving tables?
 <details>
 <summary>Model answer</summary>
 
-ADR-007: `publish` recreates each serving table on every load (`__new`, then a rename swap), so it owns their definitions and indexes. If Alembic also created them, there would be two definitions of the same table, and the next publish would replace whatever the migration built. Alembic only makes sure the schema exists.
+ADR-007: `publish` recreates each serving table on every load (`__new`, then a rename swap), so it owns their definitions and indexes. Serving tables hold no history, so a migration chain has nothing to preserve. If Alembic also defined them, a column change would need a migration and a `publish` change deployed in lockstep. Alembic only makes sure the schema exists.
 
 </details>
 

@@ -19,9 +19,9 @@ test:  ## Run all offline tests with coverage
 TEST_DATABASE_URL := postgresql+psycopg://ghostbus:ghostbus-test@127.0.0.1:54329/ghostbus_test
 
 test-integration:  ## Start Postgres in Docker (compose.test.yml), run the integration tests, stop it
-	docker compose -f compose.test.yml up -d --wait
-	GHOSTBUS_TEST_DATABASE_URL=$(TEST_DATABASE_URL) uv run pytest -m integration; \
-	  status=$$?; docker compose -f compose.test.yml down; exit $$status
+	trap 'docker compose -f compose.test.yml down' EXIT; \
+	  docker compose -f compose.test.yml up -d --wait && \
+	  GHOSTBUS_TEST_DATABASE_URL=$(TEST_DATABASE_URL) uv run pytest -m integration
 
 lint:  ## Lint, format check, type check, fixture sizes
 	uv run ruff check .

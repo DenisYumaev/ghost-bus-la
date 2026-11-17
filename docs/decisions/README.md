@@ -19,7 +19,7 @@ Update this table in the same PR that adds or changes an ADR.
 | [002](002-product-direction.md) | Build a rider-facing product (web, API, alerts) on the pipeline | Accepted | Supersedes the v1 spec |
 | [003](003-operating-standards.md) | Operating standards: explain-back merge gate (predictions optional), SLOs and error budget, incident log, tools on evidence | Accepted; decision 1 superseded | → 022 |
 | [004](004-bronze-storage-guardrails.md) | Bronze storage: content-addressed keys, conditional writes, deny-delete and no-overwrite policy, instance role, remote state | Accepted | Supersedes 001 decision 6's key format |
-| [007](007-postgres-serving-atomic-swap.md) | Postgres serves precomputed aggregates; publish swaps tables atomically and owns the serving DDL; Alembic owns `ops` and `app` | Accepted | Settles who defines the serving tables (specs silent) |
+| [007](007-postgres-serving-atomic-swap.md) | Postgres serves precomputed aggregates; publish swaps tables atomically and owns the serving DDL; Alembic owns `ops` and `app` | Accepted | Settles who defines the serving tables and the role model (specs silent) |
 | [021](021-realtime-source-websocket.md) | Realtime source: WebSocket snapshots; cancellations from trip updates | Accepted | Supersedes 001 decisions 1 and 3 |
 | [022](022-claude-writes-all-review-replaces-gates.md) | Claude writes all code and ADRs; quizzes logged, not gated; tests and independent review replace the owner gates | Accepted | Supersedes 003 decision 1, learning spec section 3, and the owner Why-rewrite rule |
 | [023](023-dbt-reads-a-local-marker-filtered-copy.md) | dbt reads a local, marker-filtered copy of derived data | Accepted | Supersedes pipeline spec section 6's "read Parquet from S3" for M1 |

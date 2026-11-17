@@ -202,9 +202,13 @@ The trade-offs in Ghost Bus LA you should be able to defend out loud. Each entry
 ### 15j. Serving data: precomputed tables, swapped atomically
 
 - **Decision (ADR-007):** the API reads only Postgres. The pipeline precomputes every number and `publish` swaps whole tables into the `serving` schema: load `__new`, validate, then rename it into place inside one transaction.
-- **Who owns which schema:** `publish` owns the serving table definitions, because every load recreates the table; an Alembic migration on the live table would be overwritten by the next publish. Alembic owns the durable schemas (`ops` now, `app` from M3), where rows must survive deploys.
-- **Why not query DuckDB from the API:** DuckDB is a batch engine. One service date's warehouse is 290 million rows and takes minutes to build (drill 3). The API needs an indexed lookup over a small table, while the files are being rebuilt.
-- **Rejected:** truncate-and-insert under Alembic (readers see an empty or half-filled table, or a long locking transaction); materialized views (the raw outcomes would have to live in Postgres too).
+- **Who owns which schema:** `publish` owns the serving table definitions. Serving tables hold no history (each load rebuilds them from gold), so a migration chain has nothing to preserve, and keeping the DDL next to the query that fills it means a column change is one code change. Alembic owns the durable schemas (`ops` now, `app` from M3), where rows must survive deploys.
+- **Why not query DuckDB from the API:** DuckDB is a batch engine. Building one service date reads about 137 million decoded rows from three UTC days, and sync plus the build take about 4 minutes (drill 3). The API needs an indexed lookup over a small table, even while the files are being rebuilt.
+- **Rejected:**
+  - Alembic defines the tables and `publish` copies them with `LIKE`: every column change becomes a migration plus a code change, deployed in lockstep.
+  - Truncate-and-insert: `TRUNCATE` locks the table, so API reads wait for the whole load; `DELETE` instead leaves dead rows after every publish.
+  - Materialized views: the raw outcomes would have to live in Postgres too.
+- **Roles:** `pipeline` creates, and so owns, the serving tables; only the owner can rename them during the swap. Grants vanish with each new table, so `api`'s read access comes from default privileges.
 - **Constraints carry the rules:** `ops.publish_run` can't record a success without a row count, or a failure without an error. `ops.feed_status` can't be written by `ingest`, which keeps hard rule 3 visible in the schema. Each rule has a test against a real Postgres 16.
 - **Record:** ADR-007; `services/api/src/ghostbus_api/alembic/versions/0001_serving_and_ops.py`; quiz 033.
 
