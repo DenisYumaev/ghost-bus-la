@@ -105,7 +105,8 @@ Decoded tables:
 - `vehicle_position`: `fetched_at, feed_ts, snapshot_sha, vehicle_id, trip_id, route_id, direction_id, start_date, start_time, lat, lon, bearing, speed, current_stop_sequence, stop_id, current_status, vehicle_ts`
 - `trip_update`: `fetched_at, feed_ts, snapshot_sha, trip_id, route_id, direction_id, start_date, start_time, trip_schedule_relationship, vehicle_id, stop_sequence, stop_id, arrival_ts, departure_ts, stop_schedule_relationship`
 - There is no separate cancellation table. A cancellation is a `trip_update` row whose `trip_schedule_relationship` is `CANCELED`; such rows carry no stop-time updates.
-- `schema_fingerprint`: per snapshot, a hash of sorted field names and types. A new fingerprint for a feed triggers the schema-drift alert (section 10).
+- `schema_fingerprint`: per snapshot, a hash of the sorted set of field paths and JSON types. A different fingerprint alone is **not** drift: on Nov 14, 34 overnight trip-update snapshots (01:03–02:46 Los Angeles) had a different fingerprint only because an optional field was absent. Drift means a field path or type not in the approved set (section 10).
+- Decode (`make decode DAY=`, `ghostbus_decode.decode` and `.frames`) writes `vehicle_position` (one row per vehicle frame), `trip_update` (one row per stop-time update; one row with null stop fields for a trip with none, such as a cancellation), `schema_fingerprint` and `_quarantine` (reason plus base64 of the exact frame), each under `run=<id>/` with a `_SUCCESS` listing the parts, the same protocol as compaction. Extra columns beyond the list above: `trip_schedule_relationship` on vehicle positions, `entity_ts` (the trip update's own timestamp) on trip updates. Nov 14: 3,331,689 vehicle rows and 42,417,214 trip-update rows, 0 quarantined.
 
 ## 4. GTFS static and schedule versions
 
@@ -249,7 +250,7 @@ Suppress any cell with fewer than 30 trips or fewer than 10 service days: publis
 
 **dbt unit tests** for the hard models, with small inline fixtures: schedule expansion (a `calendar_dates` exception adds and removes service), service date for a 25:10 trip, each row of the decision table, announcement cross.
 
-**Schema drift:** when a feed's fingerprint changes, keep landing raw data, raise an alert, and mark that feed's decode as `needs_review`. Downstream models for that feed pause until a person approves the new shape in `config/approved_schemas.toml`. The detector on the hot path fails closed the same way (alerts spec).
+**Schema drift:** when a feed shows a field path or JSON type not in its approved set (a fingerprint change from an absent optional field doesn't count), keep landing raw data, raise an alert, and mark that feed's decode as `needs_review`. Downstream models for that feed pause until a person approves the new shape in `config/approved_schemas.toml`. The detector on the hot path fails closed the same way (alerts spec).
 
 **Volume anomaly:** alert when vehicles in service fall outside the baseline for that hour and weekday (median ± 4 MAD over the past 4 weeks).
 
