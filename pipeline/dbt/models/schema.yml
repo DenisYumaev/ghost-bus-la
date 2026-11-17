@@ -470,70 +470,95 @@ unit_tests:
         # Nov 16 (Monday): WK is removed by calendar_dates, so T2 doesn't run.
         # Dec 20 (Sunday): past SUN's end_date, so nothing runs. Nov 14: no version.
 
-  - name: int_trip_crosswalk_matches_exactly_on_trip_and_service_date
+  - name: int_trip_crosswalk_matches_exactly_against_each_dates_version
     model: int_trip_crosswalk
     given:
       - input: ref('stg_trip_reports')
         rows:
-          - {trip_id: T1, service_date: "2026-11-15"}
-          - {trip_id: GHOST, service_date: "2026-11-15"}
-          - {trip_id: T1, service_date: "2026-11-16"}
+          - {trip_id: T1, service_date: "2026-12-12"}
+          - {trip_id: T1, service_date: "2026-12-13"}
+          - {trip_id: OLD1, service_date: "2026-12-13"}
+          - {trip_id: GHOST, service_date: "2026-12-12"}
+          - {trip_id: T1, service_date: "2026-12-20"}
       - input: ref('stg_vehicle_positions')
         rows:
-          - {trip_id: T1, service_date: "2026-11-15"}
-          - {trip_id: T2, service_date: "2026-11-15"}
+          - {trip_id: T1, service_date: "2026-12-12"}
           - {trip_id: null, service_date: null}
       - input: ref('int_schedule_expanded')
         rows:
-          - {service_date: "2026-11-15", schedule_version: v, trip_id: T1}
-          - {service_date: "2026-11-15", schedule_version: v, trip_id: T2}
+          # Dec 12 is in version v1, Dec 13 in v2; Metro reuses T1 in both. OLD1 exists only
+          # in v1, so on a v2 date it must not match.
+          - {service_date: "2026-12-12", schedule_version: v1, trip_id: T1}
+          - {service_date: "2026-12-12", schedule_version: v1, trip_id: OLD1}
+          - {service_date: "2026-12-13", schedule_version: v2, trip_id: T1}
+      - input: ref('int_service_dates')
+        rows:
+          - {service_date: "2026-12-12", schedule_version: v1}
+          - {service_date: "2026-12-13", schedule_version: v2}
     expect:
       rows:
-        - {trip_id: T1, service_date: "2026-11-15", schedule_version: v, match_method: exact, in_scope: true}
-        - {trip_id: T2, service_date: "2026-11-15", schedule_version: v, match_method: exact, in_scope: true}
-        - {trip_id: GHOST, service_date: "2026-11-15", schedule_version: null, match_method: unmatched, in_scope: true}
-        # Nov 16 isn't in the expanded schedule (outside the synced range): not a match failure.
-        - {trip_id: T1, service_date: "2026-11-16", schedule_version: null, match_method: unmatched, in_scope: false}
+        - {trip_id: T1, service_date: "2026-12-12", sources: [trip_updates, vehicle_positions], schedule_version: v1, scheduled_trip_id: T1, match_method: exact, in_scope: true}
+        - {trip_id: T1, service_date: "2026-12-13", sources: [trip_updates], schedule_version: v2, scheduled_trip_id: T1, match_method: exact, in_scope: true}
+        - {trip_id: OLD1, service_date: "2026-12-13", sources: [trip_updates], schedule_version: null, scheduled_trip_id: null, match_method: unmatched, in_scope: true}
+        - {trip_id: GHOST, service_date: "2026-12-12", sources: [trip_updates], schedule_version: null, scheduled_trip_id: null, match_method: unmatched, in_scope: true}
+        # Outside the synced range: not evidence of a matching problem.
+        - {trip_id: T1, service_date: "2026-12-20", sources: [trip_updates], schedule_version: null, scheduled_trip_id: null, match_method: unmatched, in_scope: false}
 
-  - name: int_trip_observations_uses_the_window_chosen_reports_and_the_start_cutoff
+  - name: int_trip_observations_uses_the_crosswalk_window_chosen_reports_and_the_start_cutoff
     model: int_trip_observations
     given:
       - input: ref('int_schedule_expanded')
         rows:
-          # Each trip runs 16:00-17:00 UTC; window 15:30-18:00.
+          # Each trip runs 16:00-17:00 UTC on Nov 15; window 15:30-18:00.
           - {service_date: "2026-11-15", schedule_version: v, trip_id: A, n_stops: 10, sched_start_utc: "2026-11-15 16:00:00+00", sched_end_utc: "2026-11-15 17:00:00+00"}
           - {service_date: "2026-11-15", schedule_version: v, trip_id: B, n_stops: 10, sched_start_utc: "2026-11-15 16:00:00+00", sched_end_utc: "2026-11-15 17:00:00+00"}
           - {service_date: "2026-11-15", schedule_version: v, trip_id: C, n_stops: 10, sched_start_utc: "2026-11-15 16:00:00+00", sched_end_utc: "2026-11-15 17:00:00+00"}
           - {service_date: "2026-11-15", schedule_version: v, trip_id: D, n_stops: 10, sched_start_utc: "2026-11-15 16:00:00+00", sched_end_utc: "2026-11-15 17:00:00+00"}
           - {service_date: "2026-11-15", schedule_version: v, trip_id: E, n_stops: 10, sched_start_utc: "2026-11-15 16:00:00+00", sched_end_utc: "2026-11-15 17:00:00+00"}
+          - {service_date: "2026-11-15", schedule_version: v, trip_id: F, n_stops: 10, sched_start_utc: "2026-11-15 16:00:00+00", sched_end_utc: "2026-11-15 17:00:00+00"}
+      - input: ref('int_trip_crosswalk')
+        rows:
+          - {trip_id: A, service_date: "2026-11-15", schedule_version: v, scheduled_trip_id: A, match_method: exact}
+          - {trip_id: B, service_date: "2026-11-15", schedule_version: v, scheduled_trip_id: B, match_method: exact}
+          - {trip_id: C, service_date: "2026-11-15", schedule_version: v, scheduled_trip_id: C, match_method: exact}
+          - {trip_id: D, service_date: "2026-11-15", schedule_version: v, scheduled_trip_id: D, match_method: exact}
+          - {trip_id: E, service_date: "2026-11-15", schedule_version: v, scheduled_trip_id: E, match_method: exact}
+          - {trip_id: F, service_date: "2026-11-15", schedule_version: v, scheduled_trip_id: F, match_method: exact}
+          - {trip_id: A, service_date: "2026-11-14", schedule_version: null, scheduled_trip_id: null, match_method: unmatched}
       - input: ref('stg_vehicle_positions')
         rows:
-          # A: two positions in the window, one before it (ignored).
-          - {trip_id: A, service_date: "2026-11-15", vehicle_id: "7", vehicle_ts: "2026-11-15 15:29:59+00", current_stop_sequence: 1}
-          - {trip_id: A, service_date: "2026-11-15", vehicle_id: "7", vehicle_ts: "2026-11-15 15:30:00+00", current_stop_sequence: 2}
-          - {trip_id: A, service_date: "2026-11-15", vehicle_id: "7", vehicle_ts: "2026-11-15 16:40:00+00", current_stop_sequence: 9}
-          # B: only after the window ends.
-          - {trip_id: B, service_date: "2026-11-15", vehicle_id: "8", vehicle_ts: "2026-11-15 18:00:01+00", current_stop_sequence: 5}
+          # A: one before the window (ignored), one waiting before the start, one after it.
+          - {trip_id: A, service_date: "2026-11-15", vehicle_id: "7", vehicle_ts: "2026-11-15 15:29:59+00", first_fetched_at: "2026-11-15 15:30:10+00", current_stop_sequence: 1, trip_schedule_relationship: SCHEDULED, n_trips: 1}
+          - {trip_id: A, service_date: "2026-11-15", vehicle_id: "7", vehicle_ts: "2026-11-15 15:45:00+00", first_fetched_at: "2026-11-15 15:45:10+00", current_stop_sequence: 1, trip_schedule_relationship: SCHEDULED, n_trips: 1}
+          - {trip_id: A, service_date: "2026-11-15", vehicle_id: "7", vehicle_ts: "2026-11-15 16:40:00+00", first_fetched_at: "2026-11-15 16:40:10+00", current_stop_sequence: 9, trip_schedule_relationship: SCHEDULED, n_trips: 2}
+          # Same trip_id, another service date, inside the UTC window: not A's.
+          - {trip_id: A, service_date: "2026-11-14", vehicle_id: "6", vehicle_ts: "2026-11-15 16:30:00+00", first_fetched_at: "2026-11-15 16:30:10+00", current_stop_sequence: 5, trip_schedule_relationship: SCHEDULED, n_trips: 1}
+          # B: only after the window ends. F: a position whose descriptor says CANCELED.
+          - {trip_id: B, service_date: "2026-11-15", vehicle_id: "8", vehicle_ts: "2026-11-15 18:00:01+00", first_fetched_at: "2026-11-15 18:00:10+00", current_stop_sequence: 5, trip_schedule_relationship: SCHEDULED, n_trips: 1}
+          - {trip_id: F, service_date: "2026-11-15", vehicle_id: "9", vehicle_ts: "2026-11-15 16:10:00+00", first_fetched_at: "2026-11-15 16:10:10+00", current_stop_sequence: 2, trip_schedule_relationship: CANCELED, n_trips: 1}
       - input: ref('stg_trip_reports')
         rows:
-          # B: a chosen SCHEDULED report with a vehicle in the window: observed by updates.
+          # B: chosen SCHEDULED with a vehicle in the window; another after it (ignored).
           - {trip_id: B, service_date: "2026-11-15", fetched_at: "2026-11-15 16:10:00+00", is_chosen: true, trip_schedule_relationship: SCHEDULED, vehicle_id: "8"}
-          # C: only a NON-chosen SCHEDULED report with a vehicle (a stale duplicate): not observed.
+          - {trip_id: B, service_date: "2026-11-15", fetched_at: "2026-11-15 18:00:01+00", is_chosen: true, trip_schedule_relationship: SCHEDULED, vehicle_id: "8"}
+          # C: a NON-chosen SCHEDULED report with a vehicle (stale duplicate), and the chosen
+          # CANCELED one, which carries a vehicle too: neither is an observation.
           - {trip_id: C, service_date: "2026-11-15", fetched_at: "2026-11-15 16:10:00+00", is_chosen: false, trip_schedule_relationship: SCHEDULED, vehicle_id: "9"}
-          - {trip_id: C, service_date: "2026-11-15", fetched_at: "2026-11-15 16:10:00+00", is_chosen: true, trip_schedule_relationship: CANCELED, vehicle_id: null}
-          # D: a chosen SCHEDULED report without a vehicle: a prediction, not an observation.
+          - {trip_id: C, service_date: "2026-11-15", fetched_at: "2026-11-15 16:10:00+00", is_chosen: true, trip_schedule_relationship: CANCELED, vehicle_id: "9"}
+          # D: chosen SCHEDULED without a vehicle: a prediction, not an observation.
           - {trip_id: D, service_date: "2026-11-15", fetched_at: "2026-11-15 16:10:00+00", is_chosen: true, trip_schedule_relationship: SCHEDULED, vehicle_id: null}
       - input: ref('stg_cancellations')
         rows:
-          # C: canceled, never reinstated. D: reinstated before the start (withdrawn).
-          # E: reinstated only after the start (still counts as canceled).
+          # C: never reinstated. D: reinstated before the start (withdrawn). E: reinstated
+          # exactly at the start (no longer ahead, so still canceled).
           - {trip_id: C, service_date: "2026-11-15", first_seen_at: "2026-11-15 14:00:00+00", reinstated_at: null}
           - {trip_id: D, service_date: "2026-11-15", first_seen_at: "2026-11-15 14:00:00+00", reinstated_at: "2026-11-15 15:00:00+00"}
-          - {trip_id: E, service_date: "2026-11-15", first_seen_at: "2026-11-15 14:00:00+00", reinstated_at: "2026-11-15 16:05:00+00"}
+          - {trip_id: E, service_date: "2026-11-15", first_seen_at: "2026-11-15 14:00:00+00", reinstated_at: "2026-11-15 16:00:00+00"}
     expect:
       rows:
-        - {trip_id: A, n_positions: 2, max_stop_sequence: 9, n_updates_with_vehicle: 0, observed_running: true, rt_canceled: false, first_seen_utc: "2026-11-15 15:30:00+00"}
-        - {trip_id: B, n_positions: 0, max_stop_sequence: null, n_updates_with_vehicle: 1, observed_running: true, rt_canceled: false, first_seen_utc: "2026-11-15 16:10:00+00"}
-        - {trip_id: C, n_positions: 0, max_stop_sequence: null, n_updates_with_vehicle: 0, observed_running: false, rt_canceled: true, first_seen_utc: null}
-        - {trip_id: D, n_positions: 0, max_stop_sequence: null, n_updates_with_vehicle: 0, observed_running: false, rt_canceled: false, first_seen_utc: null}
-        - {trip_id: E, n_positions: 0, max_stop_sequence: null, n_updates_with_vehicle: 0, observed_running: false, rt_canceled: true, first_seen_utc: null}
+        - {trip_id: A, n_positions: 2, n_positions_after_start: 1, n_positions_ambiguous: 1, vehicle_ids: ["7"], max_stop_sequence: 9, max_stop_sequence_after_start: 9, n_updates: 0, n_updates_with_vehicle: 0, observed_running: true, rt_canceled: false, first_seen_utc: "2026-11-15 15:45:00+00", last_seen_utc: "2026-11-15 16:40:00+00"}
+        - {trip_id: B, n_positions: 0, n_positions_after_start: 0, n_positions_ambiguous: 0, vehicle_ids: null, max_stop_sequence: null, max_stop_sequence_after_start: null, n_updates: 1, n_updates_with_vehicle: 1, observed_running: true, rt_canceled: false, first_seen_utc: "2026-11-15 16:10:00+00", last_seen_utc: "2026-11-15 16:10:00+00"}
+        - {trip_id: C, n_positions: 0, n_positions_after_start: 0, n_positions_ambiguous: 0, vehicle_ids: null, max_stop_sequence: null, max_stop_sequence_after_start: null, n_updates: 0, n_updates_with_vehicle: 0, observed_running: false, rt_canceled: true, first_seen_utc: null, last_seen_utc: null}
+        - {trip_id: D, n_positions: 0, n_positions_after_start: 0, n_positions_ambiguous: 0, vehicle_ids: null, max_stop_sequence: null, max_stop_sequence_after_start: null, n_updates: 1, n_updates_with_vehicle: 0, observed_running: false, rt_canceled: false, first_seen_utc: null, last_seen_utc: null}
+        - {trip_id: E, n_positions: 0, n_positions_after_start: 0, n_positions_ambiguous: 0, vehicle_ids: null, max_stop_sequence: null, max_stop_sequence_after_start: null, n_updates: 0, n_updates_with_vehicle: 0, observed_running: false, rt_canceled: true, first_seen_utc: null, last_seen_utc: null}
+        - {trip_id: F, n_positions: 0, n_positions_after_start: 0, n_positions_ambiguous: 0, vehicle_ids: null, max_stop_sequence: null, max_stop_sequence_after_start: null, n_updates: 0, n_updates_with_vehicle: 0, observed_running: false, rt_canceled: false, first_seen_utc: null, last_seen_utc: null}

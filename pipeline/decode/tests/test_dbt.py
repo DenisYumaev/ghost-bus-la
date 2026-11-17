@@ -21,7 +21,8 @@ DBT = Path(__file__).parents[3] / "pipeline" / "dbt"
 VEHICLE = json.dumps({"id": "3912", "vehicle": {
     "trip": {"tripId": "T1-JUNE26", "startDate": "20261114", "startTime": "08:50:00",
              "routeId": "2-13201", "directionId": 1},
-    "position": {"latitude": 34.06, "longitude": -118.30}, "timestamp": "1794680000",
+    "position": {"latitude": 34.06, "longitude": -118.30}, "timestamp": "1794675000",
+    "currentStopSequence": 2,
     "vehicle": {"id": "3912"}}})  # fmt: skip
 CANCELED = json.dumps({"id": "T2-JUNE26", "tripUpdate": {
     "trip": {"tripId": "T2-JUNE26", "startDate": "20261114", "startTime": "29:45:00",
@@ -45,6 +46,10 @@ def trip_report(entity: str, ts: int, rel: str, vehicle: str | None, stops: int)
 # vehicle 3912 and two stop predictions (the pattern found on Nov 14-16).
 T1_STALE = trip_report("T1-old", 1794679900, "SCHEDULED", None, 0)
 T1_NEW = trip_report("T1-JUNE26", 1794680000, "SCHEDULED", "3912", 2)
+# A trip ID from another service period: unmatched.
+UNMATCHED = json.dumps({"id": "T9-SEPT21", "tripUpdate": {
+    "trip": {"tripId": "T9-SEPT21", "startDate": "20261114", "startTime": "09:00:00",
+             "routeId": "2-13201", "directionId": 0}, "timestamp": "1794680000"}})  # fmt: skip
 # T2 canceled, then a newer SCHEDULED report under another entity: reinstated.
 T2_BACK = json.dumps({"id": "T2-back", "tripUpdate": {
     "trip": {"tripId": "T2-JUNE26", "startDate": "20261114", "startTime": "29:45:00",
@@ -67,7 +72,9 @@ def run_dbt(data: Path, tmp: Path) -> Path:
     try:
         result = dbtRunner().invoke([
             "build", "--project-dir", str(DBT), "--profiles-dir", str(DBT),
-            "--vars", json.dumps({"data_dir": str(data)}),
+            # The 3-trip world has 1 unmatched key of 3 on purpose; the real 0.80 floor is for
+            # thousands of keys a day.
+            "--vars", json.dumps({"data_dir": str(data), "match_rate_error": 0.5}),
             "--target-path", str(tmp / "target"), "--log-path", str(tmp / "logs"), "--quiet",
         ])  # fmt: skip
     finally:
@@ -98,7 +105,7 @@ def warehouse(tmp_path_factory: pytest.TempPathFactory) -> Path:
         tmp,
         # The same vehicle report in two fetches.
         [("2026-11-14T16:50:00Z", [VEHICLE]), ("2026-11-14T16:50:30Z", [VEHICLE])],
-        [("2026-11-14T16:50:00Z", [CANCELED, T1_STALE, T1_NEW]),
+        [("2026-11-14T16:50:00Z", [CANCELED, T1_STALE, T1_NEW, UNMATCHED]),
          ("2026-11-14T16:51:00Z", [CANCELED, T2_BACK])],
     )  # fmt: skip
     return run_dbt(data, tmp)
@@ -173,4 +180,32 @@ def test_the_schedule_expands_end_to_end(warehouse: Path) -> None:
         ("T1-JUNE26", 3, "2065100", "2026-11-14 16:50:00", "2026-11-14 17:05:00"),
         # 29:45 on service date Nov 14 is 05:45 PST on Nov 15.
         ("T2-JUNE26", 1, None, "2026-11-15 13:45:00", "2026-11-15 13:45:00"),
+    ]
+
+
+def test_realtime_trips_are_matched_through_the_crosswalk(warehouse: Path) -> None:
+    sql = (
+        "SELECT trip_id, sources, scheduled_trip_id, match_method, in_scope "
+        "FROM int_trip_crosswalk ORDER BY trip_id"
+    )
+    assert rows(warehouse, sql) == [
+        ("T1-JUNE26", ["trip_updates", "vehicle_positions"], "T1-JUNE26", "exact", True),
+        ("T2-JUNE26", ["trip_updates"], "T2-JUNE26", "exact", True),
+        ("T9-SEPT21", ["trip_updates"], None, "unmatched", True),
+    ]
+
+
+def test_observations_end_to_end(warehouse: Path) -> None:
+    sql = (
+        "SELECT trip_id, n_positions, vehicle_ids, max_stop_sequence, n_updates_with_vehicle, "
+        "observed_running, rt_canceled, CAST(timezone('UTC', first_seen_utc) AS VARCHAR) "
+        "FROM int_trip_observations ORDER BY trip_id"
+    )
+    assert rows(warehouse, sql) == [
+        # T1: vehicle 3912 at 16:50 UTC and a chosen SCHEDULED report with it.
+        # One position: the same report in two fetches is one report after the dedupe.
+        ("T1-JUNE26", 1, ["3912"], 2, 1, True, False, "2026-11-14 16:50:00"),
+        # T2 (29:45, window 13:15-14:45 UTC Nov 15): nothing in the window; its cancellation
+        # was withdrawn at 16:51 Nov 14, long before the start.
+        ("T2-JUNE26", 0, None, None, 0, False, False, None),
     ]

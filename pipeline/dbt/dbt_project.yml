@@ -25,6 +25,7 @@ vars:
   min_stop_coverage: 0.80
   min_feed_healthy_share: 0.90
   match_rate_alert: 0.95
+  match_rate_error: 0.80
 
 models:
   ghostbus:

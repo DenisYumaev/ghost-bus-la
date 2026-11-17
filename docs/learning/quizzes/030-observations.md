@@ -60,7 +60,7 @@ The non-chosen reports include stale SCHEDULED reports that still carry a vehicl
 <details>
 <summary>Model answer</summary>
 
-On Nov 15, 121 trips were both observed and canceled. 117 of them were canceled after the vehicle's last position, with median coverage 0.15. The bus sat at its first stop in the 30 minutes before departure, was "observed" there, and the trip was then canceled and never left. Without the coverage threshold (rule 2, `partial` below 0.80), those would all count as `ran`. That overstates service and understates missed trips.
+On Nov 15, 121 trips were both observed and canceled. Most were mid-trip cancellations: the bus ran part of the route (median 0.21 of it after the start), stopped reporting, and the trip was marked canceled. Twelve only waited at the first stop before departure. Without the coverage threshold (rule 2, `partial` below 0.80), all of them would count as `ran`, which overstates service. `partial` is reported separately and never counted as missed (spec section 8).
 
 </details>
 
