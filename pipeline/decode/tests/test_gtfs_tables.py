@@ -14,6 +14,7 @@ from typing import Any
 import duckdb
 import pytest
 from ghostbus_decode.gtfs_tables import (
+    EXTRACTOR_VERSION,
     SUCCESS,
     BadGtfsValue,
     MissingTable,
@@ -253,6 +254,138 @@ def test_load_gtfs_builds_the_dimension_then_extracts_each_version_once(tmp_path
     )  # fmt: skip
     first = load_gtfs(bucket, tmp_path)
     assert DIM_KEY in bucket.objects
-    assert any("extracted" in line and "stop_times 4" in line for line in first)
+    assert first.failed == {}
+    assert any("extracted" in line and "stop_times 4" in line for line in first.lines)
     again = load_gtfs(bucket, tmp_path)
-    assert any("already extracted" in line for line in again)
+    assert any("already extracted" in line for line in again.lines)
+
+
+# --- strictness: DuckDB's own casts and CSV sniffer are too lenient (checked on 2.0.0) -------
+
+
+def refused(tmp_path: Path, table: str, text: str, match: str) -> None:
+    bucket = FakeBucket({ZIP_KEY: make_zip({**FILES, f"{table}.txt": text})})
+    with pytest.raises(BadGtfsValue, match=match):
+        extract_version(bucket, VERSION, ZIP_KEY, workdir=tmp_path)
+    assert version_prefix(VERSION) + SUCCESS not in bucket.objects
+
+
+@pytest.mark.parametrize("value", ["2.5", "1e2", "1_0", "0x10", "+3", "3000000000"])
+def test_a_non_integer_stop_sequence_is_refused_not_rounded(tmp_path: Path, value: str) -> None:
+    # DuckDB's TRY_CAST turns '2.5' into 3 and '1e2' into 100.
+    row = f"T2-JUNE26,09:00:00,09:00:00,2083,{value},,0,0,E2,10,,1,\n"
+    refused(tmp_path, "stop_times", STOP_TIMES + row, r"stop_times\.stop_sequence")
+
+
+@pytest.mark.parametrize("lat", ["NaN", "inf", "91", "1e1", "33.97.1"])
+def test_an_impossible_coordinate_is_refused(tmp_path: Path, lat: str) -> None:
+    stops = STOPS + f"2,2,Somewhere,,{lat},-118.1,,,,\n"
+    refused(tmp_path, "stops", stops, r"stops\.stop_lat")
+
+
+@pytest.mark.parametrize("day", ["20260230", "20261301", "00000101", "2026070"])
+def test_an_impossible_date_is_refused(tmp_path: Path, day: str) -> None:
+    refused(tmp_path, "calendar_dates", f"service_id,date,exception_type\nX,{day},1\n",
+            r"calendar_dates\.date")  # fmt: skip
+
+
+def test_a_short_row_is_refused_not_resniffed(tmp_path: Path) -> None:
+    # With auto-detection, DuckDB re-sniffs and reads the file as one column.
+    refused(tmp_path, "calendar_dates", "service_id,date,exception_type\nX,20260704\n",
+            "malformed CSV")  # fmt: skip
+
+
+def test_a_leading_hash_is_data_not_a_comment(tmp_path: Path) -> None:
+    routes = ROUTES + "#99-13201,99,Metro Local Line,,3,,,\n"
+    bucket = FakeBucket({ZIP_KEY: make_zip({**FILES, "routes.txt": routes})})
+    extract_version(bucket, VERSION, ZIP_KEY, workdir=tmp_path)
+    ids = query(bucket, "routes", "SELECT route_id FROM routes", tmp_path)
+    assert ("#99-13201",) in ids
+
+
+def test_quoted_commas_and_newlines_survive(tmp_path: Path) -> None:
+    stops = STOPS + '2,2,"Main, 1st\nNorth side",,34.0,-118.2,,,,\n'
+    bucket = FakeBucket({ZIP_KEY: make_zip({**FILES, "stops.txt": stops})})
+    extract_version(bucket, VERSION, ZIP_KEY, workdir=tmp_path)
+    names = query(bucket, "stops", "SELECT stop_name FROM stops ORDER BY stop_id", tmp_path)
+    assert names == [("Paramount / Slauson",), ("Main, 1st\nNorth side",)]
+
+
+def test_a_duplicate_header_is_refused(tmp_path: Path) -> None:
+    text = "service_id,date,date,exception_type\nX,20260704,20260704,1\n"
+    refused(tmp_path, "calendar_dates", text, "duplicate column")
+
+
+def test_a_column_clashing_with_a_generated_one_is_refused(tmp_path: Path) -> None:
+    refused(tmp_path, "routes", "route_id,route_short_name,route_type,schedule_version\n1,1,3,x\n",
+            "clashes")  # fmt: skip
+
+
+def test_a_missing_required_column_is_refused(tmp_path: Path) -> None:
+    no_departure = "trip_id,arrival_time,stop_id,stop_sequence\nT1-JUNE26,08:50:00,2079,1\n"
+    refused(tmp_path, "stop_times", no_departure, "missing required column 'departure_time'")
+
+
+def test_an_optional_typed_column_that_is_absent_becomes_a_typed_null(tmp_path: Path) -> None:
+    lean = (
+        "trip_id,arrival_time,departure_time,stop_id,stop_sequence\n"
+        "T1-JUNE26,08:50:00,08:50:00,2079,1\n"
+    )
+    bucket = FakeBucket({ZIP_KEY: make_zip({**FILES, "stop_times.txt": lean})})
+    extract_version(bucket, VERSION, ZIP_KEY, workdir=tmp_path)
+    assert query(bucket, "stop_times", "SELECT timepoint, typeof(timepoint) FROM stop_times",
+                 tmp_path) == [(None, "INTEGER")]  # fmt: skip
+
+
+def test_tabs_and_carriage_returns_around_values_are_trimmed(tmp_path: Path) -> None:
+    dates = "service_id,date,exception_type\r\nX,\t20260704\t,1\r\n"
+    bucket = FakeBucket({ZIP_KEY: make_zip({**FILES, "calendar_dates.txt": dates})})
+    extract_version(bucket, VERSION, ZIP_KEY, workdir=tmp_path)
+    assert query(bucket, "calendar_dates", "SELECT date FROM calendar_dates", tmp_path) == [
+        (date(2026, 7, 4),)
+    ]
+
+
+# --- versions, markers, failures -------------------------------------------------------------
+
+
+def test_a_marker_from_an_older_extractor_is_redone(loaded: FakeBucket, tmp_path: Path) -> None:
+    key = version_prefix(VERSION) + SUCCESS
+    loaded.objects[key] = json.dumps({"extractor_version": 1}).encode()
+    assert extract_version(loaded, VERSION, ZIP_KEY, workdir=tmp_path) is not None
+    assert json.loads(loaded.objects[key])["extractor_version"] == EXTRACTOR_VERSION
+
+
+def test_an_unreadable_marker_is_redone(loaded: FakeBucket, tmp_path: Path) -> None:
+    loaded.objects[version_prefix(VERSION) + SUCCESS] = b"not json"
+    assert extract_version(loaded, VERSION, ZIP_KEY, workdir=tmp_path) is not None
+
+
+def test_force_redoes_a_complete_version(loaded: FakeBucket, tmp_path: Path) -> None:
+    assert extract_version(loaded, VERSION, ZIP_KEY, workdir=tmp_path, force=True) is not None
+
+
+def test_one_refused_version_doesnt_stop_the_others(tmp_path: Path) -> None:
+    good_sha = VERSION + "1619365ea0626262bc3d93d5e6bdd0df03288cd6120f6058"
+    bad_sha = "d" * 64
+    good_key, bad_key = ZIP_KEY, f"bronze/gtfs_static/dt=2026-11-16/{bad_sha[:16]}.zip"
+    bad_zip = make_zip(
+        {**FILES, "stop_times.txt": STOP_TIMES + "T9,7:61:00,7:61:00,1,1,,0,0,E,1,,1,\n"}
+    )
+
+    def written(sha: str, key: str, at: str) -> str:
+        rec = {"event": "fetch", "feed": "gtfs_static", "fetched_at": at,
+               "outcome": "written", "content_hash": sha, "object_key": key}  # fmt: skip
+        return json.dumps(rec)
+
+    bucket = FakeBucket({
+        good_key: make_zip(FILES), bad_key: bad_zip,
+        "bronze/_fetch_log/dt=2026-11-15/hour=15/a.jsonl":
+            (written(good_sha, good_key, "2026-11-15T15:13:04Z") + "\n").encode(),
+        "bronze/_fetch_log/dt=2026-11-16/hour=11/b.jsonl":
+            (written(bad_sha, bad_key, "2026-11-16T11:00:00Z") + "\n").encode(),
+    })  # fmt: skip
+    result = load_gtfs(bucket, tmp_path)
+    assert list(result.failed) == [bad_sha[:16]]
+    assert version_prefix(VERSION) + SUCCESS in bucket.objects  # the good one still loaded
+    assert any("REFUSED" in line for line in result.lines)

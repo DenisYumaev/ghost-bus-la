@@ -58,7 +58,7 @@ def test_agrees_with_python_on_every_valid_time(seconds: int) -> None:
 
 
 @settings(max_examples=300)
-@given(st.text(alphabet="0123456789: \u0660x", max_size=10))
+@given(st.text(alphabet="0123456789: \t\r\n\u0660x", max_size=10))
 def test_agrees_with_python_on_arbitrary_text(text: str) -> None:
     expected = None if not text.strip() else python_parse(text)
     assert sql_parse(text) == expected
@@ -67,3 +67,26 @@ def test_agrees_with_python_on_arbitrary_text(text: str) -> None:
 def test_only_plain_column_names_are_accepted() -> None:
     with pytest.raises(ValueError, match="column name"):
         gtfs_seconds_sql("t); DROP TABLE x; --")
+
+
+def sql_date(text: str) -> object:
+    from ghostbus_decode.gtfs_tables import typed_sql
+
+    with duckdb.connect() as con:
+        query = f"SELECT {typed_sql('d', 'date')} FROM (SELECT ?::VARCHAR AS d)"  # noqa: S608
+        return con.execute(query, [text]).fetchall()[0][0]
+
+
+@settings(max_examples=300)
+@given(st.one_of(st.text(alphabet="0123456789", min_size=8, max_size=8),
+                 st.dates().map(lambda d: d.strftime("%Y%m%d"))))  # fmt: skip
+def test_dates_agree_with_python(text: str) -> None:
+    from ghostbus_core.service_date import parse_service_date
+
+    try:
+        expected: object = parse_service_date(text)
+    except ValueError:
+        expected = None
+    if text.startswith("0"):  # years before 1000: refused in SQL, valid but absurd in Python
+        expected = None
+    assert sql_date(text) == expected
