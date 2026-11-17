@@ -101,6 +101,48 @@ models:
           - accepted_values:
               arguments: {values: [1, 2]}
 
+  - name: stg_vehicle_positions
+    description: One row per vehicle report (vehicle_id, vehicle_ts), first sighting kept.
+    data_tests:
+      - unique_combination:
+          arguments: {columns: [vehicle_id, vehicle_ts]}
+    columns:
+      - name: n_snapshots
+        data_tests: [not_null]
+      - name: lat
+        data_tests: [not_null]
+      - name: lon
+        data_tests: [not_null]
+      - name: direction_id
+        data_tests:
+          - accepted_values:
+              arguments: {values: [0, 1]}
+
+  - name: stg_trip_updates
+    description: One row per trip x stop x fetch; stop_key -1 for a trip-level row.
+    data_tests:
+      - unique_combination:
+          arguments: {columns: [trip_id, service_date, stop_key, fetched_at]}
+    columns:
+      - name: trip_schedule_relationship
+        data_tests:
+          - accepted_values:
+              arguments:
+                values: [SCHEDULED, CANCELED, ADDED, UNSCHEDULED, DUPLICATED, DELETED,
+                         NEW, REPLACEMENT]
+              config: {severity: warn}
+
+  - name: stg_cancellations
+    description: One row per trip x service date ever marked CANCELED in trip updates.
+    data_tests:
+      - unique_combination:
+          arguments: {columns: [trip_id, service_date]}
+    columns:
+      - name: first_seen_at
+        data_tests: [not_null]
+      - name: reinstated
+        data_tests: [not_null]
+
 unit_tests:
   - name: stg_fetch_log_collapses_repeated_lines_and_keeps_only_fetches
     model: stg_fetch_log
@@ -148,3 +190,63 @@ unit_tests:
         - {route_id: "910-13201", line: "910"}
         - {route_id: "R7", line: "R7"}
         - {route_id: "854-13201", line: "Dodger Stadium Express"}
+
+  - name: stg_vehicle_positions_keeps_the_first_sighting_of_each_report
+    model: stg_vehicle_positions
+    given:
+      - input: ref('src_vehicle_position')
+        rows:
+          - {vehicle_id: "1", vehicle_ts: "2026-11-15 16:00:00+00", fetched_at: "2026-11-15 16:00:30+00", snapshot_sha: b, lat: 34.0, lon: -118.0, trip_schedule_relationship: null}
+          - {vehicle_id: "1", vehicle_ts: "2026-11-15 16:00:00+00", fetched_at: "2026-11-15 16:00:00+00", snapshot_sha: a, lat: 34.1, lon: -118.0, trip_schedule_relationship: null}
+          - {vehicle_id: "1", vehicle_ts: "2026-11-15 16:00:20+00", fetched_at: "2026-11-15 16:01:00+00", snapshot_sha: c, lat: 34.2, lon: -118.0, trip_schedule_relationship: CANCELED}
+    expect:
+      rows:
+        - {vehicle_ts: "2026-11-15 16:00:00+00", lat: 34.1, n_snapshots: 2, trip_schedule_relationship: SCHEDULED}
+        - {vehicle_ts: "2026-11-15 16:00:20+00", lat: 34.2, n_snapshots: 1, trip_schedule_relationship: CANCELED}
+
+  - name: stg_cancellations_tracks_first_last_and_reinstatement
+    model: stg_cancellations
+    given:
+      - input: ref('stg_trip_updates')
+        rows:
+          # A: canceled twice, never reinstated. B: canceled, then SCHEDULED again later.
+          # C: SCHEDULED before a cancellation only, so not reinstated. D: never canceled.
+          - {trip_id: A, service_date: "2026-11-15", fetched_at: "2026-11-15 10:00:00+00", trip_schedule_relationship: CANCELED}
+          - {trip_id: A, service_date: "2026-11-15", fetched_at: "2026-11-15 10:01:00+00", trip_schedule_relationship: CANCELED}
+          - {trip_id: B, service_date: "2026-11-15", fetched_at: "2026-11-15 10:00:00+00", trip_schedule_relationship: CANCELED}
+          - {trip_id: B, service_date: "2026-11-15", fetched_at: "2026-11-15 10:05:00+00", trip_schedule_relationship: SCHEDULED}
+          - {trip_id: C, service_date: "2026-11-15", fetched_at: "2026-11-15 09:00:00+00", trip_schedule_relationship: SCHEDULED}
+          - {trip_id: C, service_date: "2026-11-15", fetched_at: "2026-11-15 10:00:00+00", trip_schedule_relationship: CANCELED}
+          - {trip_id: D, service_date: "2026-11-15", fetched_at: "2026-11-15 10:00:00+00", trip_schedule_relationship: SCHEDULED}
+    expect:
+      rows:
+        - {trip_id: A, first_seen_at: "2026-11-15 10:00:00+00", last_seen_at: "2026-11-15 10:01:00+00", n_snapshots: 2, reinstated: false}
+        - {trip_id: B, first_seen_at: "2026-11-15 10:00:00+00", last_seen_at: "2026-11-15 10:00:00+00", n_snapshots: 1, reinstated: true}
+        - {trip_id: C, first_seen_at: "2026-11-15 10:00:00+00", last_seen_at: "2026-11-15 10:00:00+00", n_snapshots: 1, reinstated: false}
+
+  - name: stg_trip_updates_defaults_relationships_and_keys_trip_level_rows
+    model: stg_trip_updates
+    given:
+      - input: ref('src_trip_update')
+        rows:
+          - {trip_id: A, start_date: "2026-11-15", stop_sequence: null, trip_schedule_relationship: CANCELED, stop_schedule_relationship: null}
+          - {trip_id: B, start_date: "2026-11-15", stop_sequence: 4, trip_schedule_relationship: null, stop_schedule_relationship: null}
+    expect:
+      rows:
+        - {trip_id: A, stop_key: -1, trip_schedule_relationship: CANCELED, stop_schedule_relationship: SCHEDULED}
+        - {trip_id: B, stop_key: 4, trip_schedule_relationship: SCHEDULED, stop_schedule_relationship: SCHEDULED}
+
+  - name: stg_trip_updates_keeps_the_newest_report_of_a_trip_in_one_fetch
+    model: stg_trip_updates
+    given:
+      - input: ref('src_trip_update')
+        rows:
+          # The real pattern: a stale report without a vehicle next to a newer one with it,
+          # here disagreeing on the relationship. The newer one wins.
+          - {trip_id: A, start_date: "2026-11-15", stop_sequence: null, fetched_at: "2026-11-15 10:00:00+00", entity_ts: "2026-11-15 09:59:00+00", vehicle_id: null, trip_schedule_relationship: CANCELED}
+          - {trip_id: A, start_date: "2026-11-15", stop_sequence: 5, fetched_at: "2026-11-15 10:00:00+00", entity_ts: "2026-11-15 09:59:40+00", vehicle_id: "5898", trip_schedule_relationship: SCHEDULED}
+          - {trip_id: A, start_date: "2026-11-15", stop_sequence: 6, fetched_at: "2026-11-15 10:00:00+00", entity_ts: "2026-11-15 09:59:40+00", vehicle_id: "5898", trip_schedule_relationship: SCHEDULED}
+    expect:
+      rows:
+        - {trip_id: A, stop_key: 5, vehicle_id: "5898", trip_schedule_relationship: SCHEDULED, n_reports: 2}
+        - {trip_id: A, stop_key: 6, vehicle_id: "5898", trip_schedule_relationship: SCHEDULED, n_reports: 2}
