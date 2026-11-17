@@ -19,7 +19,7 @@ test:  ## Run all offline tests with coverage
 lint:  ## Lint, format check, type check, fixture sizes
 	uv run ruff check .
 	uv run ruff format --check .
-	uv run mypy packages/ghostbus_core/src services/ingest/src scripts tests packages/ghostbus_core/tests services/ingest/tests
+	uv run mypy packages/ghostbus_core/src services/ingest/src pipeline/decode/src scripts tests packages/ghostbus_core/tests services/ingest/tests pipeline/decode/tests
 	uv run python scripts/check_fixture_size.py
 
 fmt:  ## Auto-fix lint issues and format
