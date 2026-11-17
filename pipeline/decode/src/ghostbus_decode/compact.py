@@ -136,13 +136,19 @@ def compact_day(
     return marker
 
 
-def compacted_parts(bucket: ReadBucket, feed: str, day: date) -> list[str]:
-    """The part files of the day's last complete run, from its marker; [] if none."""
+def compaction_marker(bucket: ReadBucket, feed: str, day: date) -> dict[str, Any] | None:
+    """The day's last complete compaction marker, or None."""
     key = day_prefix(feed, day) + SUCCESS
     if key not in bucket.list_keys(day_prefix(feed, day)):
-        return []
-    marker = json.loads(bucket.get(key))
-    return list(marker["part_keys"])
+        return None
+    marker: dict[str, Any] = json.loads(bucket.get(key))
+    return marker
+
+
+def compacted_parts(bucket: ReadBucket, feed: str, day: date) -> list[str]:
+    """The part files of the day's last complete run, from its marker; [] if none."""
+    marker = compaction_marker(bucket, feed, day)
+    return [] if marker is None else list(marker["part_keys"])
 
 
 def _batches(found: list[tuple[dict[str, Any], str]]) -> list[list[tuple[dict[str, Any], str]]]:

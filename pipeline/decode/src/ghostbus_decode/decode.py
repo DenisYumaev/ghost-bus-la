@@ -29,11 +29,18 @@ from typing import Any, TextIO
 
 import duckdb
 
-from ghostbus_decode.compact import STREAM_FEEDS, compacted_parts
-from ghostbus_decode.frames import Quarantined, decode_trip_update, decode_vehicle, fingerprint
+from ghostbus_decode.compact import STREAM_FEEDS, compaction_marker
+from ghostbus_decode.frames import (
+    Quarantined,
+    decode_trip_update,
+    decode_vehicle,
+    fingerprint,
+    unwrap,
+)
 from ghostbus_decode.s3 import Bucket, ReadBucket
 
-DECODER_VERSION = 1
+DECODER_VERSION = 2
+_CHUNK = 25  # snapshots per output part: about 750k trip-update rows, 300 MB of NDJSON
 SUCCESS = "_SUCCESS"
 TABLE = {"vehicle_positions": "vehicle_position", "trip_updates": "trip_update"}
 
@@ -106,11 +113,25 @@ class _Stats:
 def _decode_snapshot(
     feed: str, fetched_at: str, sha: str, payload: bytes, out: dict[str, TextIO], stats: _Stats
 ) -> None:
-    frames = [f for f in gzip.decompress(payload).split(b"\n") if f.strip()]
+    lines = gzip.decompress(payload).split(b"\n")
+    if lines and lines[-1] == b"":
+        lines.pop()  # the snapshot ends with a newline; that's the only blank to skip
+    frames: list[bytes] = []
     rows: list[dict[str, Any]] = []
     bad = 0
-    for raw in frames:
-        result = decode_vehicle(raw) if feed == "vehicle_positions" else decode_trip_update(raw)
+    for line in lines:
+        unwrapped = unwrap(line)
+        raw = line if isinstance(unwrapped, Quarantined) else unwrapped
+        frames.append(raw)
+        result: Any
+        if isinstance(unwrapped, Quarantined):
+            result = unwrapped
+        elif not raw.strip():
+            result = Quarantined("empty", raw)  # ingest stores an empty frame as its own line
+        elif feed == "vehicle_positions":
+            result = decode_vehicle(raw)
+        else:
+            result = decode_trip_update(raw)
         if isinstance(result, Quarantined):
             bad += 1
             stats.reasons[result.reason] += 1
@@ -142,9 +163,10 @@ def decode_day(
 ) -> dict[str, Any]:
     if feed not in STREAM_FEEDS:
         raise ValueError(f"not a stream feed: {feed!r}")
-    parts = compacted_parts(bucket, feed, day)
-    if not parts:
+    source = compaction_marker(bucket, feed, day)
+    if source is None:
         raise NotCompacted(f"{feed} {day}: no compaction marker; run `make compact` first")
+    parts: list[str] = source["part_keys"]
     tables = [TABLE[feed], "schema_fingerprint", "quarantine"]
     run = run_id or datetime.now(UTC).strftime("%Y%m%dT%H%M%S%fZ")
     before = {k for t in tables for k in bucket.list_keys(output_prefix(t, feed, day))}
@@ -155,24 +177,31 @@ def decode_day(
         for n, part in enumerate(parts):
             src = tmp / "compacted.parquet"
             src.write_bytes(bucket.get(part))
-            files: dict[str, TextIO] = {t: (tmp / f"{t}.ndjson").open("w") for t in tables}
-            try:
-                with duckdb.connect() as con:
-                    cur = con.execute(
-                        "SELECT strftime(timezone('UTC', fetched_at), '%Y-%m-%dT%H:%M:%S.%fZ'), "
-                        "content_hash, payload FROM read_parquet(?) ORDER BY fetched_at",
-                        [str(src)],
-                    )
-                    while batch := cur.fetchmany(50):
+            with duckdb.connect() as con:
+                con.execute("SET memory_limit = '256MB'")
+                con.execute("SET threads = 1")
+                cur = con.execute(
+                    "SELECT strftime(timezone('UTC', fetched_at), '%Y-%m-%dT%H:%M:%S.%fZ'), "
+                    "content_hash, payload FROM read_parquet(?)",  # stored in time order
+                    [str(src)],
+                )
+                chunk = 0
+                while batch := cur.fetchmany(_CHUNK):
+                    # Flush every _CHUNK snapshots: a whole trip-update part as NDJSON would
+                    # be about 2.5 GB of temp file.
+                    files: dict[str, TextIO] = {t: (tmp / f"{t}.ndjson").open("w") for t in tables}
+                    try:
                         for fetched_at, sha, payload in batch:
                             _decode_snapshot(feed, fetched_at, sha, payload, files, stats)
-            finally:
-                for f in files.values():
-                    f.close()
-            for t in tables:
-                key = f"{output_prefix(t, feed, day)}run={run}/part-{n}.parquet"
-                bucket.put(key, _to_parquet(tmp / f"{t}.ndjson", COLUMNS[t], tmp))
-                written[t].append(key)
+                    finally:
+                        for f in files.values():
+                            f.close()
+                    for t in tables:
+                        key = f"{output_prefix(t, feed, day)}run={run}/part-{n}-{chunk}.parquet"
+                        bucket.put(key, _to_parquet(tmp / f"{t}.ndjson", COLUMNS[t], tmp))
+                        written[t].append(key)
+                    chunk += 1
+            src.unlink()
     finally:
         shutil.rmtree(tmp, ignore_errors=True)
     marker = {
@@ -180,6 +209,7 @@ def decode_day(
         "snapshots": stats.snapshots, "frames": stats.frames, "rows": stats.rows,
         "quarantined": stats.quarantined, "reasons": dict(sorted(stats.reasons.items())),
         "fingerprints": len(stats.fingerprints), "decoder_version": DECODER_VERSION,
+        "compaction_run": source["run"], "compactor_version": source["compactor_version"],
     }  # fmt: skip
     marker_key = _marker_key(feed, day)
     bucket.put(marker_key, json.dumps(marker, sort_keys=True).encode())
@@ -213,6 +243,7 @@ def _to_parquet(ndjson: Path, columns: dict[str, str], tmp: Path) -> bytes:
 def main() -> None:  # pragma: no cover - thin CLI over tested functions
     """uv run python -m ghostbus_decode.decode --bucket <data bucket> --day YYYY-MM-DD"""
     import argparse
+    import sys
 
     import boto3
 
@@ -224,11 +255,16 @@ def main() -> None:  # pragma: no cover - thin CLI over tested functions
     parser.add_argument("--feed", choices=STREAM_FEEDS, action="append")
     args = parser.parse_args()
     bucket = S3Bucket(boto3.client("s3", region_name="us-west-2"), args.bucket)
+    quarantined = 0
     for feed in args.feed or STREAM_FEEDS:
         m = decode_day(bucket, feed, args.day)
+        quarantined += m["quarantined"]
         print(f"{feed} {args.day}: {m['snapshots']} snapshots, {m['frames']:,} frames, "
               f"{m['rows']:,} rows, {m['quarantined']} quarantined {m['reasons'] or ''}, "
               f"{m['fingerprints']} schema fingerprint(s)")  # fmt: skip
+
+    if quarantined:
+        sys.exit(f"{quarantined} frame(s) quarantined: see derived/decoded/_quarantine/")
 
 
 if __name__ == "__main__":  # pragma: no cover

@@ -175,3 +175,83 @@ def test_rejects_an_unknown_feed(tmp_path: Path) -> None:
 
 def test_no_marker_means_no_decoded_parts() -> None:
     assert decoded_parts(FakeBucket(), VP, DAY) == {}
+
+
+def test_a_frame_ingest_had_to_wrap_is_unwrapped_and_decoded(tmp_path: Path) -> None:
+    # Ingest stores a frame containing a newline as {"_unframed_b64": ...} (snapshot.py).
+    pretty = json.dumps(json.loads(vehicle("7", 1794539500)), indent=2).encode()
+    wrapped = json.dumps({"_unframed_b64": base64.b64encode(pretty).decode()})
+    bucket = FakeBucket()
+    store(bucket, VP, [("2026-11-14T05:00:00Z", [wrapped, '{"_unframed_b64": "!!"}'])])
+    m = decode_day(bucket, VP, DAY, workdir=tmp_path)
+    assert (m["rows"], m["reasons"]) == (1, {"bad:_unframed_b64": 1})
+    assert query(bucket, VP, "vehicle_position", "SELECT vehicle_id FROM t", tmp_path) == [("7",)]
+
+
+def test_extreme_but_valid_numbers_reach_parquet_or_quarantine_never_crash(tmp_path: Path) -> None:
+    big_seq = json.loads(trip("B", "SCHEDULED", 1))
+    big_seq["tripUpdate"]["stopTimeUpdate"][0]["stopSequence"] = 2**31 - 1
+    too_big = json.loads(trip("C", "SCHEDULED", 1))
+    too_big["tripUpdate"]["stopTimeUpdate"][0]["stopSequence"] = 3_000_000_000  # legal uint32
+    long_ts = json.loads(trip("D", "CANCELED"))
+    long_ts["tripUpdate"]["timestamp"] = "9" * 5000
+    bucket = FakeBucket()
+    frames = [json.dumps(big_seq), json.dumps(too_big), json.dumps(long_ts)]
+    store(bucket, TU, [("2026-11-14T05:00:00Z", frames)])
+    m = decode_day(bucket, TU, DAY, workdir=tmp_path)
+    assert m["rows"] == 1
+    assert m["reasons"] == {"bad:tripUpdate.stopTimeUpdate[].stopSequence": 1,
+                            "bad:tripUpdate.timestamp": 1}  # fmt: skip
+    seqs = query(bucket, TU, "trip_update", "SELECT stop_sequence FROM t", tmp_path)
+    assert seqs == [(2**31 - 1,)]
+
+
+def test_a_blank_frame_is_quarantined_not_dropped(tmp_path: Path) -> None:
+    bucket = FakeBucket()
+    store(bucket, VP, [("2026-11-14T05:00:00Z", [vehicle("1", 1794539500), "   "])])
+    m = decode_day(bucket, VP, DAY, workdir=tmp_path)
+    assert (m["frames"], m["rows"], m["reasons"]) == (2, 1, {"empty": 1})
+
+
+def test_trip_update_feed_ts_is_the_newest_entity_timestamp(tmp_path: Path) -> None:
+    older = json.loads(trip("A", "CANCELED"))
+    older["tripUpdate"]["timestamp"] = "1794539000"
+    bucket = FakeBucket()
+    store(bucket, TU, [("2026-11-14T05:00:00Z", [json.dumps(older), trip("B", "CANCELED")])])
+    decode_day(bucket, TU, DAY, workdir=tmp_path)
+    assert query(
+        bucket, TU, "trip_update", "SELECT DISTINCT CAST(feed_ts AS VARCHAR) FROM t", tmp_path
+    ) == [("2026-11-13 03:13:20+00",)]  # epoch 1794539600 (date -u -r)
+
+
+def test_the_marker_records_which_compaction_run_it_read(tmp_path: Path) -> None:
+    from ghostbus_decode.compact import compaction_marker
+
+    bucket = FakeBucket()
+    store(bucket, VP, [("2026-11-14T05:00:00Z", [vehicle("1", 1794539500)])])
+    m = decode_day(bucket, VP, DAY, workdir=tmp_path)
+    source = compaction_marker(bucket, VP, DAY)
+    assert source is not None
+    assert m["compaction_run"] == source["run"]
+
+
+def test_a_crash_mid_run_leaves_the_previous_decode_readable(tmp_path: Path) -> None:
+    bucket = FakeBucket()
+    store(bucket, VP, [("2026-11-14T05:00:00Z", [vehicle("1", 1794539500)])])
+    decode_day(bucket, VP, DAY, workdir=tmp_path, run_id="r1")
+    sql = "SELECT vehicle_id FROM t"
+    before = query(bucket, VP, "vehicle_position", sql, tmp_path)
+    real_put = bucket.put
+    calls = {"n": 0}
+
+    def flaky_put(key: str, body: bytes) -> None:
+        calls["n"] += 1
+        if calls["n"] == 2:
+            raise ConnectionError("boom")
+        real_put(key, body)
+
+    bucket.put = flaky_put  # type: ignore[method-assign]
+    with pytest.raises(ConnectionError):
+        decode_day(bucket, VP, DAY, workdir=tmp_path, run_id="r2")
+    bucket.put = real_put  # type: ignore[method-assign]
+    assert query(bucket, VP, "vehicle_position", sql, tmp_path) == before

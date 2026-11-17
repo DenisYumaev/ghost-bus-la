@@ -10,10 +10,13 @@ tested place where they're parsed and validated:
 - Unknown extra fields are tolerated (Metro may add some) and show up in the snapshot's
   schema fingerprint instead, which is what the schema-drift alert watches.
 - Decoding never raises: any input gives rows or a `Quarantined`.
+- Integers are range-checked against the column types they'll be written to, so one
+  extreme value quarantines a frame instead of failing the whole day's write.
 
 Times stay as received apart from typing: `start_time` is text, because it can pass 24:00.
 """
 
+import base64
 import hashlib
 import json
 import math
@@ -25,6 +28,10 @@ from typing import Any
 from ghostbus_core.service_date import parse_service_date
 
 Row = dict[str, Any]
+
+# Ranges match the DuckDB column types (INTEGER is signed 32-bit), so a value that passes
+# here can't fail later when the day is written. GTFS direction_id is 0 or 1.
+_INT_RANGE = {"int": (-(2**31), 2**31 - 1), "seq": (0, 2**31 - 1), "direction": (0, 1)}
 
 
 @dataclass(frozen=True)
@@ -69,8 +76,9 @@ def _typed(value: Any, kind: str, name: str) -> Any:
     elif kind == "str":
         if isinstance(value, str):
             return value
-    elif kind == "int":
-        if isinstance(value, int) and not isinstance(value, bool):
+    elif kind in _INT_RANGE:
+        low, high = _INT_RANGE[kind]
+        if isinstance(value, int) and not isinstance(value, bool) and low <= value <= high:
             return value
     elif kind in ("float", "lat", "lon"):
         if isinstance(value, int | float) and not isinstance(value, bool) and math.isfinite(value):
@@ -78,8 +86,8 @@ def _typed(value: Any, kind: str, name: str) -> Any:
             if limit is None or abs(value) <= limit:
                 return float(value)
     elif kind == "epoch":
-        if isinstance(value, str) and value.isascii() and value.isdigit():
-            value = int(value)
+        if isinstance(value, str) and value.isascii() and value.isdigit() and len(value) <= 12:
+            value = int(value)  # 12 digits reach year 33658; longer strings are garbage
         if isinstance(value, int) and not isinstance(value, bool) and value >= 0:
             try:
                 return datetime.fromtimestamp(value, UTC)
@@ -97,7 +105,7 @@ def _trip(obj: Any, base: str) -> Row:
     return {
         "trip_id": _at(obj, f"{base}.tripId", "str"),
         "route_id": _at(obj, f"{base}.routeId", "str"),
-        "direction_id": _at(obj, f"{base}.directionId", "int"),
+        "direction_id": _at(obj, f"{base}.directionId", "direction"),
         "start_date": _at(obj, f"{base}.startDate", "date"),
         "start_time": _at(obj, f"{base}.startTime", "str"),
     }
@@ -117,7 +125,7 @@ def decode_vehicle(raw: bytes) -> Row | Quarantined:
             "lon": _at(o, "vehicle.position.longitude", "lon", required=True),
             "bearing": _at(o, "vehicle.position.bearing", "float"),
             "speed": _at(o, "vehicle.position.speed", "float"),
-            "current_stop_sequence": _at(o, "vehicle.currentStopSequence", "int"),
+            "current_stop_sequence": _at(o, "vehicle.currentStopSequence", "seq"),
             "stop_id": _at(o, "vehicle.stopId", "str"),
             "current_status": _at(o, "vehicle.currentStatus", "str"),
             "vehicle_ts": _at(o, "vehicle.timestamp", "epoch", required=True),
@@ -160,7 +168,7 @@ def _stop(u: Any) -> Row:
     if not isinstance(u, dict):
         raise _Bad(f"bad:{_STU}")
     return {
-        "stop_sequence": _at(u, "stopSequence", "int", label=f"{_STU}.stopSequence"),
+        "stop_sequence": _at(u, "stopSequence", "seq", label=f"{_STU}.stopSequence"),
         "stop_id": _at(u, "stopId", "str", label=f"{_STU}.stopId"),
         "arrival_ts": _at(u, "arrival.time", "epoch", label=f"{_STU}.arrival.time"),
         "departure_ts": _at(u, "departure.time", "epoch", label=f"{_STU}.departure.time"),
@@ -191,3 +199,18 @@ def fingerprint(frames: Iterable[bytes]) -> str:
         except (ValueError, RecursionError):
             seen.add("<unparseable>")
     return hashlib.sha256("\n".join(sorted(seen)).encode()).hexdigest()
+
+
+def unwrap(line: bytes) -> bytes | Quarantined:
+    """Undo ingest's framing wrapper: a frame containing a newline is stored as
+    `{"_unframed_b64": "<base64 of the frame>"}` (ingest snapshot.py). Other lines pass
+    through unchanged."""
+    if not line.startswith(b'{"_unframed_b64"'):
+        return line
+    try:
+        value = json.loads(line)
+        if isinstance(value, dict) and set(value) == {"_unframed_b64"}:
+            return base64.b64decode(value["_unframed_b64"], validate=True)
+    except (ValueError, TypeError):
+        pass
+    return Quarantined("bad:_unframed_b64", line)

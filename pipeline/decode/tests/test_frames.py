@@ -226,3 +226,18 @@ def test_an_empty_stop_time_update_list_is_one_row() -> None:
     rows = decode_trip_update(json.dumps(frame).encode())
     assert not isinstance(rows, Quarantined)
     assert len(rows) == 1
+
+
+@pytest.mark.parametrize("direction", [2, -1])
+def test_direction_must_be_zero_or_one(direction: int) -> None:
+    raw = CANCELED.replace('"directionId": 0', f'"directionId": {direction}')
+    result = decode_trip_update(raw.encode())
+    assert isinstance(result, Quarantined)
+    assert result.reason == "bad:tripUpdate.trip.directionId"
+
+
+def test_unwrap_passes_ordinary_lines_through() -> None:
+    from ghostbus_decode.frames import unwrap
+
+    assert unwrap(VEHICLE_NO_TRIP.encode()) == VEHICLE_NO_TRIP.encode()
+    assert isinstance(unwrap(b'{"_unframed_b64": "x", "extra": 1}'), Quarantined)
