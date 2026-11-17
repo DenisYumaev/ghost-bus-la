@@ -293,9 +293,9 @@ Notes for the build:
 
 | Table | Grain | Used by |
 | --- | --- | --- |
-| `serving.line` | line | Line list and detail |
-| `serving.line_direction` | line × direction | Headsigns |
-| `serving.line_stop` | line × direction × stop sequence | Stop pickers, validation |
+| `serving.line` | schedule version × line | Line list and detail; serve the version in force on the rider's local date |
+| `serving.line_direction` | schedule version × line × direction | Headsigns |
+| `serving.line_stop` | schedule version × line × direction × stop (a loop's repeated stop once; `stop_order` 1..n) | Stop pickers, validation against the version in force on the rider's date |
 | `serving.trip_stop_time` | schedule version × trip × stop sequence | Commute matching; index on (`trip_id`, `stop_id`) |
 | `serving.schedule_version` | version | Version in force |
 | `serving.reliability` | line × direction × day type × hour × window | Reliability grid |

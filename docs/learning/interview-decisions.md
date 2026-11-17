@@ -222,6 +222,13 @@ The trade-offs in Ghost Bus LA you should be able to defend out loud. Each entry
 - **Holidays, from evidence:** the schedule removes the weekday services and adds Sunday ones on Thanksgiving and Labor Day (`docs/research/holiday-service.md`).
 - **Record:** ADR-025; `pipeline/dbt/models/gold/fct_reliability.sql`, `int_service_day_types.sql`; quiz 034.
 
+### 15l. Line tables: headsigns from stop headsigns, stop order from position
+
+- **Decision:** three line tables, built for every schedule version ever in force: `dim_line`, `dim_line_direction` (headsign, main pattern) and `dim_line_stop` (every stop served, in order). The API serves the version in force on the rider's own date, so commute validation is right across a service change. A first draft used only the last synced day's version: a backfill or a new schedule would then have accepted removed stops, whose alerts never fire, and rejected new ones.
+- **Headsigns:** Metro's `trips.txt` leaves `trip_headsign` empty for all 33,614 trips, but every stop time carries `stop_headsign` ("754 - Vermont / Athens Station"). The headsign is the most common one at the trips' first stops, without the line prefix. On combined lines (`14/37`) the prefix says which sub-line runs that direction, so it stays.
+- **Stop order:** a direction runs several stop patterns (branches, short turns). Main-pattern stops keep their index. Every other stop is interpolated between the main-pattern stops before and after it in its own trip, then averaged. A first draft averaged each trip's own 0..1 position, and review showed a peak short turn starting mid-route would drag a trunk stop ahead of earlier ones. A dbt test now checks that main-pattern stops stay in route order. Rejected: the main pattern only, which drops branch stops riders board at; a full pattern merge, which is complex for a stop picker.
+- **Record:** `pipeline/dbt/models/gold/dim_line*.sql`; quiz 035.
+
 ### 16. Ingest every line; scope the headline numbers
 
 - **Decision:** archive all lines, and compute headline metrics on Metro-operated lines only.

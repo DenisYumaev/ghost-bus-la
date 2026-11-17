@@ -9,5 +9,7 @@ select
     coalesce(nullif(trim(route_short_name), ''), split_part(route_id, '-', 1)) as line,
     route_long_name,
     route_desc,
-    route_type
+    route_type,
+    route_color,
+    route_text_color
 from {{ ref('src_gtfs_routes') }}

@@ -295,3 +295,17 @@ def test_reliability_end_to_end(warehouse: Path) -> None:
         ("90d", "sunday", 2, 1, True, 0),
         ("all", "sunday", 2, 1, True, 0),
     ]
+
+
+def test_line_tables_end_to_end(warehouse: Path) -> None:
+    lines = rows(warehouse, "SELECT count(*), count(DISTINCT line) FROM dim_line")
+    assert lines[0][0] == lines[0][1] > 0
+    # Every direction that has trips has a headsign and a stop list starting at order 1.
+    sql = (
+        "SELECT d.line, d.direction_id, d.headsign IS NOT NULL, min(s.stop_order)"
+        " FROM dim_line_direction AS d JOIN dim_line_stop AS s USING (line, direction_id)"
+        " GROUP BY ALL"
+    )
+    got = rows(warehouse, sql)
+    assert got
+    assert all(has_headsign and first == 1 for _, _, has_headsign, first in got)
