@@ -45,7 +45,7 @@ Each run writes under its own `run=<id>/` prefix and then a `_SUCCESS` marker li
 <details>
 <summary>Model answer</summary>
 
-The same input would give different output depending on when it was built, so this drill would fail and backfills couldn't be reproduced. The project derives "today" from the synced range (`src_sync_range`) instead, so the inputs alone determine the output.
+The same input would give different output depending on when it was built, so this drill would fail and backfills couldn't be reproduced. No model reads the clock: date ranges come from the synced range (`src_sync_range`), so the inputs alone determine the tables. The one deliberate exception is a warning test, `schedule_calendar_runs_out_soon`, which compares against `current_date` because "is the schedule about to expire?" really is a question about today. It produces a warning and no table rows.
 
 </details>
 
