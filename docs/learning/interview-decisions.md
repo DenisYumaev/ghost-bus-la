@@ -169,6 +169,13 @@ The trade-offs in Ghost Bus LA you should be able to defend out loud. Each entry
 - **What real data caught on day one:** the G Line and J Line have no `route_short_name` (1,274 trips would have had no line). And a check query in a Los Angeles-time session shifted counts by 8 hours, which led to a rule: SQL converts time zones explicitly.
 - **Record:** `docs/spec/01-data-pipeline.md` sections 5 and 6; `pipeline/dbt/`; quiz 027.
 
+### 15f. Which report wins, and one state per fetch
+
+- **Decision:** silver keeps one row per GTFS-rt *report* of a trip (`stg_trip_reports`). When one snapshot has two reports of the same trip, the newest by Metro's timestamp is the trip's state for that fetch. Cancellation history is that one state per fetch, ordered by fetch time. Advance notice runs from the start of the final cancellation episode.
+- **Why, from data:** in 266 snapshots the two reports disagreed. In 227 of them the newer one was a cancellation without a vehicle, next to an older report still carrying the bus. "Prefer the report with a vehicle" would have hidden real cancellations. I first ordered raw reports by Metro's timestamp across fetches, expecting lingering cancellations to be stale. A VERIFY query showed the opposite: Metro re-stamps them every fetch (1,107 of 1,111). And with two live entities refreshing, raw ordering invented episodes: 5 of 11 "later final episodes" on Nov 15 were artifacts. One chosen state per fetch fixed both. The lesson: measure the assumption the rule depends on before trusting the rule.
+- **What's left to the next layer:** the alerts spec withdraws a cancellation only while the trip's start is still ahead, which needs the schedule. Silver exposes `reinstated_at` and `int_trip_observations` applies the cutoff (4 of 121 reinstatements on Nov 15 came after the start).
+- **Record:** `docs/research/duplicate-trip-reports.md`; `pipeline/dbt/models/staging/stg_trip_reports.sql`, `stg_cancellations.sql`; quiz 028.
+
 ### 16. Ingest every line; scope the headline numbers
 
 - **Decision:** archive all lines, and compute headline metrics on Metro-operated lines only.

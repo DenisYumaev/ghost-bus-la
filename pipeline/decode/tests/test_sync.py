@@ -5,6 +5,7 @@ from datetime import date
 from pathlib import Path
 
 import pytest
+from ghostbus_decode.decode import DECODER_VERSION
 from ghostbus_decode.gtfs_tables import EXTRACTOR_VERSION
 from ghostbus_decode.sync import IncompleteRange, sync, utc_days_for
 
@@ -29,7 +30,10 @@ class FakeBucket:
 def decoded_day(day: str, table: str) -> dict[str, bytes]:
     prefix = f"derived/decoded/{table}/dt={day}/"
     part = prefix + "run=r1/part-0-0.parquet"
-    marker = {"part_keys": {table: [part], "schema_fingerprint": [], "quarantine": []}}
+    marker = {
+        "part_keys": {table: [part], "schema_fingerprint": [], "quarantine": []},
+        "decoder_version": DECODER_VERSION,
+    }
     return {part: f"{table} {day}".encode(), prefix + "run=r0/part-0-0.parquet": b"stale",
             prefix + "_SUCCESS": json.dumps(marker).encode()}  # fmt: skip
 
@@ -107,3 +111,14 @@ def test_nothing_outside_the_new_range_survives(tmp_path: Path) -> None:
     sync(bucket(), *ONE_DAY, tmp_path)
     assert not stale.exists()
     assert not old_version.exists()
+
+
+def test_a_day_decoded_by_an_older_decoder_is_refused(tmp_path: Path) -> None:
+    # Mixed decoder versions would mix column sets in one dbt glob.
+    old = bucket()
+    key = "derived/decoded/trip_update/dt=2026-11-15/_SUCCESS"
+    marker = json.loads(old.objects[key])
+    marker["decoder_version"] = DECODER_VERSION - 1
+    old.objects[key] = json.dumps(marker).encode()
+    with pytest.raises(IncompleteRange, match="older decoder"):
+        sync(old, *ONE_DAY, tmp_path)

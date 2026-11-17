@@ -52,7 +52,9 @@ def sync(bucket: ReadBucket, start: date, end: date, dest: Path) -> dict[str, An
                 missing[t].append(day.isoformat())
         plan[day] = {t: p for t, p in found.items() if p is not None}
     if any(missing.values()):
-        raise IncompleteRange(f"not decoded yet: {missing}; run make compact and make decode")
+        raise IncompleteRange(
+            f"not decoded (or decoded by an older decoder): {missing}; run make decode"
+        )
 
     staging = dest / ".staging"
     shutil.rmtree(staging, ignore_errors=True)
