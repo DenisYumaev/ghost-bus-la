@@ -1,15 +1,12 @@
--- One row per trip x stop x fetch: (trip_id, service_date, stop_key, fetched_at)
--- (pipeline spec, section 6.1; grain on fetched_at because a duplicate fetch repeats its
--- snapshot's rows with the same feed_ts). stop_key is stop_sequence, or -1 for the one
--- trip-level row a trip with no stop-time updates gets (a cancellation).
+-- One row per stop prediction of the chosen report per trip-fetch:
+-- (trip_id, service_date, fetched_at, stop_key, stop_id_key) (pipeline spec, section 6.1;
+-- grain on fetched_at because a duplicate fetch repeats its snapshot's rows with the same
+-- feed_ts). Only the report stg_trip_reports chose for each trip-fetch is kept.
+-- is_trip_level marks the single row of a report with no stop-time updates (a
+-- cancellation); a stop-time update with only a stop_id gets stop_key -1 but isn't one.
 --
--- One report per trip per fetch: Metro sometimes publishes the same trip twice in one
--- snapshot under different entity IDs, typically a stale report without a vehicle next to a
--- newer one with it (Nov 14-16: 18,323 of 14.6 million trip-fetches, 266 of them with one
--- CANCELED and one SCHEDULED). The newest report (entity_ts, then the one with a vehicle)
--- wins; n_reports keeps the count visible.
---
--- A view: about 40 million rows a day, so materializing would copy them all.
+-- A view: about 40 million rows a day, so materializing would copy them all. Consumers that
+-- need one row per trip per fetch use stg_trip_reports instead.
 -- NULL scheduleRelationship is GTFS-rt's default, SCHEDULED (spec section 3).
 {{ config(materialized='view') }}
 
@@ -17,41 +14,37 @@ with updates as (
     select * from {{ ref('src_trip_update') }}
 ),
 
-ranked as (
-    select
-        *,
-        dense_rank() over (
-            partition by trip_id, start_date, fetched_at
-            order by entity_ts desc nulls last, vehicle_id nulls last
-        ) as report_rank
-    from updates
-),
-
-counted as (
-    select
-        *,
-        max(report_rank) over (partition by trip_id, start_date, fetched_at) as n_reports
-    from ranked
+chosen as (
+    select trip_id, service_date, fetched_at, entity_key, n_reports
+    from {{ ref('stg_trip_reports') }}
+    where is_chosen
 )
 
 select
-    trip_id,
-    start_date as service_date,
-    coalesce(stop_sequence, -1) as stop_key,
-    fetched_at,
-    feed_ts,
-    snapshot_sha,
-    route_id,
-    direction_id,
-    start_time,
-    coalesce(trip_schedule_relationship, 'SCHEDULED') as trip_schedule_relationship,
-    vehicle_id,
-    entity_ts,
-    n_reports,
-    stop_sequence,
-    stop_id,
-    arrival_ts,
-    departure_ts,
-    coalesce(stop_schedule_relationship, 'SCHEDULED') as stop_schedule_relationship
-from counted
-where report_rank = 1
+    u.trip_id,
+    u.start_date as service_date,
+    coalesce(u.stop_sequence, -1) as stop_key,
+    coalesce(u.stop_id, '') as stop_id_key,
+    u.fetched_at,
+    u.feed_ts,
+    u.snapshot_sha,
+    u.entity_id,
+    u.route_id,
+    u.direction_id,
+    u.start_time,
+    coalesce(u.trip_schedule_relationship, 'SCHEDULED') as trip_schedule_relationship,
+    u.vehicle_id,
+    u.entity_ts,
+    c.n_reports,
+    u.stop_sequence is null and u.stop_id is null as is_trip_level,
+    u.stop_sequence,
+    u.stop_id,
+    u.arrival_ts,
+    u.departure_ts,
+    coalesce(u.stop_schedule_relationship, 'SCHEDULED') as stop_schedule_relationship
+from updates as u
+join chosen as c
+    on c.trip_id = u.trip_id
+    and c.service_date = u.start_date
+    and c.fetched_at = u.fetched_at
+    and c.entity_key = coalesce(u.entity_id, '_noid')

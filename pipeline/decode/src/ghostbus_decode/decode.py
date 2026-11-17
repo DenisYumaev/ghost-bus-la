@@ -39,7 +39,7 @@ from ghostbus_decode.frames import (
 )
 from ghostbus_decode.s3 import Bucket, ReadBucket
 
-DECODER_VERSION = 2
+DECODER_VERSION = 3
 _CHUNK = 25  # snapshots per output part: about 750k trip-update rows, 300 MB of NDJSON
 SUCCESS = "_SUCCESS"
 TABLE = {"vehicle_positions": "vehicle_position", "trip_updates": "trip_update"}
@@ -51,12 +51,14 @@ _TRIP = {
 }  # fmt: skip
 COLUMNS = {
     "vehicle_position": {
-        **_SNAPSHOT, "vehicle_id": "VARCHAR", **_TRIP, "lat": "DOUBLE", "lon": "DOUBLE",
+        **_SNAPSHOT, "entity_id": "VARCHAR", "vehicle_id": "VARCHAR", **_TRIP,
+        "lat": "DOUBLE", "lon": "DOUBLE",
         "bearing": "DOUBLE", "speed": "DOUBLE", "current_stop_sequence": "INTEGER",
         "stop_id": "VARCHAR", "current_status": "VARCHAR", "vehicle_ts": "TIMESTAMPTZ",
     },
     "trip_update": {
-        **_SNAPSHOT, **_TRIP, "vehicle_id": "VARCHAR", "entity_ts": "TIMESTAMPTZ",
+        **_SNAPSHOT, "entity_id": "VARCHAR", **_TRIP, "vehicle_id": "VARCHAR",
+        "entity_ts": "TIMESTAMPTZ",
         "stop_sequence": "INTEGER", "stop_id": "VARCHAR", "arrival_ts": "TIMESTAMPTZ",
         "departure_ts": "TIMESTAMPTZ", "stop_schedule_relationship": "VARCHAR",
     },

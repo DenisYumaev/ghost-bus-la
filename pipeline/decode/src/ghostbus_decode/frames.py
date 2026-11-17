@@ -118,6 +118,7 @@ def decode_vehicle(raw: bytes) -> Row | Quarantined:
         _at(o, "vehicle", "dict", required=True)
         vehicle_id = _at(o, "vehicle.vehicle.id", "str") or _at(o, "id", "str", required=True)
         return {
+            "entity_id": _at(o, "id", "str"),
             "vehicle_id": vehicle_id,
             **_trip(o, "vehicle.trip"),
             "trip_schedule_relationship": _at(o, "vehicle.trip.scheduleRelationship", "str"),
@@ -142,6 +143,7 @@ def decode_trip_update(raw: bytes) -> list[Row] | Quarantined:
         _at(o, "tripUpdate", "dict", required=True)
         _at(o, "tripUpdate.trip.tripId", "str", required=True)
         trip = {
+            "entity_id": _at(o, "id", "str"),
             **_trip(o, "tripUpdate.trip"),
             "trip_schedule_relationship": _at(o, "tripUpdate.trip.scheduleRelationship", "str"),
             "vehicle_id": _at(o, "tripUpdate.vehicle.id", "str"),

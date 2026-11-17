@@ -107,7 +107,7 @@ models:
       - unique_combination:
           arguments: {columns: [vehicle_id, vehicle_ts]}
     columns:
-      - name: n_snapshots
+      - name: first_fetched_at
         data_tests: [not_null]
       - name: lat
         data_tests: [not_null]
@@ -118,12 +118,14 @@ models:
           - accepted_values:
               arguments: {values: [0, 1]}
 
-  - name: stg_trip_updates
-    description: One row per trip x stop x fetch; stop_key -1 for a trip-level row.
+  - name: stg_trip_reports
+    description: One row per trip report (trip, service date, fetch, entity); is_chosen marks the newest per trip-fetch.
     data_tests:
       - unique_combination:
-          arguments: {columns: [trip_id, service_date, stop_key, fetched_at]}
+          arguments: {columns: [trip_id, service_date, fetched_at, entity_key]}
     columns:
+      - name: report_ts
+        data_tests: [not_null]
       - name: trip_schedule_relationship
         data_tests:
           - accepted_values:
@@ -131,6 +133,12 @@ models:
                 values: [SCHEDULED, CANCELED, ADDED, UNSCHEDULED, DUPLICATED, DELETED,
                          NEW, REPLACEMENT]
               config: {severity: warn}
+
+  - name: stg_trip_updates
+    description: Stop predictions of the chosen report per trip-fetch.
+    data_tests:
+      - unique_combination:
+          arguments: {columns: [trip_id, service_date, fetched_at, stop_key, stop_id_key]}
 
   - name: stg_cancellations
     description: One row per trip x service date ever marked CANCELED in trip updates.
@@ -196,57 +204,93 @@ unit_tests:
     given:
       - input: ref('src_vehicle_position')
         rows:
-          - {vehicle_id: "1", vehicle_ts: "2026-11-15 16:00:00+00", fetched_at: "2026-11-15 16:00:30+00", snapshot_sha: b, lat: 34.0, lon: -118.0, trip_schedule_relationship: null}
-          - {vehicle_id: "1", vehicle_ts: "2026-11-15 16:00:00+00", fetched_at: "2026-11-15 16:00:00+00", snapshot_sha: a, lat: 34.1, lon: -118.0, trip_schedule_relationship: null}
-          - {vehicle_id: "1", vehicle_ts: "2026-11-15 16:00:20+00", fetched_at: "2026-11-15 16:01:00+00", snapshot_sha: c, lat: 34.2, lon: -118.0, trip_schedule_relationship: CANCELED}
+          # Two entities for one vehicle report in one snapshot (same fetch): one sighting,
+          # chosen by the total order (entity_id), and counted as one snapshot.
+          - {vehicle_id: "1", vehicle_ts: "2026-11-15 16:00:00+00", fetched_at: "2026-11-15 16:00:00+00", snapshot_sha: a, entity_id: e2, lat: 34.2, lon: -118.0}
+          - {vehicle_id: "1", vehicle_ts: "2026-11-15 16:00:00+00", fetched_at: "2026-11-15 16:00:00+00", snapshot_sha: a, entity_id: e1, lat: 34.1, lon: -118.0}
+          - {vehicle_id: "1", vehicle_ts: "2026-11-15 16:00:00+00", fetched_at: "2026-11-15 16:00:30+00", snapshot_sha: b, entity_id: e1, lat: 34.1, lon: -118.0}
+          - {vehicle_id: "1", vehicle_ts: "2026-11-15 16:00:20+00", fetched_at: "2026-11-15 16:01:00+00", snapshot_sha: c, entity_id: e1, lat: 34.3, lon: -118.0, trip_schedule_relationship: null}
     expect:
       rows:
-        - {vehicle_ts: "2026-11-15 16:00:00+00", lat: 34.1, n_snapshots: 2, trip_schedule_relationship: SCHEDULED}
-        - {vehicle_ts: "2026-11-15 16:00:20+00", lat: 34.2, n_snapshots: 1, trip_schedule_relationship: CANCELED}
+        - {vehicle_ts: "2026-11-15 16:00:00+00", entity_id: e1, lat: 34.1, n_snapshots: 2}
+        - {vehicle_ts: "2026-11-15 16:00:20+00", entity_id: e1, lat: 34.3, n_snapshots: 1}
 
-  - name: stg_cancellations_tracks_first_last_and_reinstatement
+  - name: stg_trip_reports_chooses_the_newest_report_per_trip_fetch
+    model: stg_trip_reports
+    given:
+      - input: ref('src_trip_update')
+        rows:
+          # Fetch 1: stale CANCELED (no vehicle, older) vs newer SCHEDULED with two stops.
+          - {trip_id: A, start_date: "2026-11-15", fetched_at: "2026-11-15 10:00:00+00", entity_id: a1, entity_ts: "2026-11-15 09:59:00+00", trip_schedule_relationship: CANCELED}
+          - {trip_id: A, start_date: "2026-11-15", fetched_at: "2026-11-15 10:00:00+00", entity_id: a2, entity_ts: "2026-11-15 09:59:40+00", vehicle_id: "5898", stop_sequence: 5}
+          - {trip_id: A, start_date: "2026-11-15", fetched_at: "2026-11-15 10:00:00+00", entity_id: a2, entity_ts: "2026-11-15 09:59:40+00", vehicle_id: "5898", stop_sequence: 6}
+          # Fetch 2: a single older report must survive (the partition is per fetch).
+          - {trip_id: A, start_date: "2026-11-15", fetched_at: "2026-11-15 10:01:00+00", entity_id: a1, entity_ts: "2026-11-15 09:59:00+00", trip_schedule_relationship: CANCELED}
+          # Same trip on the next service date, same fetch: its own partition.
+          - {trip_id: A, start_date: "2026-11-16", fetched_at: "2026-11-15 10:00:00+00", entity_id: a3, entity_ts: "2026-11-15 09:00:00+00"}
+          # Equal report times: the one with a vehicle wins; then the entity key.
+          - {trip_id: B, start_date: "2026-11-15", fetched_at: "2026-11-15 10:00:00+00", entity_id: b1, entity_ts: "2026-11-15 09:59:00+00"}
+          - {trip_id: B, start_date: "2026-11-15", fetched_at: "2026-11-15 10:00:00+00", entity_id: b2, entity_ts: "2026-11-15 09:59:00+00", vehicle_id: "7"}
+          - {trip_id: C, start_date: "2026-11-15", fetched_at: "2026-11-15 10:00:00+00", entity_id: c2, entity_ts: null}
+          - {trip_id: C, start_date: "2026-11-15", fetched_at: "2026-11-15 10:00:00+00", entity_id: c1, entity_ts: null}
+    expect:
+      rows:
+        - {trip_id: A, service_date: "2026-11-15", fetched_at: "2026-11-15 10:00:00+00", entity_key: a1, is_chosen: false, n_reports: 2, trip_schedule_relationship: CANCELED, n_stop_updates: 0}
+        - {trip_id: A, service_date: "2026-11-15", fetched_at: "2026-11-15 10:00:00+00", entity_key: a2, is_chosen: true, n_reports: 2, trip_schedule_relationship: SCHEDULED, n_stop_updates: 2}
+        - {trip_id: A, service_date: "2026-11-15", fetched_at: "2026-11-15 10:01:00+00", entity_key: a1, is_chosen: true, n_reports: 1, trip_schedule_relationship: CANCELED, n_stop_updates: 0}
+        - {trip_id: A, service_date: "2026-11-16", fetched_at: "2026-11-15 10:00:00+00", entity_key: a3, is_chosen: true, n_reports: 1, trip_schedule_relationship: SCHEDULED, n_stop_updates: 0}
+        - {trip_id: B, service_date: "2026-11-15", fetched_at: "2026-11-15 10:00:00+00", entity_key: b1, is_chosen: false, n_reports: 2, trip_schedule_relationship: SCHEDULED, n_stop_updates: 0}
+        - {trip_id: B, service_date: "2026-11-15", fetched_at: "2026-11-15 10:00:00+00", entity_key: b2, is_chosen: true, n_reports: 2, trip_schedule_relationship: SCHEDULED, n_stop_updates: 0}
+        - {trip_id: C, service_date: "2026-11-15", fetched_at: "2026-11-15 10:00:00+00", entity_key: c1, is_chosen: true, n_reports: 2, trip_schedule_relationship: SCHEDULED, n_stop_updates: 0}
+        - {trip_id: C, service_date: "2026-11-15", fetched_at: "2026-11-15 10:00:00+00", entity_key: c2, is_chosen: false, n_reports: 2, trip_schedule_relationship: SCHEDULED, n_stop_updates: 0}
+
+  - name: stg_cancellations_orders_by_report_time_and_tracks_the_final_episode
     model: stg_cancellations
     given:
-      - input: ref('stg_trip_updates')
+      - input: ref('stg_trip_reports')
         rows:
-          # A: canceled twice, never reinstated. B: canceled, then SCHEDULED again later.
-          # C: SCHEDULED before a cancellation only, so not reinstated. D: never canceled.
-          - {trip_id: A, service_date: "2026-11-15", fetched_at: "2026-11-15 10:00:00+00", trip_schedule_relationship: CANCELED}
-          - {trip_id: A, service_date: "2026-11-15", fetched_at: "2026-11-15 10:01:00+00", trip_schedule_relationship: CANCELED}
-          - {trip_id: B, service_date: "2026-11-15", fetched_at: "2026-11-15 10:00:00+00", trip_schedule_relationship: CANCELED}
-          - {trip_id: B, service_date: "2026-11-15", fetched_at: "2026-11-15 10:05:00+00", trip_schedule_relationship: SCHEDULED}
-          - {trip_id: C, service_date: "2026-11-15", fetched_at: "2026-11-15 09:00:00+00", trip_schedule_relationship: SCHEDULED}
-          - {trip_id: C, service_date: "2026-11-15", fetched_at: "2026-11-15 10:00:00+00", trip_schedule_relationship: CANCELED}
-          - {trip_id: D, service_date: "2026-11-15", fetched_at: "2026-11-15 10:00:00+00", trip_schedule_relationship: SCHEDULED}
+          # A: canceled in two fetches (one with two reports), never reinstated.
+          - {trip_id: A, service_date: "2026-11-15", fetched_at: "2026-11-15 10:00:00+00", report_ts: "2026-11-15 09:59:00+00", trip_schedule_relationship: CANCELED}
+          - {trip_id: A, service_date: "2026-11-15", fetched_at: "2026-11-15 10:01:00+00", report_ts: "2026-11-15 09:59:00+00", trip_schedule_relationship: CANCELED}
+          - {trip_id: A, service_date: "2026-11-15", fetched_at: "2026-11-15 10:01:00+00", report_ts: "2026-11-15 09:58:00+00", trip_schedule_relationship: CANCELED}
+          # B: canceled, then a newer SCHEDULED report: reinstated.
+          - {trip_id: B, service_date: "2026-11-15", fetched_at: "2026-11-15 10:00:00+00", report_ts: "2026-11-15 10:00:00+00", trip_schedule_relationship: CANCELED}
+          - {trip_id: B, service_date: "2026-11-15", fetched_at: "2026-11-15 10:05:00+00", report_ts: "2026-11-15 10:05:00+00", trip_schedule_relationship: SCHEDULED}
+          # S: a stale CANCELED report lingers, fetched last, but a SCHEDULED report is newer by
+          # report time: reinstated. (Fetch order would say canceled.)
+          - {trip_id: S, service_date: "2026-11-15", fetched_at: "2026-11-15 09:00:00+00", report_ts: "2026-11-15 09:00:00+00", trip_schedule_relationship: CANCELED}
+          - {trip_id: S, service_date: "2026-11-15", fetched_at: "2026-11-15 10:00:00+00", report_ts: "2026-11-15 10:00:00+00", trip_schedule_relationship: SCHEDULED}
+          - {trip_id: S, service_date: "2026-11-15", fetched_at: "2026-11-15 11:00:00+00", report_ts: "2026-11-15 09:00:00+00", trip_schedule_relationship: CANCELED}
+          # E: canceled, scheduled, canceled again: notice runs from the final episode.
+          - {trip_id: E, service_date: "2026-11-15", fetched_at: "2026-11-15 06:00:00+00", report_ts: "2026-11-15 06:00:00+00", trip_schedule_relationship: CANCELED}
+          - {trip_id: E, service_date: "2026-11-15", fetched_at: "2026-11-15 07:00:00+00", report_ts: "2026-11-15 07:00:00+00", trip_schedule_relationship: SCHEDULED}
+          - {trip_id: E, service_date: "2026-11-15", fetched_at: "2026-11-15 08:00:00+00", report_ts: "2026-11-15 08:00:00+00", trip_schedule_relationship: CANCELED}
+          # A on another service date: only SCHEDULED, so no row; and doesn't reinstate A.
+          - {trip_id: A, service_date: "2026-11-16", fetched_at: "2026-11-15 12:00:00+00", report_ts: "2026-11-15 12:00:00+00", trip_schedule_relationship: SCHEDULED}
     expect:
       rows:
-        - {trip_id: A, first_seen_at: "2026-11-15 10:00:00+00", last_seen_at: "2026-11-15 10:01:00+00", n_snapshots: 2, reinstated: false}
-        - {trip_id: B, first_seen_at: "2026-11-15 10:00:00+00", last_seen_at: "2026-11-15 10:00:00+00", n_snapshots: 1, reinstated: true}
-        - {trip_id: C, first_seen_at: "2026-11-15 10:00:00+00", last_seen_at: "2026-11-15 10:00:00+00", n_snapshots: 1, reinstated: false}
+        - {trip_id: A, first_seen_at: "2026-11-15 10:00:00+00", first_ever_canceled_at: "2026-11-15 10:00:00+00", last_seen_at: "2026-11-15 10:01:00+00", n_snapshots: 2, reinstated: false}
+        - {trip_id: B, first_seen_at: "2026-11-15 10:00:00+00", first_ever_canceled_at: "2026-11-15 10:00:00+00", last_seen_at: "2026-11-15 10:00:00+00", n_snapshots: 1, reinstated: true}
+        - {trip_id: S, first_seen_at: "2026-11-15 09:00:00+00", first_ever_canceled_at: "2026-11-15 09:00:00+00", last_seen_at: "2026-11-15 11:00:00+00", n_snapshots: 2, reinstated: true}
+        - {trip_id: E, first_seen_at: "2026-11-15 08:00:00+00", first_ever_canceled_at: "2026-11-15 06:00:00+00", last_seen_at: "2026-11-15 08:00:00+00", n_snapshots: 2, reinstated: false}
 
-  - name: stg_trip_updates_defaults_relationships_and_keys_trip_level_rows
+  - name: stg_trip_updates_keeps_the_chosen_reports_stops_and_flags_trip_level_rows
     model: stg_trip_updates
     given:
       - input: ref('src_trip_update')
         rows:
-          - {trip_id: A, start_date: "2026-11-15", stop_sequence: null, trip_schedule_relationship: CANCELED, stop_schedule_relationship: null}
-          - {trip_id: B, start_date: "2026-11-15", stop_sequence: 4, trip_schedule_relationship: null, stop_schedule_relationship: null}
-    expect:
-      rows:
-        - {trip_id: A, stop_key: -1, trip_schedule_relationship: CANCELED, stop_schedule_relationship: SCHEDULED}
-        - {trip_id: B, stop_key: 4, trip_schedule_relationship: SCHEDULED, stop_schedule_relationship: SCHEDULED}
-
-  - name: stg_trip_updates_keeps_the_newest_report_of_a_trip_in_one_fetch
-    model: stg_trip_updates
-    given:
-      - input: ref('src_trip_update')
+          - {trip_id: A, start_date: "2026-11-15", fetched_at: "2026-11-15 10:00:00+00", entity_id: a1, trip_schedule_relationship: CANCELED, stop_sequence: null, stop_id: null, stop_schedule_relationship: null}
+          - {trip_id: A, start_date: "2026-11-15", fetched_at: "2026-11-15 10:00:00+00", entity_id: a2, trip_schedule_relationship: null, stop_sequence: 5, stop_id: "S5", stop_schedule_relationship: null}
+          - {trip_id: B, start_date: "2026-11-15", fetched_at: "2026-11-15 10:00:00+00", entity_id: b1, trip_schedule_relationship: CANCELED, stop_sequence: null, stop_id: null, stop_schedule_relationship: null}
+          - {trip_id: D, start_date: "2026-11-15", fetched_at: "2026-11-15 10:00:00+00", entity_id: d1, trip_schedule_relationship: null, stop_sequence: null, stop_id: "S9", stop_schedule_relationship: null}
+      - input: ref('stg_trip_reports')
         rows:
-          # The real pattern: a stale report without a vehicle next to a newer one with it,
-          # here disagreeing on the relationship. The newer one wins.
-          - {trip_id: A, start_date: "2026-11-15", stop_sequence: null, fetched_at: "2026-11-15 10:00:00+00", entity_ts: "2026-11-15 09:59:00+00", vehicle_id: null, trip_schedule_relationship: CANCELED}
-          - {trip_id: A, start_date: "2026-11-15", stop_sequence: 5, fetched_at: "2026-11-15 10:00:00+00", entity_ts: "2026-11-15 09:59:40+00", vehicle_id: "5898", trip_schedule_relationship: SCHEDULED}
-          - {trip_id: A, start_date: "2026-11-15", stop_sequence: 6, fetched_at: "2026-11-15 10:00:00+00", entity_ts: "2026-11-15 09:59:40+00", vehicle_id: "5898", trip_schedule_relationship: SCHEDULED}
+          - {trip_id: A, service_date: "2026-11-15", fetched_at: "2026-11-15 10:00:00+00", entity_key: a1, is_chosen: false, n_reports: 2}
+          - {trip_id: A, service_date: "2026-11-15", fetched_at: "2026-11-15 10:00:00+00", entity_key: a2, is_chosen: true, n_reports: 2}
+          - {trip_id: B, service_date: "2026-11-15", fetched_at: "2026-11-15 10:00:00+00", entity_key: b1, is_chosen: true, n_reports: 1}
+          - {trip_id: D, service_date: "2026-11-15", fetched_at: "2026-11-15 10:00:00+00", entity_key: d1, is_chosen: true, n_reports: 1}
     expect:
       rows:
-        - {trip_id: A, stop_key: 5, vehicle_id: "5898", trip_schedule_relationship: SCHEDULED, n_reports: 2}
-        - {trip_id: A, stop_key: 6, vehicle_id: "5898", trip_schedule_relationship: SCHEDULED, n_reports: 2}
+        - {trip_id: A, entity_id: a2, stop_key: 5, stop_id_key: "S5", is_trip_level: false, trip_schedule_relationship: SCHEDULED, stop_schedule_relationship: SCHEDULED, n_reports: 2}
+        - {trip_id: B, entity_id: b1, stop_key: -1, stop_id_key: "", is_trip_level: true, trip_schedule_relationship: CANCELED, stop_schedule_relationship: SCHEDULED, n_reports: 1}
+        - {trip_id: D, entity_id: d1, stop_key: -1, stop_id_key: "S9", is_trip_level: false, trip_schedule_relationship: SCHEDULED, stop_schedule_relationship: SCHEDULED, n_reports: 1}

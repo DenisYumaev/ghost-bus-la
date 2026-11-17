@@ -154,9 +154,10 @@ Engine: dbt-duckdb reading Parquet from S3. Materialize silver and gold as Parqu
 
 | Model | Grain | Key points |
 | --- | --- | --- |
-| `stg_vehicle_positions` | vehicle × `vehicle_ts` | Dedupe on (`vehicle_id`, `vehicle_ts`); quarantine impossible coordinates; attach service date |
-| `stg_trip_updates` | trip × stop × `feed_ts` | Keep history; expose latest prediction per stop |
-| `stg_cancellations` | trip × service date | From trip updates marked `CANCELED`: `first_seen_at`, `last_seen_at`, `n_snapshots`, and whether the trip later returned to `SCHEDULED` |
+| `stg_vehicle_positions` | vehicle × `vehicle_ts` | Dedupe on (`vehicle_id`, `vehicle_ts`), first sighting by a total order, `n_snapshots` = distinct fetches, `n_trips` (warn if > 1); service date = the trip descriptor's `start_date` (a vehicle on a trip without one fails a test: the section 5 fallback isn't built). Decode checks coordinates are finite and in range, not in Los Angeles |
+| `stg_trip_reports` | trip × service date × fetch × entity | One row per GTFS-rt report of a trip. `report_ts` = entity timestamp, else fetch time. `is_chosen`: the newest report per trip-fetch (then the one with a vehicle, then entity), because Metro sometimes publishes a trip twice in one snapshot (`docs/research/duplicate-trip-reports.md`). A table (about 5M rows a day) so consumers don't re-run windows over stop rows |
+| `stg_trip_updates` | trip × stop × fetch (view) | Stop predictions of the chosen report only; grain on `fetched_at`, not `feed_ts` (section 3); `is_trip_level` marks a report with no stop-time updates. "Latest prediction per stop" is deferred: M1's outcomes don't use predictions |
+| `stg_cancellations` | trip × service date | From every report marked `CANCELED`, ordered by Metro's report time, not fetch time (canceled entries linger). `first_seen_at` = first fetch of the *final* cancellation episode (canceled → scheduled → canceled counts from the second); `first_ever_canceled_at`; `last_seen_at`; `n_snapshots`; `reinstated_at` = the first `SCHEDULED` report newer than the newest `CANCELED`. Whether a reinstatement counts (only while the scheduled start is still ahead, alerts spec) is applied in `int_trip_observations` |
 | `stg_fetch_log` | fetch attempt | Typed copy of the JSONL |
 | `dim_routes`, `dim_stops`, `dim_trips`, `dim_stop_times`, `dim_calendar` | entity × schedule version | From each GTFS version |
 | `seed_contracted_lines` | line × validity | Seed |
