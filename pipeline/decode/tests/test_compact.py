@@ -14,7 +14,7 @@ import pytest
 from ghostbus_decode.compact import (
     SUCCESS,
     compact_day,
-    compacted_key,
+    compacted_parts,
     day_prefix,
 )
 
@@ -73,13 +73,15 @@ def log(day: str, hour: str, *lines: str, name: str = "aaaa") -> dict[str, bytes
 
 
 def read(bucket: FakeBucket, feed: str, tmp_path: Path) -> list[tuple[Any, ...]]:
-    """All of the day's part files, as a reader globbing dt=<day>/*.parquet would see them."""
+    """What a reader sees: the part files the day's marker lists."""
     out = tmp_path / "read"
     shutil.rmtree(out, ignore_errors=True)
     out.mkdir()
-    for k in bucket.list_keys(day_prefix(feed, DAY)):
-        if k.endswith(".parquet"):
-            (out / k.rsplit("/", 1)[-1]).write_bytes(bucket.objects[k])
+    parts = compacted_parts(bucket, feed, DAY)
+    if not parts:
+        return []
+    for k in parts:
+        (out / k.rsplit("/", 1)[-1]).write_bytes(bucket.objects[k])
     with duckdb.connect() as con:
         return con.execute(
             "SELECT CAST(timezone('UTC', fetched_at) AS VARCHAR), outcome, content_hash, "
@@ -212,12 +214,18 @@ def test_temp_files_are_removed(tmp_path: Path) -> None:
     assert not any(p.suffix in (".duckdb", ".parquet") for p in tmp_path.rglob("*"))
 
 
-def test_an_open_day_is_refused() -> None:
+def test_a_day_is_refused_until_an_hour_after_it_ends() -> None:
+    from datetime import UTC, datetime
+
     from ghostbus_decode.compact import check_closed
 
-    with pytest.raises(ValueError, match="not closed"):
-        check_closed(date(2026, 11, 17), today=date(2026, 11, 17))
-    check_closed(date(2026, 11, 16), today=date(2026, 11, 17))
+    for now in (
+        datetime(2026, 11, 14, 12, tzinfo=UTC),
+        datetime(2026, 11, 15, 0, 0, 5, tzinfo=UTC),
+    ):
+        with pytest.raises(ValueError, match="not closed"):
+            check_closed(DAY, now)
+    check_closed(DAY, datetime(2026, 11, 15, 1, 0, tzinfo=UTC))
 
 
 def test_an_unparseable_fetch_log_line_is_skipped(tmp_path: Path) -> None:
@@ -245,8 +253,7 @@ def test_a_big_day_is_split_into_bounded_parts(
     monkeypatch.setattr("ghostbus_decode.compact._PART_ROWS", 3)
     bucket = many_fetches(7)
     marker = compact_day(bucket, VP, DAY, workdir=tmp_path)
-    assert marker["parts"] == 3
-    assert compacted_key(VP, DAY, 2) in bucket.objects
+    assert len(marker["part_keys"]) == 3
     rows = read(bucket, VP, tmp_path)
     assert len(rows) == 7
     assert [r[0] for r in rows] == sorted(r[0] for r in rows)
@@ -257,8 +264,78 @@ def test_a_rerun_with_fewer_parts_deletes_the_stale_ones(
 ) -> None:
     monkeypatch.setattr("ghostbus_decode.compact._PART_ROWS", 3)
     bucket = many_fetches(7)
-    compact_day(bucket, VP, DAY, workdir=tmp_path)
+    first = compact_day(bucket, VP, DAY, workdir=tmp_path, run_id="r1")
     monkeypatch.setattr("ghostbus_decode.compact._PART_ROWS", 200)
-    compact_day(bucket, VP, DAY, workdir=tmp_path)
-    assert sorted(bucket.deleted) == [compacted_key(VP, DAY, 1), compacted_key(VP, DAY, 2)]
+    second = compact_day(bucket, VP, DAY, workdir=tmp_path, run_id="r2")
+    assert sorted(bucket.deleted) == sorted(first["part_keys"])
+    assert all("run=r2/" in k for k in second["part_keys"])
     assert len(read(bucket, VP, tmp_path)) == 7
+
+
+class FailingBucket(FakeBucket):
+    """Fails the Nth put, like a crash or a lost connection in the middle of a run."""
+
+    def __init__(self, objects: dict[str, bytes], fail_at: int) -> None:
+        super().__init__(objects)
+        self.fail_at = fail_at
+
+    def put(self, key: str, body: bytes) -> None:
+        if len(self.puts) + 1 == self.fail_at:
+            raise ConnectionError("boom")
+        super().put(key, body)
+
+
+def test_a_crash_mid_rewrite_leaves_the_previous_run_readable(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    monkeypatch.setattr("ghostbus_decode.compact._PART_ROWS", 3)
+    bucket = many_fetches(7)
+    compact_day(bucket, VP, DAY, workdir=tmp_path, run_id="r1")
+    before = read(bucket, VP, tmp_path)
+    crashing = FailingBucket(bucket.objects, fail_at=2)  # second part of the rerun fails
+    with pytest.raises(ConnectionError):
+        compact_day(crashing, VP, DAY, workdir=tmp_path, run_id="r2")
+    assert read(bucket, VP, tmp_path) == before  # the marker still points at r1, intact
+
+
+def test_the_marker_records_which_fetch_log_hours_were_present(tmp_path: Path) -> None:
+    bucket = FakeBucket({
+        key(VP, "2026-11-14", SHA_A): GZ_A,
+        **log("2026-11-14", "05", "{torn", fetch(VP, "2026-11-14T05:00:00Z", "written", SHA_A)),
+    })  # fmt: skip
+    marker = compact_day(bucket, VP, DAY, workdir=tmp_path)
+    assert marker["fetch_log_hours"] == ["05"]
+    assert "23" in marker["missing_fetch_log_hours"]
+    assert len(marker["missing_fetch_log_hours"]) == 23
+    assert (marker["fetch_log_lines"], marker["bad_lines"]) == (2, 1)
+
+
+def test_rows_sort_by_time_not_text(tmp_path: Path) -> None:
+    # A shutdown cut at 05:00:00.400 comes after the 05:00:00 grid cut, though '.' < 'Z'.
+    bucket = FakeBucket({
+        key(VP, "2026-11-14", SHA_A): GZ_A, key(VP, "2026-11-14", SHA_B): GZ_B,
+        **log("2026-11-14", "05",
+              fetch(VP, "2026-11-14T05:00:00.400Z", "written", SHA_B),
+              fetch(VP, "2026-11-14T05:00:00Z", "written", SHA_A)),
+    })  # fmt: skip
+    marker = compact_day(bucket, VP, DAY, workdir=tmp_path)
+    path = tmp_path / "p.parquet"
+    path.write_bytes(bucket.objects[marker["part_keys"][0]])
+    with duckdb.connect() as con:  # file order, not ORDER BY
+        hashes = con.execute("SELECT content_hash FROM read_parquet(?)", [str(path)]).fetchall()
+    assert [h for (h,) in hashes] == [SHA_A, SHA_B]
+
+
+def test_parts_are_also_cut_by_size(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setattr("ghostbus_decode.compact._PART_BYTES", 100)
+    bucket = FakeBucket({
+        key(VP, "2026-11-14", SHA_A): GZ_A, key(VP, "2026-11-14", SHA_B): GZ_B,
+        **log("2026-11-14", "05",
+              fetch(VP, "2026-11-14T05:00:00Z", "written", SHA_A, bytes_gz=80),
+              fetch(VP, "2026-11-14T05:00:30Z", "written", SHA_B, bytes_gz=80)),
+    })  # fmt: skip
+    assert len(compact_day(bucket, VP, DAY, workdir=tmp_path)["part_keys"]) == 2
+
+
+def test_no_marker_means_no_parts() -> None:
+    assert compacted_parts(FakeBucket({}), VP, DAY) == []

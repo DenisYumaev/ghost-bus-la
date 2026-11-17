@@ -60,7 +60,7 @@ On DuckDB 2.0 the Parquet writer allocated one buffer the size of the whole BLOB
 <details>
 <summary>Model answer</summary>
 
-Readers glob `dt=<day>/*.parquet`, so the old `part-2.parquet` would still be read, duplicating its rows, and the counts downstream would inflate. Rerunning would no longer give the same result (hard rule 2). The compactor lists the day's existing parts first and deletes the ones not rewritten. The delete refuses `bronze/`, like `put`.
+A reader that globbed `dt=<day>/*.parquet` would still read the old `part-2.parquet`, duplicating its rows, and the counts downstream would inflate. Worse, a crash midway left new and old parts mixed under a marker that still claimed success. So each run writes a fresh `run=<id>/` folder, then a `_SUCCESS` that lists its exact files, and only then deletes older runs. Readers follow the marker, never a glob. The delete refuses `bronze/`, like `put`.
 
 </details>
 
