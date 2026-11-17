@@ -41,4 +41,4 @@ Both are small against the project's $35 monthly target (ADR-021 "Would change i
 
 ## M0 acceptance, first criterion
 
-"24 hours of snapshots exist with at least 99% of scheduled polls attempted": **met.** 100% of scheduled cuts were attempted on both feeds. The second criterion (an hour's kill shows as a gap in the fetch log and the heartbeat alert fires) is drill 1, still to run.
+"24 hours of snapshots exist with at least 99% of scheduled polls attempted": **met.** 100% of scheduled cuts were attempted on both feeds. The second criterion (an hour's kill shows as a gap in the fetch log and the heartbeat alert fires) is drill 1, still to run when this was written; it passed on 2026-11-17 (`docs/drills/001-kill-ingest.md`).

@@ -81,7 +81,7 @@ The trade-offs in Ghost Bus LA you should be able to defend out loud. Each entry
 
 - **Decision:** after each good cut, ping an external heartbeat service, but only while every feed is healthy. `/healthz` on localhost reports per-feed health.
 - **Why:** if the VM dies, any alerting that runs on it dies too. An outside service notices when the pings stop. Gating on every feed means a dead trip-updates stream stops the pings even while vehicle positions look fine.
-- **Proven (drill 1, 2026-11-17):** ingest stopped for an hour; the DOWN email arrived 4 min 1 s later (1-minute period plus 3 minutes' grace), the fetch log showed zero events for the hour, and the UP email came 2 s after the first cut on restart.
+- **Proven (drill 1, 2026-11-17):** ingest stopped gracefully for an hour; the DOWN email arrived about 4 minutes later (1-minute period plus 3 minutes' grace), the fetch log showed zero events for the hour, and the UP email came 2 s after the first cut on restart.
 - **Record:** `docs/spec/01-data-pipeline.md` section 2.6; quiz 015.
 
 ### 10. Clean shutdown makes a final cut

@@ -22,7 +22,7 @@ cat ingest.tag   # the SHA currently deployed
 
 ## ingest-heartbeat-missed
 
-**Alert:** `ingest_heartbeat_missed` (Healthchecks.io check `ghost-bus-la ingest`, by email). Check period 1 minute, grace 3 minutes: the email arrives about 4 minutes after the last ping (drill 1: 4 min 1 s).
+**Alert:** `ingest_heartbeat_missed` (Healthchecks.io check `ghost-bus-la ingest`, by email). Check period 1 minute, grace 3 minutes: the email arrives about 4 minutes after the last ping (drill 1: received about 4 minutes after ingest stopped).
 
 **What it means.** Ingest pings only while *every* feed is healthy (a `written` or `duplicate` snapshot within three of its intervals). So one of these happened: the VM is down; the container is crash-looping or stopped; a stream has stopped producing snapshots (Metro down, a server-side change, a stuck connection); or the heartbeat URL can't be read (`heartbeat_disabled` in the logs). **While it lasts, cancellation history may be missing from the archive.**
 
