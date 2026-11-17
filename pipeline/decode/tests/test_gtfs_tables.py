@@ -411,3 +411,15 @@ def test_optional_text_columns_a_version_lacks_become_nulls(tmp_path: Path) -> N
     got = query(bucket, "stops", "SELECT stop_code, parent_station, typeof(parent_station) "
                 "FROM stops", tmp_path)  # fmt: skip
     assert got == [(None, None, "VARCHAR")]
+
+
+def test_frequency_based_trips_refuse_the_version(tmp_path: Path) -> None:
+    freq = "trip_id,start_time,end_time,headway_secs\nT1-JUNE26,06:00:00,09:00:00,600\n"
+    bucket = FakeBucket({ZIP_KEY: make_zip({**FILES, "frequencies.txt": freq})})
+    with pytest.raises(BadGtfsValue, match="frequencies"):
+        extract_version(bucket, VERSION, ZIP_KEY, workdir=tmp_path)
+
+
+def test_an_empty_frequencies_file_is_fine(tmp_path: Path) -> None:
+    bucket = FakeBucket({ZIP_KEY: make_zip({**FILES, "frequencies.txt": "trip_id,start_time\n"})})
+    assert extract_version(bucket, VERSION, ZIP_KEY, workdir=tmp_path) is not None

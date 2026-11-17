@@ -50,6 +50,8 @@ models:
     columns:
       - name: service_id
         data_tests: [not_null]
+      - name: route_id
+        data_tests: [not_null]
       - name: direction_id
         data_tests:
           - accepted_values:
@@ -84,6 +86,36 @@ models:
         data_tests: [not_null]
       - name: end_date
         data_tests: [not_null]
+      - name: monday
+        data_tests:
+          - not_null
+          - accepted_values:
+              arguments: {values: [0, 1]}
+      - name: tuesday
+        data_tests:
+          - not_null
+          - accepted_values:
+              arguments: {values: [0, 1]}
+      - name: wednesday
+        data_tests:
+          - not_null
+          - accepted_values:
+              arguments: {values: [0, 1]}
+      - name: thursday
+        data_tests:
+          - not_null
+          - accepted_values:
+              arguments: {values: [0, 1]}
+      - name: friday
+        data_tests:
+          - not_null
+          - accepted_values:
+              arguments: {values: [0, 1]}
+      - name: saturday
+        data_tests:
+          - not_null
+          - accepted_values:
+              arguments: {values: [0, 1]}
       - name: sunday
         data_tests:
           - not_null
@@ -370,12 +402,17 @@ unit_tests:
           - {service_date: "2026-11-16", schedule_version: v, iso_dow: 1}
           - {service_date: "2026-12-20", schedule_version: v, iso_dow: 7}
           - {service_date: "2026-11-14", schedule_version: null, iso_dow: 6}
+          - {service_date: "2026-12-06", schedule_version: v, iso_dow: 7}
+          - {service_date: "2026-12-13", schedule_version: v2, iso_dow: 7}
       - input: ref('dim_calendar')
         rows:
           - {schedule_version: v, service_id: SUN, monday: 0, tuesday: 0, wednesday: 0, thursday: 0, friday: 0, saturday: 0, sunday: 1, start_date: "2026-06-07", end_date: "2026-12-06"}
           - {schedule_version: v, service_id: WK, monday: 1, tuesday: 1, wednesday: 1, thursday: 1, friday: 1, saturday: 0, sunday: 0, start_date: "2026-06-07", end_date: "2026-12-12"}
+          - {schedule_version: v2, service_id: SUN, monday: 0, tuesday: 0, wednesday: 0, thursday: 0, friday: 0, saturday: 0, sunday: 1, start_date: "2026-12-13", end_date: "2027-06-01"}
       - input: ref('dim_calendar_dates')
         rows:
+          # Added on a date its weekly calendar already covers: still one row.
+          - {schedule_version: v, service_id: SUN, service_date: "2026-11-15", exception_type: 1}
           - {schedule_version: v, service_id: WK, service_date: "2026-11-16", exception_type: 2}
           - {schedule_version: v, service_id: HOL, service_date: "2026-11-15", exception_type: 1}
       - input: ref('dim_trips')
@@ -383,6 +420,8 @@ unit_tests:
           - {schedule_version: v, trip_id: T1, route_id: R, service_id: SUN, direction_id: 0, block_id: "B1"}
           - {schedule_version: v, trip_id: T2, route_id: R, service_id: WK, direction_id: 1, block_id: "B1"}
           - {schedule_version: v, trip_id: T3, route_id: R, service_id: HOL, direction_id: 0, block_id: null}
+          # Metro reuses trip IDs across weekly versions: v2's T1 has its own times.
+          - {schedule_version: v2, trip_id: T1, route_id: R, service_id: SUN, direction_id: 0, block_id: "B9"}
       - input: ref('dim_stop_times')
         rows:
           - {schedule_version: v, trip_id: T1, stop_sequence: 1, stop_id: "A", arrival_s: 90600, departure_s: 90600}
@@ -390,14 +429,20 @@ unit_tests:
           - {schedule_version: v, trip_id: T2, stop_sequence: 1, stop_id: "A", arrival_s: 30000, departure_s: 30000}
           - {schedule_version: v, trip_id: T3, stop_sequence: 1, stop_id: "C", arrival_s: null, departure_s: 28800}
           - {schedule_version: v, trip_id: T3, stop_sequence: 2, stop_id: "D", arrival_s: 30600, departure_s: 30600}
+          - {schedule_version: v2, trip_id: T1, stop_sequence: 1, stop_id: "E", arrival_s: 36000, departure_s: 36000}
       - input: ref('dim_routes')
         rows:
           - {schedule_version: v, route_id: R, line: "2"}
+          - {schedule_version: v2, route_id: R, line: "2"}
     expect:
       rows:
         # Nov 15 is a Sunday: T1 runs, at 25:10 = 01:10 PST Nov 16 = 09:10 UTC Nov 16.
-        - {service_date: "2026-11-15", trip_id: T1, first_stop_id: "A", n_stops: 2, sched_start_utc: "2026-11-16 09:10:00+00", sched_end_utc: "2026-11-16 09:40:00+00"}
+        - {service_date: "2026-11-15", schedule_version: v, trip_id: T1, line: "2", block_id: "B1", first_stop_id: "A", n_stops: 2, sched_start_utc: "2026-11-16 09:10:00+00", sched_end_utc: "2026-11-16 09:40:00+00"}
         # HOL runs only because calendar_dates adds it on Nov 15.
-        - {service_date: "2026-11-15", trip_id: T3, first_stop_id: "C", n_stops: 2, sched_start_utc: "2026-11-15 16:00:00+00", sched_end_utc: "2026-11-15 16:30:00+00"}
+        - {service_date: "2026-11-15", schedule_version: v, trip_id: T3, line: "2", block_id: null, first_stop_id: "C", n_stops: 2, sched_start_utc: "2026-11-15 16:00:00+00", sched_end_utc: "2026-11-15 16:30:00+00"}
+        # Dec 6 is SUN's end_date (inclusive) and a Sunday: T1 runs.
+        - {service_date: "2026-12-06", schedule_version: v, trip_id: T1, line: "2", block_id: "B1", first_stop_id: "A", n_stops: 2, sched_start_utc: "2026-12-07 09:10:00+00", sched_end_utc: "2026-12-07 09:40:00+00"}
+        # Dec 13 is in v2: v2's T1 with v2's time (10:00 PST), never v's.
+        - {service_date: "2026-12-13", schedule_version: v2, trip_id: T1, line: "2", block_id: "B9", first_stop_id: "E", n_stops: 1, sched_start_utc: "2026-12-13 18:00:00+00", sched_end_utc: "2026-12-13 18:00:00+00"}
         # Nov 16 (Monday): WK is removed by calendar_dates, so T2 doesn't run.
         # Dec 20 (Sunday): past SUN's end_date, so nothing runs. Nov 14: no version.

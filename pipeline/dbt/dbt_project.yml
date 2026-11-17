@@ -13,7 +13,7 @@ model-paths: [models]
 test-paths: [tests]
 macro-paths: [macros]
 # The hand-checked GTFS time cases are shared with the Python tests (pipeline spec, section 5).
-seed-paths: ["../../tests/fixtures"]
+seed-paths: ["../../tests/fixtures/dbt_seeds"]  # only CSVs meant as dbt seeds
 
 vars:
   # Local folder filled by `ghostbus_decode.sync` with marker-listed files only.

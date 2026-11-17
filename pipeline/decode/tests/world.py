@@ -20,6 +20,15 @@ from test_gtfs_tables import FILES, make_zip
 DAY = date(2026, 11, 14)
 GTFS_SHA = "cb1a2283abecc0af1619365ea0626262bc3d93d5e6bdd0df03288cd6120f6058"
 GTFS_KEY = f"bronze/gtfs_static/dt=2026-11-13/{GTFS_SHA[:16]}.zip"
+# Nov 14 is a Saturday; the fixture calendar is Sunday-only, so add that service on Nov 14
+# (also exercises a calendar_dates addition end to end).
+CALENDAR_DATES = "service_id,date,exception_type\nJUNE26-D05CAR-3_Sunday,20261114,1\n"
+# The fixture's stop times, with a time at T1's last stop (GTFS requires it).
+STOP_TIMES = (
+    "trip_id,arrival_time,departure_time,stop_id,stop_sequence\n"
+    "T1-JUNE26,08:50:00,08:50:00,2079,1\nT1-JUNE26,8:55:30,8:55:30,2080,2\n"
+    "T1-JUNE26,09:05:00,09:05:00,2081,3\nT2-JUNE26,29:45:00,29:45:00,2082,1\n"
+)
 # Every stop the fixture's stop_times use, so the schedule links up (dbt tests check it).
 STOPS = "stop_id,stop_code,stop_name,stop_lat,stop_lon\n" + "".join(
     f"{s},{s},Stop {s},34.0{i},-118.2{i}\n" for i, s in enumerate(("2079", "2080", "2081", "2082"))
@@ -66,7 +75,9 @@ def build(tmp: Path, vehicles: list[tuple[str, list[str]]],
           trips: list[tuple[str, list[str]]]) -> Path:  # fmt: skip
     """Run the whole Python pipeline for DAY and return the synced data folder."""
     bucket = Bucket()
-    bucket.objects[GTFS_KEY] = make_zip({**FILES, "stops.txt": STOPS})
+    files = {**FILES, "stops.txt": STOPS, "calendar_dates.txt": CALENDAR_DATES,
+             "stop_times.txt": STOP_TIMES}  # fmt: skip
+    bucket.objects[GTFS_KEY] = make_zip(files)
     written = {"event": "fetch", "feed": "gtfs_static", "fetched_at": "2026-11-13T11:00:00Z",
                "outcome": "written", "content_hash": GTFS_SHA, "object_key": GTFS_KEY}  # fmt: skip
     _log(bucket, "2026-11-13", "11", "gtfs", [json.dumps(written)])

@@ -40,16 +40,43 @@ active as (
     select service_date, schedule_version, service_id from exceptions where exception_type = 2
 ),
 
-trip_stops as (
-    select
-        schedule_version,
-        trip_id,
-        count(*) as n_stops,
-        arg_min(stop_id, stop_sequence) as first_stop_id,
-        arg_min(coalesce(departure_s, arrival_s), stop_sequence) as start_s,
-        arg_max(coalesce(arrival_s, departure_s), stop_sequence) as end_s
-    from {{ ref('dim_stop_times') }}
+versions_in_scope as (
+    select distinct schedule_version from days
+),
+
+stop_times as (
+    -- Only versions in force in the synced range: dim_stop_times holds every version
+    -- (about 2.1M rows each, weekly versions expected).
+    select st.*
+    from {{ ref('dim_stop_times') }} as st
+    where st.schedule_version in (select schedule_version from versions_in_scope)
+),
+
+trip_bounds as (
+    select schedule_version, trip_id, count(*) as n_stops,
+           min(stop_sequence) as first_seq, max(stop_sequence) as last_seq
+    from stop_times
     group by schedule_version, trip_id
+),
+
+trip_stops as (
+    -- The first and last stops by stop_sequence, joined directly: arg_min/arg_max skip NULL
+    -- values and would silently take the second stop's time if the first had none
+    -- (tests/first_and_last_stops_have_times.sql refuses that case).
+    select
+        b.schedule_version,
+        b.trip_id,
+        b.n_stops,
+        f.stop_id as first_stop_id,
+        coalesce(f.departure_s, f.arrival_s) as start_s,
+        coalesce(l.arrival_s, l.departure_s) as end_s
+    from trip_bounds as b
+    join stop_times as f
+        on f.schedule_version = b.schedule_version and f.trip_id = b.trip_id
+        and f.stop_sequence = b.first_seq
+    join stop_times as l
+        on l.schedule_version = b.schedule_version and l.trip_id = b.trip_id
+        and l.stop_sequence = b.last_seq
 )
 
 select

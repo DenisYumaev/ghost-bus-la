@@ -74,6 +74,9 @@ def sync(bucket: ReadBucket, start: date, end: date, dest: Path) -> dict[str, An
             report["files"] += 1
     _sync_gtfs(bucket, staging / "gtfs", report)
 
+    # _sync.json says which range is complete: remove it first, write it last, so a crash
+    # mid-swap leaves no stale range for dbt to trust (dbt then fails on the missing file).
+    (dest / "_sync.json").unlink(missing_ok=True)
     for tree in _TREES:  # swap in only now that the whole range is complete
         shutil.rmtree(dest / tree, ignore_errors=True)
         (staging / tree).rename(dest / tree)

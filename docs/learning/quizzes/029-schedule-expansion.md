@@ -45,7 +45,7 @@ It isn't a no-op, because the two steps happen on different clocks. `timezone('A
 <details>
 <summary>Model answer</summary>
 
-They could each pass their own tests and still disagree, for example on owl trips the evening before a clock change. The detector (Python) and the outcomes (SQL) would then place the same trip an hour apart. Both are therefore tested against one file, `tests/fixtures/gtfs_time_cases.csv`: Python reads it in pytest, and dbt loads it as a seed for `gtfs_to_utc_matches_hand_checked_cases`.
+They could each pass their own tests and still disagree, for example on owl trips the evening before a clock change. The detector (Python) and the outcomes (SQL) would then place the same trip an hour apart. Both are therefore tested against one file, `tests/fixtures/dbt_seeds/gtfs_time_cases.csv`: Python reads it in pytest, and dbt loads it as a seed for `gtfs_to_utc_matches_hand_checked_cases`.
 
 </details>
 
@@ -73,6 +73,6 @@ Sync also copies the UTC day before and the day after the range, but those servi
 <details>
 <summary>Model answer</summary>
 
-Re-derive one day from the raw GTFS with different code. Read `calendar.txt`, `calendar_dates.txt`, `trips.txt` and `routes.txt` from the ZIP in plain Python, apply the weekday, date-range and exception rules, and count the trips. For Sunday 2026-11-15 both gave 9,534 trips, 12 active services, and 110 trips on line 754. Two implementations agreeing on real data is much stronger evidence than either one's own tests.
+Re-derive one day from the raw GTFS with different code. Read `calendar.txt`, `calendar_dates.txt`, `trips.txt` and `routes.txt` from the ZIP in plain Python, apply the weekday, date-range and exception rules, and count the trips. (`scripts/check_schedule_expansion.py` does this.) For Sunday 2026-11-15 both gave 9,534 trips, 12 active services, and 110 trips on line 754. Two implementations agreeing on real data is much stronger evidence than either one's own tests.
 
 </details>

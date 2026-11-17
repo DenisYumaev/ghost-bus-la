@@ -159,6 +159,10 @@ def _extract(bucket: Bucket, version: str, zip_key: str, prefix: str, tmp: Path)
         missing = [name for name in required if name not in names]
         if missing:
             raise MissingTable(f"{zip_key}: missing {', '.join(missing)}")
+        if "frequencies.txt" in names and len(zf.read("frequencies.txt").splitlines()) > 1:
+            # Frequency-based trips would expand once at their template times: refuse rather
+            # than undercount. Metro ships no frequencies.txt (checked 2026-11-17).
+            raise BadGtfsValue(f"{zip_key}: frequencies.txt has trips; not supported")
         if not {"calendar.txt", "calendar_dates.txt"} & names:
             raise MissingTable(f"{zip_key}: needs calendar.txt or calendar_dates.txt")
         rows: dict[str, int] = {}
