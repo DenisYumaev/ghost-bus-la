@@ -186,7 +186,8 @@ Engine: dbt-duckdb reading Parquet from S3. Materialize silver and gold as Parqu
 | `dim_line_stop` | schedule version × line × direction × stop | Every stop any trip serves, `stop_order` 1..n on the main pattern's scale: main-pattern stops in route order, other stops interpolated between the trunk stops around them in their own trips, so mid-route short turns and branches fall in place (a loop's repeated stop appears once, at its first visit); `in_main_pattern`. Feeds `serving.line_stop`. Lines in the line tables and lines with reliability rows can differ (a discontinued line has history but no current row), so the API join must decide which list it shows |
 | `fct_feed_health` | feed × 5 minutes | Freshness, fetch error rate, healthy flag |
 | `fct_reconciliation_monthly` | line × month | This project's canceled rate, Metro's, the difference, an explanation field |
-| `fct_system_summary` | window | Headline numbers for the home page |
+| `fct_system_summary` | window | Headline numbers for the home page: the same trips as `fct_reliability` (a dbt test checks the totals match), with lines, service days and the section 8 rates; suppressed below 30 trips or 10 service days. Shared inputs: `int_trip_cells` (day type, local hour, Metro-operated scope) and `int_windows` |
+| `fct_line_trend` | line × direction × week | Weekly counts and rates for the trend chart; `week_start` is the Monday; suppressed only below 30 trips (a week has at most 7 days); `n_service_days` flags partial weeks |
 
 `fct_trip_outcomes` is the heart. Every other gold table aggregates it, so every number agrees with every other.
 
