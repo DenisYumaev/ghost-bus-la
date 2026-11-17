@@ -92,7 +92,7 @@ def test_parse_service_date_rejects_other_formats(text: str) -> None:
 # Shared with the dbt unit tests, so the SQL version of this rule is pinned to the same values.
 # Includes the cases where "noon minus 12 h" differs from a wall clock: times before 03:00 on a
 # clock-change day, and owl trips past 24:00 on the evening before one.
-CASES = Path(__file__).parents[3] / "tests" / "fixtures" / "gtfs_time_cases.csv"
+CASES = Path(__file__).parents[3] / "tests" / "fixtures" / "dbt_seeds" / "gtfs_time_cases.csv"
 
 
 def load_cases() -> list[tuple[date, str, datetime, str]]:

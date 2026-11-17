@@ -117,7 +117,7 @@ The trade-offs in Ghost Bus LA you should be able to defend out loud. Each entry
 - **Why:** local time is ambiguous during the daylight-saving change (1:30 a.m. happens twice). Using the calendar date puts every after-midnight trip on the wrong day.
 - **The DST trap:** on a clock-change day, "noon minus 12 hours" is 23:00 or 01:00, not midnight. So "seconds since local midnight" is wrong; compute from noon minus 12 hours.
 - **How it's computed:** take local noon on the service date as a UTC instant, subtract 12 real hours, add the GTFS seconds. Everything after the first step is UTC arithmetic, so GTFS differences are real elapsed time: a 01:30–03:30 trip on spring-forward day takes 2 hours although the clock moves 3.
-- **How it's proven:** 16 hand-checked cases in `tests/fixtures/gtfs_time_cases.csv`, including pre-03:00 times on both switch days and owl trips on the eve of each (25:30 on Oct 31 is the *first* 01:30 on Nov 1), plus Hypothesis properties with clock-change days mixed in deliberately (uniform dates hit one only about 2 days in 365). Two plausible wrong versions, "seconds since local midnight" and "wall clock with day rollover", each fail several tests. The CSV is shared so the dbt SQL version will be pinned to the same values.
+- **How it's proven:** 16 hand-checked cases in `tests/fixtures/dbt_seeds/gtfs_time_cases.csv`, including pre-03:00 times on both switch days and owl trips on the eve of each (25:30 on Oct 31 is the *first* 01:30 on Nov 1), plus Hypothesis properties with clock-change days mixed in deliberately (uniform dates hit one only about 2 days in 365). Two plausible wrong versions, "seconds since local midnight" and "wall clock with day rollover", each fail several tests. The CSV is shared so the dbt SQL version will be pinned to the same values.
 - **Rejected:** a wall-clock conversion (`combine(date + h // 24, time(h % 24, …))`). It's right on 361 days a year, which is why it's easy to ship.
 - **Record:** ADR-001 decision 5; `docs/spec/01-data-pipeline.md` section 5; `packages/ghostbus_core/src/ghostbus_core/service_date.py` (PR #25); quiz 021.
 
@@ -175,6 +175,13 @@ The trade-offs in Ghost Bus LA you should be able to defend out loud. Each entry
 - **Why, from data:** in 266 snapshots the two reports disagreed. In 227 of them the newer one was a cancellation without a vehicle, next to an older report still carrying the bus. "Prefer the report with a vehicle" would have hidden real cancellations. I first ordered raw reports by Metro's timestamp across fetches, expecting lingering cancellations to be stale. A VERIFY query showed the opposite: Metro re-stamps them every fetch (1,107 of 1,111). And with two live entities refreshing, raw ordering invented episodes: 5 of 11 "later final episodes" on Nov 15 were artifacts. One chosen state per fetch fixed both. The lesson: measure the assumption the rule depends on before trusting the rule.
 - **What's left to the next layer:** the alerts spec withdraws a cancellation only while the trip's start is still ahead, which needs the schedule. Silver exposes `reinstated_at` and `int_trip_observations` applies the cutoff (4 of 121 reinstatements on Nov 15 came after the start).
 - **Record:** `docs/research/duplicate-trip-reports.md`; `pipeline/dbt/models/staging/stg_trip_reports.sql`, `stg_cancellations.sql`; quiz 028.
+
+### 15g. Schedule expansion, checked two ways
+
+- **Decision:** `int_schedule_expanded` lists every trip that should run on each service date: the version in force, then `calendar` (weekday flag within its dates), plus `calendar_dates` additions, minus removals; first and last stop times converted with the noon-minus-12-hours rule.
+- **How it's proven:** the SQL time macro is tested against the same 16 hand-checked cases as the Python rule (one CSV, used as a dbt seed). A mutation to a midnight anchor fails 10 of them. The day's count was re-derived independently in plain Python from the raw GTFS (`scripts/check_schedule_expansion.py`): 9,534 trips on Sunday 2026-11-15 in both.
+- **Scope:** only service dates the local copy covers completely (`_sync.json`), because the UTC days around the range are partial.
+- **Record:** `pipeline/dbt/models/intermediate/`, `pipeline/dbt/macros/gtfs_to_utc.sql`; quiz 029.
 
 ### 16. Ingest every line; scope the headline numbers
 

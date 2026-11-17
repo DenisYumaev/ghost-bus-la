@@ -157,3 +157,20 @@ def test_a_cancellation_followed_by_a_newer_scheduled_report_is_reinstated(
     got = rows(warehouse, sql)
     # Fetch 2's chosen state is the newer SCHEDULED report, so one canceled fetch.
     assert got == [(date(2026, 11, 14), 1, True, "2026-11-14 16:50:00")]
+
+
+def test_the_schedule_expands_end_to_end(warehouse: Path) -> None:
+    assert rows(warehouse, "SELECT service_date, schedule_version FROM int_service_dates") == [
+        (date(2026, 11, 14), "cb1a2283abecc0af")
+    ]
+    sql = (
+        "SELECT trip_id, n_stops, block_id, CAST(timezone('UTC', sched_start_utc) AS VARCHAR), "
+        "CAST(timezone('UTC', sched_end_utc) AS VARCHAR) FROM int_schedule_expanded "
+        "ORDER BY trip_id"
+    )
+    assert rows(warehouse, sql) == [
+        # 08:50-09:05 PST on Saturday Nov 14 (added by calendar_dates).
+        ("T1-JUNE26", 3, "2065100", "2026-11-14 16:50:00", "2026-11-14 17:05:00"),
+        # 29:45 on service date Nov 14 is 05:45 PST on Nov 15.
+        ("T2-JUNE26", 1, None, "2026-11-15 13:45:00", "2026-11-15 13:45:00"),
+    ]
