@@ -136,6 +136,14 @@ The trade-offs in Ghost Bus LA you should be able to defend out loud. Each entry
 - **Loading it from bronze:** the bronze listing says which ZIPs exist; the earliest `written` fetch-log line says when each was first seen. A `duplicate` line's `object_key` is never used, because ingest builds it from the duplicate's own day, where nothing is stored (true of both duplicates in the real bucket). A ZIP with no `written` line stops the load instead of getting a guessed date, since that date decides the schedule in force. The pipeline's S3 wrapper refuses any write under `bronze/`, a second layer behind the bucket policy.
 - **Record:** `docs/spec/01-data-pipeline.md` section 4; `packages/ghostbus_core/src/ghostbus_core/schedule_versions.py`; `pipeline/decode/src/ghostbus_decode/gtfs_versions.py`; quizzes 022 and 023.
 
+### 15b. Schedule extraction: strict, refuse the whole version
+
+- **Decision:** each GTFS version's tables become typed Parquet. Any value that doesn't match an exact pattern, a missing required column, a duplicate header, or a malformed row refuses the whole version, with an example. Realtime decode quarantines bad rows instead.
+- **Why the difference:** a realtime row that's bad affects one observation. A schedule with gaps affects every trip resolved against it: a dropped stop time makes a real trip look missed. The previous version stays in force while a refused one is fixed.
+- **Why exact patterns:** measured on DuckDB 2.0, `TRY_CAST('2.5' AS INTEGER)` is 3, `'1e2'` is 100, `'NaN'` is a valid DOUBLE, and with auto-detection a short CSV row makes the sniffer pick a different delimiter, while a row starting with `#` is dropped as a comment. All silent. Each case is now a test that fails without the fix.
+- **Rebuildable:** `_SUCCESS` records the extractor version, so a stricter extractor redoes old versions rather than leaving a mix of schemas.
+- **Record:** `docs/spec/01-data-pipeline.md` sections 3 and 4; `pipeline/decode/src/ghostbus_decode/gtfs_tables.py`; quiz 024.
+
 ### 16. Ingest every line; scope the headline numbers
 
 - **Decision:** archive all lines, and compute headline metrics on Metro-operated lines only.

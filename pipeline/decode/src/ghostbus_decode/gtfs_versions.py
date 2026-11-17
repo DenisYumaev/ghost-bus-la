@@ -11,12 +11,17 @@ import io
 import tempfile
 import zipfile
 from collections.abc import Sequence
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from datetime import date
 from pathlib import Path
 
 import duckdb
-from ghostbus_core.schedule_versions import ScheduleVersion, SeenZip, resolve_versions
+from ghostbus_core.schedule_versions import (
+    VERSION_ID_LEN,
+    ScheduleVersion,
+    SeenZip,
+    resolve_versions,
+)
 from ghostbus_core.service_date import parse_service_date
 
 from ghostbus_decode.gtfs_sightings import load_sightings
@@ -57,6 +62,7 @@ def read_feed_dates(zip_bytes: bytes) -> tuple[date | None, date | None]:
 class VersionBuild:
     versions: list[ScheduleVersion]
     waiting: list[str]  # ZIPs stored too recently to have a sighting; next run picks them up
+    zip_keys: dict[str, str] = field(default_factory=dict)  # version_id -> bronze key
 
 
 def build_versions(bucket: ReadBucket, today: date | None = None) -> VersionBuild:
@@ -66,7 +72,8 @@ def build_versions(bucket: ReadBucket, today: date | None = None) -> VersionBuil
     for seen in found.zips:
         start, end = read_feed_dates(bucket.get(seen.object_key))
         zips.append(SeenZip(seen.sha256, seen.first_seen_at, start, end))
-    return VersionBuild(resolve_versions(zips), found.waiting)
+    keys = {z.sha256[:VERSION_ID_LEN]: z.object_key for z in found.zips}
+    return VersionBuild(resolve_versions(zips), found.waiting, keys)
 
 
 def versions_parquet(versions: Sequence[ScheduleVersion]) -> bytes:
