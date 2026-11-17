@@ -199,6 +199,15 @@ The trade-offs in Ghost Bus LA you should be able to defend out loud. Each entry
 - **M1 acceptance:** `scripts/line_day_summary.py 754 2026-11-15`: 110 scheduled, 105 ran, 4 partial, 1 missed (announced), reconciliation ok. The script exits non-zero on a mismatch or an empty line, so it can't report a false "ok". These are internal numbers: M1's `missed` still includes trips M4 may call `likely_untracked`, and nothing is quoted until M5 checks against Metro's report.
 - **Record:** ADR-024; `pipeline/dbt/models/gold/`; quiz 031.
 
+### 15j. Serving data: precomputed tables, swapped atomically
+
+- **Decision (ADR-007):** the API reads only Postgres. The pipeline precomputes every number and `publish` swaps whole tables into the `serving` schema: load `__new`, validate, then rename it into place inside one transaction.
+- **Who owns which schema:** `publish` owns the serving table definitions, because every load recreates the table; an Alembic migration on the live table would be overwritten by the next publish. Alembic owns the durable schemas (`ops` now, `app` from M3), where rows must survive deploys.
+- **Why not query DuckDB from the API:** DuckDB is a batch engine. One service date's warehouse is 290 million rows and takes minutes to build (drill 3). The API needs an indexed lookup over a small table, while the files are being rebuilt.
+- **Rejected:** truncate-and-insert under Alembic (readers see an empty or half-filled table, or a long locking transaction); materialized views (the raw outcomes would have to live in Postgres too).
+- **Constraints carry the rules:** `ops.publish_run` can't record a success without a row count, or a failure without an error. `ops.feed_status` can't be written by `ingest`, which keeps hard rule 3 visible in the schema. Each rule has a test against a real Postgres 16.
+- **Record:** ADR-007; `services/api/src/ghostbus_api/alembic/versions/0001_serving_and_ops.py`; quiz 033.
+
 ### 16. Ingest every line; scope the headline numbers
 
 - **Decision:** archive all lines, and compute headline metrics on Metro-operated lines only.

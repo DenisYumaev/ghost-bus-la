@@ -4,7 +4,7 @@
 # never an apply target (CLAUDE.md hard rule 8).
 
 .DEFAULT_GOAL := help
-.PHONY: help install test lint fmt hooks tf-test plan-bootstrap plan selftest-s3 deploy-ingest gtfs-versions gtfs-load compact decode dbt-sync dbt
+.PHONY: help install test lint fmt hooks tf-test plan-bootstrap plan selftest-s3 deploy-ingest gtfs-versions gtfs-load compact decode dbt-sync dbt test-integration
 
 help:  ## List the targets
 	@grep -E '^[a-z0-9-]+:.*## ' $(MAKEFILE_LIST) | awk -F':.*## ' '{printf "  %-15s %s\n", $$1, $$2}'
@@ -16,10 +16,17 @@ install:  ## Install locked dev dependencies and the git hooks
 test:  ## Run all offline tests with coverage
 	uv run pytest --cov --cov-report=term-missing
 
+TEST_DATABASE_URL := postgresql+psycopg://ghostbus:ghostbus-test@127.0.0.1:54329/ghostbus_test
+
+test-integration:  ## Start Postgres in Docker (compose.test.yml), run the integration tests, stop it
+	docker compose -f compose.test.yml up -d --wait
+	GHOSTBUS_TEST_DATABASE_URL=$(TEST_DATABASE_URL) uv run pytest -m integration; \
+	  status=$$?; docker compose -f compose.test.yml down; exit $$status
+
 lint:  ## Lint, format check, type check, fixture sizes
 	uv run ruff check .
 	uv run ruff format --check .
-	uv run mypy packages/ghostbus_core/src services/ingest/src pipeline/decode/src scripts tests packages/ghostbus_core/tests services/ingest/tests pipeline/decode/tests
+	uv run mypy packages/ghostbus_core/src services/ingest/src services/api/src pipeline/decode/src scripts tests packages/ghostbus_core/tests services/ingest/tests services/api/tests pipeline/decode/tests
 	uv run python scripts/check_fixture_size.py
 
 fmt:  ## Auto-fix lint issues and format
