@@ -34,6 +34,7 @@ All quizzes are in `docs/learning/quizzes/` on `main`. Take them whenever you ha
 | [#21](https://github.com/DenisYumaev/ghost-bus-la/pull/21) | GTFS schedule download | [ ] [018](quizzes/018-ingest-gtfs.md) | [ ] | n/a | Yes, 2026-11-15 (`7da9646`) |
 | [#22](https://github.com/DenisYumaev/ghost-bus-la/pull/22) | Strict SHA check in the deploy tool | [ ] [019](quizzes/019-deploy-sha-fullmatch.md) | [ ] | n/a | n/a (laptop tool) |
 | [#23](https://github.com/DenisYumaev/ghost-bus-la/pull/23) | Measured day; ADR-021 accepted | [ ] [020](quizzes/020-measured-day.md) | [ ] | n/a | n/a (docs and a read-only script) |
+| [#25](https://github.com/DenisYumaev/ghost-bus-la/pull/25) | GTFS time and service-date math (M1 piece 1) | [ ] [021](quizzes/021-service-date.md) | [ ] | n/a | n/a |
 
 **Suggested order, if you take them:** 004, 005, and 006 first, because they describe what is live in AWS right now. Then 002, 001, and 003.
 

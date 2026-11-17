@@ -115,7 +115,10 @@ The trade-offs in Ghost Bus LA you should be able to defend out loud. Each entry
 - **Decision:** store UTC. GTFS times count from "noon minus 12 hours" on the service date in `America/Los_Angeles`, and can pass 24:00. A trip at 25:10 on service date D runs at 01:10 local on D+1.
 - **Why:** local time is ambiguous during the daylight-saving change (1:30 a.m. happens twice). Using the calendar date puts every after-midnight trip on the wrong day.
 - **The DST trap:** on a clock-change day, "noon minus 12 hours" is 23:00 or 01:00, not midnight. So "seconds since local midnight" is wrong; compute from noon minus 12 hours.
-- **Record:** ADR-001 decision 5; `docs/spec/01-data-pipeline.md`. (Claude writes this in M1 with property-based tests, ADR-022.)
+- **How it's computed:** take local noon on the service date as a UTC instant, subtract 12 real hours, add the GTFS seconds. Everything after the first step is UTC arithmetic, so GTFS differences are real elapsed time: a 01:30–03:30 trip on spring-forward day takes 2 hours although the clock moves 3.
+- **How it's proven:** 16 hand-checked cases in `tests/fixtures/gtfs_time_cases.csv`, including pre-03:00 times on both switch days and owl trips on the eve of each (25:30 on Oct 31 is the *first* 01:30 on Nov 1), plus Hypothesis properties with clock-change days mixed in deliberately (uniform dates hit one only about 2 days in 365). Two plausible wrong versions, "seconds since local midnight" and "wall clock with day rollover", each fail several tests. The CSV is shared so the dbt SQL version will be pinned to the same values.
+- **Rejected:** a wall-clock conversion (`combine(date + h // 24, time(h % 24, …))`). It's right on 361 days a year, which is why it's easy to ship.
+- **Record:** ADR-001 decision 5; `docs/spec/01-data-pipeline.md` section 5; `packages/ghostbus_core/src/ghostbus_core/service_date.py` (PR #25); quiz 021.
 
 ### 15. Never join on `trip_id` directly; use a crosswalk
 
