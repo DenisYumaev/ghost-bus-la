@@ -153,6 +153,14 @@ The trade-offs in Ghost Bus LA you should be able to defend out loud. Each entry
 - **Proof:** Nov 14 compacted to 2,880 + 1,436 rows with 129.46 MB + 363.98 MB of payload, matching the measured-day report.
 - **Record:** `docs/spec/01-data-pipeline.md` section 3; `pipeline/decode/src/ghostbus_decode/compact.py`; quiz 025.
 
+### 15d. Decode: strict typing, quarantine, and what counts as schema drift
+
+- **Decision:** decode is Python (one tested place): each frame is typed strictly (an integer must be a JSON integer, not `0.5` or `true`; coordinates finite and in range; timestamps epoch digits). A failing frame goes to `_quarantine` with a reason naming the field and its exact bytes. Unknown extra fields are tolerated and show up in the snapshot's schema fingerprint.
+- **Why quarantine here but refuse for the schedule:** a bad realtime frame affects one observation of one vehicle; refusing a whole day of realtime data for one bad frame would create a day of `unknown` outcomes. A bad schedule row affects every trip matched against it (entry 15b).
+- **What drift means, from data:** the plan said a new fingerprint triggers the drift alert. On Nov 14, 34 overnight trip-update snapshots had a different fingerprint only because an optional field was absent when few trips run. So drift is defined as a field path or type *not in the approved set*; absences don't count. Otherwise the alert would fire every night and be ignored.
+- **Proof:** Nov 14 decoded to 3,331,689 vehicle rows and 42,417,214 trip-update rows, 0 quarantined; 563 distinct trips flagged `CANCELED`.
+- **Record:** `docs/spec/01-data-pipeline.md` sections 3 and 10; `pipeline/decode/src/ghostbus_decode/{frames,decode}.py`; quiz 026.
+
 ### 16. Ingest every line; scope the headline numbers
 
 - **Decision:** archive all lines, and compute headline metrics on Metro-operated lines only.
