@@ -1,66 +1,78 @@
 -- One row per trip x service date ever marked CANCELED: (trip_id, service_date)
 -- (pipeline spec, sections 6.1 and 8).
 --
--- Built from every report, not only the chosen one, and ordered by Metro's report time
--- (report_ts), not fetch time: canceled entries linger in the feed for hours (day-1 probe),
--- so a stale CANCELED report fetched late must not outrank a newer SCHEDULED one.
+-- State is one value per fetch: the relationship of the report stg_trip_reports chose for
+-- that trip-fetch (newest by Metro's timestamp), the same choice stg_trip_updates uses.
+-- Metro re-stamps a canceled entry on every fetch (docs/research/duplicate-trip-reports.md:
+-- 1,107 of 1,111 canceled entities changed timestamp between fetches), so a lingering
+-- cancellation is Metro restating it, not a stale row; but two live entities for one trip
+-- can both refresh, so ordering raw reports could interleave them into fake episodes.
+-- One chosen state per fetch, ordered by fetch time, avoids that. All times are our fetch
+-- times (one clock).
 --
--- - first_ever_canceled_at: the first fetch with any CANCELED report.
--- - first_seen_at: the first fetch of the *final* cancellation episode, i.e. CANCELED
---   reports newer than the last SCHEDULED report before the newest cancellation. For
---   canceled -> scheduled -> canceled, advance notice runs from the second cancellation:
---   the first was retracted, and riders weren't told again until then.
--- - reinstated_at: report time of the first SCHEDULED report newer than the newest CANCELED
---   one; NULL if none. Whether that counts as a withdrawal depends on the trip's scheduled
---   start (alerts spec: only while the start is still ahead), which needs the schedule, so
---   int_trip_observations applies that cutoff.
+-- - first_seen_at: first fetch of the *final* cancellation episode (CANCELED fetches after
+--   the last SCHEDULED fetch before the last CANCELED one). For canceled -> scheduled ->
+--   canceled, advance notice runs from the second: the first was retracted.
+-- - first_ever_canceled_at: first fetch with any CANCELED report, chosen or not.
+-- - reinstated_at: first fetch after the last CANCELED one whose state is SCHEDULED; NULL if
+--   none. Whether that withdraws the cancellation depends on the scheduled start (alerts
+--   spec: only while it's still ahead), applied in int_trip_observations.
+-- - last_seen_at / n_snapshots: fetches whose state was CANCELED. Not "still canceled at":
+--   use reinstated_at for that.
+-- Only SCHEDULED ends an episode; other relationships (ADDED, DELETED, ...) don't occur in
+-- Metro's feed so far (accepted_values warns if they appear) and are left to an ADR.
 with reports as (
     select * from {{ ref('stg_trip_reports') }}
+),
+
+states as (
+    select trip_id, service_date, fetched_at, trip_schedule_relationship as state,
+           route_id, direction_id, start_time
+    from reports
+    where is_chosen
 ),
 
 canceled_trips as (
     select
         trip_id,
         service_date,
-        max(report_ts) as last_canceled_report_ts,
-        min(fetched_at) as first_ever_canceled_at,
         max(fetched_at) as last_seen_at,
-        count(distinct fetched_at) as n_snapshots,
+        count(*) as n_snapshots,
         any_value(route_id) as route_id,
         any_value(direction_id) as direction_id,
         any_value(start_time) as start_time
-    from reports
-    where trip_schedule_relationship = 'CANCELED'
+    from states
+    where state = 'CANCELED'
     group by trip_id, service_date
 ),
 
-scheduled as (
-    select r.trip_id, r.service_date, r.report_ts
-    from reports as r
-    join canceled_trips as c using (trip_id, service_date)
-    where r.trip_schedule_relationship = 'SCHEDULED'
+ever as (
+    select trip_id, service_date, min(fetched_at) as first_ever_canceled_at
+    from reports
+    where trip_schedule_relationship = 'CANCELED'
+    group by trip_id, service_date
 ),
 
 bounds as (
     select
         c.trip_id,
         c.service_date,
-        max(s.report_ts) filter (where s.report_ts < c.last_canceled_report_ts)
+        max(s.fetched_at) filter (where s.state = 'SCHEDULED' and s.fetched_at < c.last_seen_at)
             as scheduled_before_last_cancel,
-        min(s.report_ts) filter (where s.report_ts > c.last_canceled_report_ts)
+        min(s.fetched_at) filter (where s.state = 'SCHEDULED' and s.fetched_at > c.last_seen_at)
             as reinstated_at
     from canceled_trips as c
-    left join scheduled as s using (trip_id, service_date)
+    join states as s using (trip_id, service_date)
     group by c.trip_id, c.service_date
 ),
 
 final_episode as (
-    select r.trip_id, r.service_date, min(r.fetched_at) as first_seen_at
-    from reports as r
+    select s.trip_id, s.service_date, min(s.fetched_at) as first_seen_at
+    from states as s
     join bounds as b using (trip_id, service_date)
-    where r.trip_schedule_relationship = 'CANCELED'
-      and (b.scheduled_before_last_cancel is null or r.report_ts > b.scheduled_before_last_cancel)
-    group by r.trip_id, r.service_date
+    where s.state = 'CANCELED'
+      and (b.scheduled_before_last_cancel is null or s.fetched_at > b.scheduled_before_last_cancel)
+    group by s.trip_id, s.service_date
 )
 
 select
@@ -70,12 +82,12 @@ select
     c.direction_id,
     c.start_time,
     f.first_seen_at,
-    c.first_ever_canceled_at,
+    e.first_ever_canceled_at,
     c.last_seen_at,
-    c.last_canceled_report_ts,
     c.n_snapshots,
     b.reinstated_at,
     b.reinstated_at is not null as reinstated
 from canceled_trips as c
 join bounds as b using (trip_id, service_date)
 join final_episode as f using (trip_id, service_date)
+join ever as e using (trip_id, service_date)

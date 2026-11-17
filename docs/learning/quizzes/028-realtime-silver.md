@@ -36,7 +36,7 @@ The cancellation wins, because it's the newest by Metro's own timestamp. On Nov 
 
 ## 3. What breaks if…
 
-…`stg_cancellations` decided reinstatement by fetch time (a SCHEDULED row fetched after the last CANCELED row)?
+…`stg_cancellations` ordered *every* report (chosen or not) by Metro's timestamp, instead of using one chosen state per fetch?
 
 **Your answer:**
 
@@ -45,7 +45,7 @@ The cancellation wins, because it's the newest by Metro's own timestamp. On Nov 
 <details>
 <summary>Model answer</summary>
 
-Canceled entries linger in the feed for hours, unchanged. Suppose a trip was canceled at 09:00, reinstated by a SCHEDULED report at 10:00, and then the stale 09:00 cancellation was still being fetched at 11:00. By fetch time, the last word is "canceled", so the trip counts as announced although it ran. The reverse happens too: a stale SCHEDULED report fetched after a newer cancellation would look like a reinstatement. Ordering by report time asks what Metro said most recently, not what we downloaded most recently.
+Metro re-stamps a lingering cancellation on every fetch (1,107 of 1,111 canceled entities changed timestamp), and some trips have two live entities at once, a cancellation and an old vehicle report, both refreshing. Ordering all their reports by timestamp interleaves the two, so a cancellation looks retracted and re-issued. On Nov 15 that invented 5 of 11 "later final episodes", shortening the measured advance notice. Taking one state per fetch, from the report `stg_trip_reports` chose, gives one consistent sequence. It's the same choice `stg_trip_updates` uses, so the models agree.
 
 </details>
 

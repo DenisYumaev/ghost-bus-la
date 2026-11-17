@@ -155,4 +155,5 @@ def test_a_cancellation_followed_by_a_newer_scheduled_report_is_reinstated(
         "CAST(timezone('UTC', first_seen_at) AS VARCHAR) FROM stg_cancellations"
     )
     got = rows(warehouse, sql)
-    assert got == [(date(2026, 11, 14), 2, True, "2026-11-14 16:50:00")]
+    # Fetch 2's chosen state is the newer SCHEDULED report, so one canceled fetch.
+    assert got == [(date(2026, 11, 14), 1, True, "2026-11-14 16:50:00")]
