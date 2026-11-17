@@ -250,3 +250,23 @@ def test_the_acceptance_query_reports_a_line_and_refuses_an_empty_one(warehouse:
     empty = subprocess.run([sys.executable, script, "999", "2026-11-14", str(warehouse)],  # noqa: S603
                            capture_output=True, text=True, check=False)  # fmt: skip
     assert empty.returncode == 1
+
+
+def test_reliability_end_to_end(warehouse: Path) -> None:
+    # Nov 14 is a Saturday, but its only service is the fixture's Sunday-only service added by
+    # calendar_dates (as on a holiday), so the schedule makes it a sunday.
+    day = (
+        "SELECT CAST(service_date AS VARCHAR), day_type, day_type_source FROM int_service_day_types"
+    )
+    assert rows(warehouse, day) == [("2026-11-14", "sunday", "schedule")]
+    # Two trips (T2 unknown, so one in the denominator): far below the thresholds, so counts
+    # but no rates, in every window.
+    sql = (
+        "SELECT time_window, day_type, sum(n_scheduled), sum(n_trips), bool_and(suppressed),"
+        " count(missed_rate) FROM fct_reliability GROUP BY 1, 2 ORDER BY 1"
+    )
+    assert rows(warehouse, sql) == [
+        ("28d", "sunday", 2, 1, True, 0),
+        ("90d", "sunday", 2, 1, True, 0),
+        ("all", "sunday", 2, 1, True, 0),
+    ]

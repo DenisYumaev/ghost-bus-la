@@ -212,6 +212,15 @@ The trade-offs in Ghost Bus LA you should be able to defend out loud. Each entry
 - **Constraints carry the rules:** `ops.publish_run` can't record a success without a row count, or a failure without an error. `ops.feed_status` can't be written by `ingest`, which keeps hard rule 3 visible in the schema. Each rule has a test against a real Postgres 16.
 - **Record:** ADR-007; `services/api/src/ghostbus_api/alembic/versions/0001_serving_and_ops.py`; quiz 033.
 
+### 15k. Reliability cells: day type from the schedule, windows from the data
+
+- **Decision:** `fct_reliability` has one row per line × direction × day type × local hour × window (`28d`, `90d`, `all`), with the section 8 rates. `n_trips` = scheduled − unknown, because a trip we couldn't see is neither ran nor missed.
+- **Day type from the schedule, not the calendar:** Metro runs Sunday service on holidays. The 2026 schedule adds its `…_Sunday` service IDs on Thanksgiving. Counting Thanksgiving as a weekday would mix Sunday operations into weekday cells. So each date takes the weekly pattern most of its scheduled trips come from.
+- **Windows end at the data, not the clock:** the last service date with outcomes anchors every window, so rebuilding the same data gives the same table (drill 3) and a backfill is reproducible.
+- **Suppression:** a cell with fewer than 30 trips or 10 service days publishes counts but no rate (section 9). A rate from three trips is noise presented as a fact.
+- **Checked:** a dbt test confirms every trip is counted once in the `all` window. Nov 15: 4,051 cells per window, 9,534 trips, 154 missed, all suppressed (one service date).
+- **Record:** `pipeline/dbt/models/gold/fct_reliability.sql`, `int_service_day_types.sql`; quiz 034.
+
 ### 16. Ingest every line; scope the headline numbers
 
 - **Decision:** archive all lines, and compute headline metrics on Metro-operated lines only.

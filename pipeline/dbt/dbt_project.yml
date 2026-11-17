@@ -24,6 +24,9 @@ vars:
   window_after_end_min: 60
   min_stop_coverage: 0.80
   min_feed_healthy_share: 0.90
+  # Reliability cells with fewer trips or service days publish no rate (pipeline spec, section 9).
+  min_cell_trips: 30
+  min_cell_service_days: 10
   match_rate_alert: 0.95
   match_rate_error: 0.80
   # A feed is healthy in a 5-minute bucket if a fetch succeeded with a feed timestamp under
