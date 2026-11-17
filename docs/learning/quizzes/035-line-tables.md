@@ -15,7 +15,7 @@ A direction has trips A>B>C>D (3 trips), A>B>C (1) and A>B>E (1). In what order 
 <details>
 <summary>Model answer</summary>
 
-A, B, C, D, E. Average relative positions are A 0, B 0.4, C 0.75, D 1, E 1. B is 1/3 of the way on the three long trips and halfway on the two short ones: (3 × 1/3 + 0.5 + 0.5) / 5 = 0.4. D and E tie at 1, and D wins because more trips serve it. E is the branch's end, so it isn't in the main pattern.
+**A, B, E, C, D.** The main pattern is A>B>C>D (most trips), so A, B, C and D sit at 1, 2, 3 and 4. E isn't on it. In its own trip, A>B>E, it comes after B (index 2), and no main-pattern stop follows it, so it goes half a step past B: 2.5. A rider on the branch sees E right after B, where the branch leaves the trunk. A first draft averaged each trip's own 0–1 position instead. That gave A, B, C, D, E here, but put trunk stops out of order when a short turn started mid-route.
 
 </details>
 
@@ -30,7 +30,7 @@ Why do the line tables read only the schedule version in force on the last synce
 <details>
 <summary>Model answer</summary>
 
-They describe the line as it runs now: today's stops, headsigns and patterns, for the line page and the commute stop picker. Mixing versions would list stops a line no longer serves. Historical outcomes don't need these tables, because `fct_trip_outcomes` carries each trip's own version.
+Trick question: they don't. They're built for every version ever in force, keyed by `schedule_version`, and the API picks the version in force on the rider's own local date. Using only the last synced day's version would go wrong at a service change or after a backfill. New stops would be rejected, and removed stops accepted, so commutes on them could never match a trip and their alerts would silently never fire.
 
 </details>
 

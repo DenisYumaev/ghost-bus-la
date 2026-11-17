@@ -301,39 +301,56 @@ models:
 
   - name: int_line_trip_stops
     description: >
-      One row per stop visit of every trip of the schedule version in force on the last synced
-      service date: (trip_id, stop_sequence), with the trip's line, direction, stop pattern and
-      relative position along the trip. Feeds the line tables.
+      One row per stop visit of every trip in every schedule version ever in force:
+      (schedule_version, trip_id, stop_sequence), with line, direction, pattern and the visit's
+      position on the main pattern's scale. Feeds the line tables.
     data_tests:
       - unique_combination:
-          arguments: {columns: [trip_id, stop_sequence]}
+          arguments: {columns: [schedule_version, trip_id, stop_sequence]}
+    columns:
+      - name: anchor_position
+        data_tests: [not_null]
 
   - name: dim_line
-    description: One row per line in the schedule version in force on the last synced service date.
+    description: One row per line with trips, per schedule version ever in force.
+    data_tests:
+      - unique_combination:
+          arguments: {columns: [schedule_version, line]}
     columns:
-      - name: line
-        data_tests: [unique, not_null]
+      - name: display_name
+        data_tests: [not_null]
 
   - name: dim_line_direction
     description: >
-      One row per line x direction: headsign (most common first-stop stop_headsign, line prefix
-      removed) and the main pattern's first and last stops.
+      One row per line x direction per version: headsign (most common first-stop stop_headsign,
+      line prefix removed except on combined lines) and the main pattern's first and last stops.
     data_tests:
       - unique_combination:
-          arguments: {columns: [line, direction_id]}
+          arguments: {columns: [schedule_version, line, direction_id]}
+      - relationship_combination:
+          arguments: {to: ref('dim_line'), columns: [schedule_version, line], to_columns: [schedule_version, line]}
     columns:
       - name: headsign
+        data_tests: [not_null]
+      - name: first_stop_name
+        data_tests: [not_null]
+      - name: last_stop_name
         data_tests: [not_null]
 
   - name: dim_line_stop
     description: >
-      One row per stop any trip of a line x direction serves, ordered by average relative
-      position along the trips (stop_order 1..n). For stop pickers and commute validation.
+      One row per stop any trip of a line x direction serves, per version, in route order
+      (stop_order 1..n on the main pattern's scale). For stop pickers and commute validation.
     data_tests:
       - unique_combination:
-          arguments: {columns: [line, direction_id, stop_id]}
+          arguments: {columns: [schedule_version, line, direction_id, stop_id]}
       - unique_combination:
-          arguments: {columns: [line, direction_id, stop_order]}
+          arguments: {columns: [schedule_version, line, direction_id, stop_order]}
+      - relationship_combination:
+          arguments: {to: ref('dim_line_direction'), columns: [schedule_version, line, direction_id], to_columns: [schedule_version, line, direction_id]}
+    columns:
+      - name: stop_name
+        data_tests: [not_null]
 
 unit_tests:
   - name: stg_fetch_log_collapses_repeated_lines_and_keeps_only_fetches
@@ -890,138 +907,338 @@ unit_tests:
         - {line: "1", direction_id: 0, day_type: saturday, hour_local: 9, time_window: "90d", window_start: "2026-10-03", window_end: "2026-12-31", first_data_date: "2026-12-26", n_scheduled: 3, n_unknown: 0, n_trips: 3, n_ran: 2, n_partial: 0, n_missed: 1, n_missed_announced: 0, n_missed_unplanned: 1, n_ran_announced: 0, n_service_days: 1, missed_rate: 0.3333333333333333, announced_rate: 0.0, unplanned_rate: 0.3333333333333333, unplanned_share: 1.0, suppressed: false}
         - {line: "1", direction_id: 0, day_type: saturday, hour_local: 9, time_window: "all", window_start: "2026-08-03", window_end: "2026-12-31", first_data_date: "2026-12-26", n_scheduled: 3, n_unknown: 0, n_trips: 3, n_ran: 2, n_partial: 0, n_missed: 1, n_missed_announced: 0, n_missed_unplanned: 1, n_ran_announced: 0, n_service_days: 1, missed_rate: 0.3333333333333333, announced_rate: 0.0, unplanned_rate: 0.3333333333333333, unplanned_share: 1.0, suppressed: false}
 
-  - name: int_line_trip_stops_uses_the_version_in_force_on_the_last_day
+  - name: int_line_trip_stops_places_every_visit_on_the_main_pattern
     model: int_line_trip_stops
     given:
-      - input: ref('int_service_dates')
+      - input: ref('dim_schedule_version')
         rows:
-          - {service_date: "2026-11-15", schedule_version: old}
-          - {service_date: "2026-11-16", schedule_version: v}
+          - {version_id: v, ever_in_force: true}
+          - {version_id: old, ever_in_force: false}
       - input: ref('dim_routes')
         rows:
           - {schedule_version: v, route_id: r1, line: X}
+          - {schedule_version: v, route_id: r2, line: Y}
+          - {schedule_version: v, route_id: r3, line: "14/37"}
           - {schedule_version: old, route_id: r1, line: X}
       - input: ref('dim_trips')
         rows:
           - {schedule_version: v, trip_id: m1, route_id: r1, direction_id: 0}
           - {schedule_version: v, trip_id: m2, route_id: r1, direction_id: 0}
           - {schedule_version: v, trip_id: m3, route_id: r1, direction_id: 0}
-          - {schedule_version: v, trip_id: s1, route_id: r1, direction_id: 0}
+          - {schedule_version: v, trip_id: t1, route_id: r1, direction_id: 0}
+          - {schedule_version: v, trip_id: t2, route_id: r1, direction_id: 0}
           - {schedule_version: v, trip_id: b1, route_id: r1, direction_id: 0}
+          - {schedule_version: v, trip_id: b2, route_id: r1, direction_id: 0}
+          - {schedule_version: v, trip_id: b3, route_id: r1, direction_id: 0}
+          - {schedule_version: v, trip_id: q1, route_id: r1, direction_id: 0}
+          - {schedule_version: v, trip_id: p1, route_id: r1, direction_id: 1}
+          - {schedule_version: v, trip_id: p2, route_id: r1, direction_id: 1}
+          - {schedule_version: v, trip_id: s1, route_id: r1, direction_id: 1}
+          - {schedule_version: v, trip_id: s2, route_id: r1, direction_id: 1}
+          - {schedule_version: v, trip_id: y1, route_id: r2, direction_id: 0}
+          - {schedule_version: v, trip_id: k1, route_id: r3, direction_id: 0}
           - {schedule_version: old, trip_id: z1, route_id: r1, direction_id: 0}
       - input: ref('dim_stop_times')
         rows:
-          - {schedule_version: v, trip_id: m1, stop_sequence: 1, stop_id: A, stop_headsign: "X - Downtown"}
-          - {schedule_version: v, trip_id: m1, stop_sequence: 2, stop_id: B, stop_headsign: "X - Downtown"}
-          - {schedule_version: v, trip_id: m1, stop_sequence: 3, stop_id: C, stop_headsign: "X - Downtown"}
-          - {schedule_version: v, trip_id: m1, stop_sequence: 4, stop_id: D, stop_headsign: "X - Downtown"}
-          - {schedule_version: v, trip_id: m2, stop_sequence: 1, stop_id: A, stop_headsign: "X - Downtown"}
-          - {schedule_version: v, trip_id: m2, stop_sequence: 2, stop_id: B, stop_headsign: "X - Downtown"}
-          - {schedule_version: v, trip_id: m2, stop_sequence: 3, stop_id: C, stop_headsign: "X - Downtown"}
-          - {schedule_version: v, trip_id: m2, stop_sequence: 4, stop_id: D, stop_headsign: "X - Downtown"}
-          - {schedule_version: v, trip_id: m3, stop_sequence: 1, stop_id: A, stop_headsign: "X - Downtown"}
-          - {schedule_version: v, trip_id: m3, stop_sequence: 2, stop_id: B, stop_headsign: "X - Downtown"}
-          - {schedule_version: v, trip_id: m3, stop_sequence: 3, stop_id: C, stop_headsign: "X - Downtown"}
-          - {schedule_version: v, trip_id: m3, stop_sequence: 4, stop_id: D, stop_headsign: "X - Downtown"}
-          - {schedule_version: v, trip_id: s1, stop_sequence: 1, stop_id: A, stop_headsign: "X - Downtown"}
-          - {schedule_version: v, trip_id: s1, stop_sequence: 2, stop_id: B, stop_headsign: "X - Downtown"}
-          - {schedule_version: v, trip_id: s1, stop_sequence: 3, stop_id: C, stop_headsign: "X - Downtown"}
-          - {schedule_version: v, trip_id: b1, stop_sequence: 1, stop_id: A, stop_headsign: "X - Beach"}
-          - {schedule_version: v, trip_id: b1, stop_sequence: 2, stop_id: B, stop_headsign: "X - Beach"}
-          - {schedule_version: v, trip_id: b1, stop_sequence: 3, stop_id: E, stop_headsign: "X - Beach"}
-          - {schedule_version: old, trip_id: z1, stop_sequence: 1, stop_id: Z, stop_headsign: "X - Old"}
+          - {schedule_version: v, trip_id: m1, stop_sequence: 5, stop_id: "E", stop_headsign: "X - Downtown"}
+          - {schedule_version: v, trip_id: m1, stop_sequence: 4, stop_id: "D", stop_headsign: "X - Downtown"}
+          - {schedule_version: v, trip_id: m1, stop_sequence: 3, stop_id: "C", stop_headsign: "X - Downtown"}
+          - {schedule_version: v, trip_id: m1, stop_sequence: 2, stop_id: "B", stop_headsign: "X - Downtown"}
+          - {schedule_version: v, trip_id: m1, stop_sequence: 1, stop_id: "A", stop_headsign: "X - Downtown"}
+          - {schedule_version: v, trip_id: m2, stop_sequence: 1, stop_id: "A", stop_headsign: "X - Downtown"}
+          - {schedule_version: v, trip_id: m2, stop_sequence: 2, stop_id: "B", stop_headsign: "X - Downtown"}
+          - {schedule_version: v, trip_id: m2, stop_sequence: 3, stop_id: "C", stop_headsign: "X - Downtown"}
+          - {schedule_version: v, trip_id: m2, stop_sequence: 4, stop_id: "D", stop_headsign: "X - Downtown"}
+          - {schedule_version: v, trip_id: m2, stop_sequence: 5, stop_id: "E", stop_headsign: "X - Downtown"}
+          - {schedule_version: v, trip_id: m3, stop_sequence: 1, stop_id: "A", stop_headsign: "X - Downtown"}
+          - {schedule_version: v, trip_id: m3, stop_sequence: 2, stop_id: "B", stop_headsign: "X - Downtown"}
+          - {schedule_version: v, trip_id: m3, stop_sequence: 3, stop_id: "C", stop_headsign: "X - Downtown"}
+          - {schedule_version: v, trip_id: m3, stop_sequence: 4, stop_id: "D", stop_headsign: "X - Downtown"}
+          - {schedule_version: v, trip_id: m3, stop_sequence: 5, stop_id: "E", stop_headsign: "X - Downtown"}
+          - {schedule_version: v, trip_id: t1, stop_sequence: 1, stop_id: "C", stop_headsign: "X - Downtown"}
+          - {schedule_version: v, trip_id: t1, stop_sequence: 2, stop_id: "D", stop_headsign: "X - Downtown"}
+          - {schedule_version: v, trip_id: t1, stop_sequence: 3, stop_id: "E", stop_headsign: "X - Downtown"}
+          - {schedule_version: v, trip_id: t2, stop_sequence: 1, stop_id: "C", stop_headsign: "X - Downtown"}
+          - {schedule_version: v, trip_id: t2, stop_sequence: 2, stop_id: "D", stop_headsign: "X - Downtown"}
+          - {schedule_version: v, trip_id: t2, stop_sequence: 3, stop_id: "E", stop_headsign: "X - Downtown"}
+          - {schedule_version: v, trip_id: b1, stop_sequence: 1, stop_id: "A", stop_headsign: "X - Beach"}
+          - {schedule_version: v, trip_id: b1, stop_sequence: 2, stop_id: "B", stop_headsign: "X - Beach"}
+          - {schedule_version: v, trip_id: b1, stop_sequence: 3, stop_id: "F", stop_headsign: "X - Beach"}
+          - {schedule_version: v, trip_id: b2, stop_sequence: 1, stop_id: "A", stop_headsign: "X - Beach"}
+          - {schedule_version: v, trip_id: b2, stop_sequence: 2, stop_id: "B", stop_headsign: "X - Beach"}
+          - {schedule_version: v, trip_id: b2, stop_sequence: 3, stop_id: "F", stop_headsign: "X - Beach"}
+          - {schedule_version: v, trip_id: b3, stop_sequence: 1, stop_id: "A", stop_headsign: "X - Beach"}
+          - {schedule_version: v, trip_id: b3, stop_sequence: 2, stop_id: "B", stop_headsign: "X - Beach"}
+          - {schedule_version: v, trip_id: b3, stop_sequence: 3, stop_id: "C9", stop_headsign: "X - Beach"}
+          - {schedule_version: v, trip_id: q1, stop_sequence: 1, stop_id: "G", stop_headsign: "X - Downtown"}
+          - {schedule_version: v, trip_id: p1, stop_sequence: 1, stop_id: "P", stop_headsign: "  "}
+          - {schedule_version: v, trip_id: p1, stop_sequence: 2, stop_id: "Q", stop_headsign: "  "}
+          - {schedule_version: v, trip_id: p1, stop_sequence: 3, stop_id: "R", stop_headsign: "  "}
+          - {schedule_version: v, trip_id: p2, stop_sequence: 1, stop_id: "P", stop_headsign: "  "}
+          - {schedule_version: v, trip_id: p2, stop_sequence: 2, stop_id: "Q", stop_headsign: "  "}
+          - {schedule_version: v, trip_id: p2, stop_sequence: 3, stop_id: "R", stop_headsign: "  "}
+          - {schedule_version: v, trip_id: s1, stop_sequence: 1, stop_id: "P", stop_headsign: ""}
+          - {schedule_version: v, trip_id: s1, stop_sequence: 2, stop_id: "Q", stop_headsign: ""}
+          - {schedule_version: v, trip_id: s2, stop_sequence: 1, stop_id: "P", stop_headsign: ""}
+          - {schedule_version: v, trip_id: s2, stop_sequence: 2, stop_id: "Q", stop_headsign: ""}
+          - {schedule_version: v, trip_id: y1, stop_sequence: 1, stop_id: "L1", stop_headsign: " Y - Hollywood - Vine Station"}
+          - {schedule_version: v, trip_id: y1, stop_sequence: 2, stop_id: "L2", stop_headsign: " Y - Hollywood - Vine Station"}
+          - {schedule_version: v, trip_id: y1, stop_sequence: 3, stop_id: "L3", stop_headsign: " Y - Hollywood - Vine Station"}
+          - {schedule_version: v, trip_id: y1, stop_sequence: 4, stop_id: "L1", stop_headsign: " Y - Hollywood - Vine Station"}
+          - {schedule_version: v, trip_id: k1, stop_sequence: 1, stop_id: "K1", stop_headsign: "14 - Washington / Fairfax Transit Hub"}
+          - {schedule_version: v, trip_id: k1, stop_sequence: 2, stop_id: "K2", stop_headsign: "14 - Washington / Fairfax Transit Hub"}
+          - {schedule_version: old, trip_id: z1, stop_sequence: 1, stop_id: "Z", stop_headsign: "X - Old"}
     expect:
       rows:
-        # Main pattern A>B>C>D (3 trips); the short turn and the branch are not main.
-        - {trip_id: m1, stop_sequence: 1, stop_id: A, line: X, direction_id: 0, is_main_pattern: true, rel_position: 0.0}
-        - {trip_id: m1, stop_sequence: 2, stop_id: B, line: X, direction_id: 0, is_main_pattern: true, rel_position: 0.3333333333333333}
-        - {trip_id: m1, stop_sequence: 3, stop_id: C, line: X, direction_id: 0, is_main_pattern: true, rel_position: 0.6666666666666666}
-        - {trip_id: m1, stop_sequence: 4, stop_id: D, line: X, direction_id: 0, is_main_pattern: true, rel_position: 1.0}
-        - {trip_id: m2, stop_sequence: 1, stop_id: A, line: X, direction_id: 0, is_main_pattern: true, rel_position: 0.0}
-        - {trip_id: m2, stop_sequence: 2, stop_id: B, line: X, direction_id: 0, is_main_pattern: true, rel_position: 0.3333333333333333}
-        - {trip_id: m2, stop_sequence: 3, stop_id: C, line: X, direction_id: 0, is_main_pattern: true, rel_position: 0.6666666666666666}
-        - {trip_id: m2, stop_sequence: 4, stop_id: D, line: X, direction_id: 0, is_main_pattern: true, rel_position: 1.0}
-        - {trip_id: m3, stop_sequence: 1, stop_id: A, line: X, direction_id: 0, is_main_pattern: true, rel_position: 0.0}
-        - {trip_id: m3, stop_sequence: 2, stop_id: B, line: X, direction_id: 0, is_main_pattern: true, rel_position: 0.3333333333333333}
-        - {trip_id: m3, stop_sequence: 3, stop_id: C, line: X, direction_id: 0, is_main_pattern: true, rel_position: 0.6666666666666666}
-        - {trip_id: m3, stop_sequence: 4, stop_id: D, line: X, direction_id: 0, is_main_pattern: true, rel_position: 1.0}
-        - {trip_id: s1, stop_sequence: 1, stop_id: A, line: X, direction_id: 0, is_main_pattern: false, rel_position: 0.0}
-        - {trip_id: s1, stop_sequence: 2, stop_id: B, line: X, direction_id: 0, is_main_pattern: false, rel_position: 0.5}
-        - {trip_id: s1, stop_sequence: 3, stop_id: C, line: X, direction_id: 0, is_main_pattern: false, rel_position: 1.0}
-        - {trip_id: b1, stop_sequence: 1, stop_id: A, line: X, direction_id: 0, is_main_pattern: false, rel_position: 0.0}
-        - {trip_id: b1, stop_sequence: 2, stop_id: B, line: X, direction_id: 0, is_main_pattern: false, rel_position: 0.5}
-        - {trip_id: b1, stop_sequence: 3, stop_id: E, line: X, direction_id: 0, is_main_pattern: false, rel_position: 1.0}
+        # X dir 0: main A>B>C>D>E (3 trips); short turn C>D>E starting mid-route keeps C, D, E
+        # at 3, 4, 5; branches A>B>F and A>B>C9 put their last stop past B (2 + 1/2); the
+        # single-stop trip G shares no stop with the main pattern (1/2). m1's rows were given
+        # out of order. X dir 1: P>Q>R and P>Q tie on trips; the longer one is main.
+        # Y: a loop; the terminal's second visit stays at 1. The old version is ignored.
+        - {schedule_version: v, trip_id: m1, stop_sequence: 1, stop_id: "A", line: X, direction_id: 0, is_main_pattern: true, anchor_position: 1.0}
+        - {schedule_version: v, trip_id: m1, stop_sequence: 2, stop_id: "B", line: X, direction_id: 0, is_main_pattern: true, anchor_position: 2.0}
+        - {schedule_version: v, trip_id: m1, stop_sequence: 3, stop_id: "C", line: X, direction_id: 0, is_main_pattern: true, anchor_position: 3.0}
+        - {schedule_version: v, trip_id: m1, stop_sequence: 4, stop_id: "D", line: X, direction_id: 0, is_main_pattern: true, anchor_position: 4.0}
+        - {schedule_version: v, trip_id: m1, stop_sequence: 5, stop_id: "E", line: X, direction_id: 0, is_main_pattern: true, anchor_position: 5.0}
+        - {schedule_version: v, trip_id: m2, stop_sequence: 1, stop_id: "A", line: X, direction_id: 0, is_main_pattern: true, anchor_position: 1.0}
+        - {schedule_version: v, trip_id: m2, stop_sequence: 2, stop_id: "B", line: X, direction_id: 0, is_main_pattern: true, anchor_position: 2.0}
+        - {schedule_version: v, trip_id: m2, stop_sequence: 3, stop_id: "C", line: X, direction_id: 0, is_main_pattern: true, anchor_position: 3.0}
+        - {schedule_version: v, trip_id: m2, stop_sequence: 4, stop_id: "D", line: X, direction_id: 0, is_main_pattern: true, anchor_position: 4.0}
+        - {schedule_version: v, trip_id: m2, stop_sequence: 5, stop_id: "E", line: X, direction_id: 0, is_main_pattern: true, anchor_position: 5.0}
+        - {schedule_version: v, trip_id: m3, stop_sequence: 1, stop_id: "A", line: X, direction_id: 0, is_main_pattern: true, anchor_position: 1.0}
+        - {schedule_version: v, trip_id: m3, stop_sequence: 2, stop_id: "B", line: X, direction_id: 0, is_main_pattern: true, anchor_position: 2.0}
+        - {schedule_version: v, trip_id: m3, stop_sequence: 3, stop_id: "C", line: X, direction_id: 0, is_main_pattern: true, anchor_position: 3.0}
+        - {schedule_version: v, trip_id: m3, stop_sequence: 4, stop_id: "D", line: X, direction_id: 0, is_main_pattern: true, anchor_position: 4.0}
+        - {schedule_version: v, trip_id: m3, stop_sequence: 5, stop_id: "E", line: X, direction_id: 0, is_main_pattern: true, anchor_position: 5.0}
+        - {schedule_version: v, trip_id: t1, stop_sequence: 1, stop_id: "C", line: X, direction_id: 0, is_main_pattern: false, anchor_position: 3.0}
+        - {schedule_version: v, trip_id: t1, stop_sequence: 2, stop_id: "D", line: X, direction_id: 0, is_main_pattern: false, anchor_position: 4.0}
+        - {schedule_version: v, trip_id: t1, stop_sequence: 3, stop_id: "E", line: X, direction_id: 0, is_main_pattern: false, anchor_position: 5.0}
+        - {schedule_version: v, trip_id: t2, stop_sequence: 1, stop_id: "C", line: X, direction_id: 0, is_main_pattern: false, anchor_position: 3.0}
+        - {schedule_version: v, trip_id: t2, stop_sequence: 2, stop_id: "D", line: X, direction_id: 0, is_main_pattern: false, anchor_position: 4.0}
+        - {schedule_version: v, trip_id: t2, stop_sequence: 3, stop_id: "E", line: X, direction_id: 0, is_main_pattern: false, anchor_position: 5.0}
+        - {schedule_version: v, trip_id: b1, stop_sequence: 1, stop_id: "A", line: X, direction_id: 0, is_main_pattern: false, anchor_position: 1.0}
+        - {schedule_version: v, trip_id: b1, stop_sequence: 2, stop_id: "B", line: X, direction_id: 0, is_main_pattern: false, anchor_position: 2.0}
+        - {schedule_version: v, trip_id: b1, stop_sequence: 3, stop_id: "F", line: X, direction_id: 0, is_main_pattern: false, anchor_position: 2.5}
+        - {schedule_version: v, trip_id: b2, stop_sequence: 1, stop_id: "A", line: X, direction_id: 0, is_main_pattern: false, anchor_position: 1.0}
+        - {schedule_version: v, trip_id: b2, stop_sequence: 2, stop_id: "B", line: X, direction_id: 0, is_main_pattern: false, anchor_position: 2.0}
+        - {schedule_version: v, trip_id: b2, stop_sequence: 3, stop_id: "F", line: X, direction_id: 0, is_main_pattern: false, anchor_position: 2.5}
+        - {schedule_version: v, trip_id: b3, stop_sequence: 1, stop_id: "A", line: X, direction_id: 0, is_main_pattern: false, anchor_position: 1.0}
+        - {schedule_version: v, trip_id: b3, stop_sequence: 2, stop_id: "B", line: X, direction_id: 0, is_main_pattern: false, anchor_position: 2.0}
+        - {schedule_version: v, trip_id: b3, stop_sequence: 3, stop_id: "C9", line: X, direction_id: 0, is_main_pattern: false, anchor_position: 2.5}
+        - {schedule_version: v, trip_id: q1, stop_sequence: 1, stop_id: "G", line: X, direction_id: 0, is_main_pattern: false, anchor_position: 0.5}
+        - {schedule_version: v, trip_id: p1, stop_sequence: 1, stop_id: "P", line: X, direction_id: 1, is_main_pattern: true, anchor_position: 1.0}
+        - {schedule_version: v, trip_id: p1, stop_sequence: 2, stop_id: "Q", line: X, direction_id: 1, is_main_pattern: true, anchor_position: 2.0}
+        - {schedule_version: v, trip_id: p1, stop_sequence: 3, stop_id: "R", line: X, direction_id: 1, is_main_pattern: true, anchor_position: 3.0}
+        - {schedule_version: v, trip_id: p2, stop_sequence: 1, stop_id: "P", line: X, direction_id: 1, is_main_pattern: true, anchor_position: 1.0}
+        - {schedule_version: v, trip_id: p2, stop_sequence: 2, stop_id: "Q", line: X, direction_id: 1, is_main_pattern: true, anchor_position: 2.0}
+        - {schedule_version: v, trip_id: p2, stop_sequence: 3, stop_id: "R", line: X, direction_id: 1, is_main_pattern: true, anchor_position: 3.0}
+        - {schedule_version: v, trip_id: s1, stop_sequence: 1, stop_id: "P", line: X, direction_id: 1, is_main_pattern: false, anchor_position: 1.0}
+        - {schedule_version: v, trip_id: s1, stop_sequence: 2, stop_id: "Q", line: X, direction_id: 1, is_main_pattern: false, anchor_position: 2.0}
+        - {schedule_version: v, trip_id: s2, stop_sequence: 1, stop_id: "P", line: X, direction_id: 1, is_main_pattern: false, anchor_position: 1.0}
+        - {schedule_version: v, trip_id: s2, stop_sequence: 2, stop_id: "Q", line: X, direction_id: 1, is_main_pattern: false, anchor_position: 2.0}
+        - {schedule_version: v, trip_id: y1, stop_sequence: 1, stop_id: "L1", line: Y, direction_id: 0, is_main_pattern: true, anchor_position: 1.0}
+        - {schedule_version: v, trip_id: y1, stop_sequence: 2, stop_id: "L2", line: Y, direction_id: 0, is_main_pattern: true, anchor_position: 2.0}
+        - {schedule_version: v, trip_id: y1, stop_sequence: 3, stop_id: "L3", line: Y, direction_id: 0, is_main_pattern: true, anchor_position: 3.0}
+        - {schedule_version: v, trip_id: y1, stop_sequence: 4, stop_id: "L1", line: Y, direction_id: 0, is_main_pattern: true, anchor_position: 1.0}
+        - {schedule_version: v, trip_id: k1, stop_sequence: 1, stop_id: "K1", line: "14/37", direction_id: 0, is_main_pattern: true, anchor_position: 1.0}
+        - {schedule_version: v, trip_id: k1, stop_sequence: 2, stop_id: "K2", line: "14/37", direction_id: 0, is_main_pattern: true, anchor_position: 2.0}
 
-  - name: dim_line_stop_orders_branches_and_short_turns
+  - name: dim_line_stop_lists_stops_in_route_order
     model: dim_line_stop
     given:
       - input: ref('int_line_trip_stops')
         rows:
-          - {schedule_version: v, trip_id: m1, stop_sequence: 1, stop_id: A, line: X, direction_id: 0, pattern: "A>B>C>D", is_main_pattern: true, rel_position: 0.0, stop_headsign: "X - Downtown"}
-          - {schedule_version: v, trip_id: m1, stop_sequence: 2, stop_id: B, line: X, direction_id: 0, pattern: "A>B>C>D", is_main_pattern: true, rel_position: 0.3333333333333333, stop_headsign: "X - Downtown"}
-          - {schedule_version: v, trip_id: m1, stop_sequence: 3, stop_id: C, line: X, direction_id: 0, pattern: "A>B>C>D", is_main_pattern: true, rel_position: 0.6666666666666666, stop_headsign: "X - Downtown"}
-          - {schedule_version: v, trip_id: m1, stop_sequence: 4, stop_id: D, line: X, direction_id: 0, pattern: "A>B>C>D", is_main_pattern: true, rel_position: 1.0, stop_headsign: "X - Downtown"}
-          - {schedule_version: v, trip_id: m2, stop_sequence: 1, stop_id: A, line: X, direction_id: 0, pattern: "A>B>C>D", is_main_pattern: true, rel_position: 0.0, stop_headsign: "X - Downtown"}
-          - {schedule_version: v, trip_id: m2, stop_sequence: 2, stop_id: B, line: X, direction_id: 0, pattern: "A>B>C>D", is_main_pattern: true, rel_position: 0.3333333333333333, stop_headsign: "X - Downtown"}
-          - {schedule_version: v, trip_id: m2, stop_sequence: 3, stop_id: C, line: X, direction_id: 0, pattern: "A>B>C>D", is_main_pattern: true, rel_position: 0.6666666666666666, stop_headsign: "X - Downtown"}
-          - {schedule_version: v, trip_id: m2, stop_sequence: 4, stop_id: D, line: X, direction_id: 0, pattern: "A>B>C>D", is_main_pattern: true, rel_position: 1.0, stop_headsign: "X - Downtown"}
-          - {schedule_version: v, trip_id: m3, stop_sequence: 1, stop_id: A, line: X, direction_id: 0, pattern: "A>B>C>D", is_main_pattern: true, rel_position: 0.0, stop_headsign: "X - Downtown"}
-          - {schedule_version: v, trip_id: m3, stop_sequence: 2, stop_id: B, line: X, direction_id: 0, pattern: "A>B>C>D", is_main_pattern: true, rel_position: 0.3333333333333333, stop_headsign: "X - Downtown"}
-          - {schedule_version: v, trip_id: m3, stop_sequence: 3, stop_id: C, line: X, direction_id: 0, pattern: "A>B>C>D", is_main_pattern: true, rel_position: 0.6666666666666666, stop_headsign: "X - Downtown"}
-          - {schedule_version: v, trip_id: m3, stop_sequence: 4, stop_id: D, line: X, direction_id: 0, pattern: "A>B>C>D", is_main_pattern: true, rel_position: 1.0, stop_headsign: "X - Downtown"}
-          - {schedule_version: v, trip_id: s1, stop_sequence: 1, stop_id: A, line: X, direction_id: 0, pattern: "A>B>C", is_main_pattern: false, rel_position: 0.0, stop_headsign: "X - Downtown"}
-          - {schedule_version: v, trip_id: s1, stop_sequence: 2, stop_id: B, line: X, direction_id: 0, pattern: "A>B>C", is_main_pattern: false, rel_position: 0.5, stop_headsign: "X - Downtown"}
-          - {schedule_version: v, trip_id: s1, stop_sequence: 3, stop_id: C, line: X, direction_id: 0, pattern: "A>B>C", is_main_pattern: false, rel_position: 1.0, stop_headsign: "X - Downtown"}
-          - {schedule_version: v, trip_id: b1, stop_sequence: 1, stop_id: A, line: X, direction_id: 0, pattern: "A>B>E", is_main_pattern: false, rel_position: 0.0, stop_headsign: "X - Beach"}
-          - {schedule_version: v, trip_id: b1, stop_sequence: 2, stop_id: B, line: X, direction_id: 0, pattern: "A>B>E", is_main_pattern: false, rel_position: 0.5, stop_headsign: "X - Beach"}
-          - {schedule_version: v, trip_id: b1, stop_sequence: 3, stop_id: E, line: X, direction_id: 0, pattern: "A>B>E", is_main_pattern: false, rel_position: 1.0, stop_headsign: "X - Beach"}
+          - {schedule_version: v, trip_id: m1, stop_sequence: 1, stop_id: "A", stop_headsign: "X - Downtown", line: X, direction_id: 0, pattern: "A>B>C>D>E", is_main_pattern: true, anchor_position: 1.0}
+          - {schedule_version: v, trip_id: m1, stop_sequence: 2, stop_id: "B", stop_headsign: "X - Downtown", line: X, direction_id: 0, pattern: "A>B>C>D>E", is_main_pattern: true, anchor_position: 2.0}
+          - {schedule_version: v, trip_id: m1, stop_sequence: 3, stop_id: "C", stop_headsign: "X - Downtown", line: X, direction_id: 0, pattern: "A>B>C>D>E", is_main_pattern: true, anchor_position: 3.0}
+          - {schedule_version: v, trip_id: m1, stop_sequence: 4, stop_id: "D", stop_headsign: "X - Downtown", line: X, direction_id: 0, pattern: "A>B>C>D>E", is_main_pattern: true, anchor_position: 4.0}
+          - {schedule_version: v, trip_id: m1, stop_sequence: 5, stop_id: "E", stop_headsign: "X - Downtown", line: X, direction_id: 0, pattern: "A>B>C>D>E", is_main_pattern: true, anchor_position: 5.0}
+          - {schedule_version: v, trip_id: m2, stop_sequence: 1, stop_id: "A", stop_headsign: "X - Downtown", line: X, direction_id: 0, pattern: "A>B>C>D>E", is_main_pattern: true, anchor_position: 1.0}
+          - {schedule_version: v, trip_id: m2, stop_sequence: 2, stop_id: "B", stop_headsign: "X - Downtown", line: X, direction_id: 0, pattern: "A>B>C>D>E", is_main_pattern: true, anchor_position: 2.0}
+          - {schedule_version: v, trip_id: m2, stop_sequence: 3, stop_id: "C", stop_headsign: "X - Downtown", line: X, direction_id: 0, pattern: "A>B>C>D>E", is_main_pattern: true, anchor_position: 3.0}
+          - {schedule_version: v, trip_id: m2, stop_sequence: 4, stop_id: "D", stop_headsign: "X - Downtown", line: X, direction_id: 0, pattern: "A>B>C>D>E", is_main_pattern: true, anchor_position: 4.0}
+          - {schedule_version: v, trip_id: m2, stop_sequence: 5, stop_id: "E", stop_headsign: "X - Downtown", line: X, direction_id: 0, pattern: "A>B>C>D>E", is_main_pattern: true, anchor_position: 5.0}
+          - {schedule_version: v, trip_id: m3, stop_sequence: 1, stop_id: "A", stop_headsign: "X - Downtown", line: X, direction_id: 0, pattern: "A>B>C>D>E", is_main_pattern: true, anchor_position: 1.0}
+          - {schedule_version: v, trip_id: m3, stop_sequence: 2, stop_id: "B", stop_headsign: "X - Downtown", line: X, direction_id: 0, pattern: "A>B>C>D>E", is_main_pattern: true, anchor_position: 2.0}
+          - {schedule_version: v, trip_id: m3, stop_sequence: 3, stop_id: "C", stop_headsign: "X - Downtown", line: X, direction_id: 0, pattern: "A>B>C>D>E", is_main_pattern: true, anchor_position: 3.0}
+          - {schedule_version: v, trip_id: m3, stop_sequence: 4, stop_id: "D", stop_headsign: "X - Downtown", line: X, direction_id: 0, pattern: "A>B>C>D>E", is_main_pattern: true, anchor_position: 4.0}
+          - {schedule_version: v, trip_id: m3, stop_sequence: 5, stop_id: "E", stop_headsign: "X - Downtown", line: X, direction_id: 0, pattern: "A>B>C>D>E", is_main_pattern: true, anchor_position: 5.0}
+          - {schedule_version: v, trip_id: t1, stop_sequence: 1, stop_id: "C", stop_headsign: "X - Downtown", line: X, direction_id: 0, pattern: "C>D>E", is_main_pattern: false, anchor_position: 3.0}
+          - {schedule_version: v, trip_id: t1, stop_sequence: 2, stop_id: "D", stop_headsign: "X - Downtown", line: X, direction_id: 0, pattern: "C>D>E", is_main_pattern: false, anchor_position: 4.0}
+          - {schedule_version: v, trip_id: t1, stop_sequence: 3, stop_id: "E", stop_headsign: "X - Downtown", line: X, direction_id: 0, pattern: "C>D>E", is_main_pattern: false, anchor_position: 5.0}
+          - {schedule_version: v, trip_id: t2, stop_sequence: 1, stop_id: "C", stop_headsign: "X - Downtown", line: X, direction_id: 0, pattern: "C>D>E", is_main_pattern: false, anchor_position: 3.0}
+          - {schedule_version: v, trip_id: t2, stop_sequence: 2, stop_id: "D", stop_headsign: "X - Downtown", line: X, direction_id: 0, pattern: "C>D>E", is_main_pattern: false, anchor_position: 4.0}
+          - {schedule_version: v, trip_id: t2, stop_sequence: 3, stop_id: "E", stop_headsign: "X - Downtown", line: X, direction_id: 0, pattern: "C>D>E", is_main_pattern: false, anchor_position: 5.0}
+          - {schedule_version: v, trip_id: b1, stop_sequence: 1, stop_id: "A", stop_headsign: "X - Beach", line: X, direction_id: 0, pattern: "A>B>F", is_main_pattern: false, anchor_position: 1.0}
+          - {schedule_version: v, trip_id: b1, stop_sequence: 2, stop_id: "B", stop_headsign: "X - Beach", line: X, direction_id: 0, pattern: "A>B>F", is_main_pattern: false, anchor_position: 2.0}
+          - {schedule_version: v, trip_id: b1, stop_sequence: 3, stop_id: "F", stop_headsign: "X - Beach", line: X, direction_id: 0, pattern: "A>B>F", is_main_pattern: false, anchor_position: 2.5}
+          - {schedule_version: v, trip_id: b2, stop_sequence: 1, stop_id: "A", stop_headsign: "X - Beach", line: X, direction_id: 0, pattern: "A>B>F", is_main_pattern: false, anchor_position: 1.0}
+          - {schedule_version: v, trip_id: b2, stop_sequence: 2, stop_id: "B", stop_headsign: "X - Beach", line: X, direction_id: 0, pattern: "A>B>F", is_main_pattern: false, anchor_position: 2.0}
+          - {schedule_version: v, trip_id: b2, stop_sequence: 3, stop_id: "F", stop_headsign: "X - Beach", line: X, direction_id: 0, pattern: "A>B>F", is_main_pattern: false, anchor_position: 2.5}
+          - {schedule_version: v, trip_id: b3, stop_sequence: 1, stop_id: "A", stop_headsign: "X - Beach", line: X, direction_id: 0, pattern: "A>B>C9", is_main_pattern: false, anchor_position: 1.0}
+          - {schedule_version: v, trip_id: b3, stop_sequence: 2, stop_id: "B", stop_headsign: "X - Beach", line: X, direction_id: 0, pattern: "A>B>C9", is_main_pattern: false, anchor_position: 2.0}
+          - {schedule_version: v, trip_id: b3, stop_sequence: 3, stop_id: "C9", stop_headsign: "X - Beach", line: X, direction_id: 0, pattern: "A>B>C9", is_main_pattern: false, anchor_position: 2.5}
+          - {schedule_version: v, trip_id: q1, stop_sequence: 1, stop_id: "G", stop_headsign: "X - Downtown", line: X, direction_id: 0, pattern: "G", is_main_pattern: false, anchor_position: 0.5}
+          - {schedule_version: v, trip_id: p1, stop_sequence: 1, stop_id: "P", stop_headsign: null, line: X, direction_id: 1, pattern: "P>Q>R", is_main_pattern: true, anchor_position: 1.0}
+          - {schedule_version: v, trip_id: p1, stop_sequence: 2, stop_id: "Q", stop_headsign: null, line: X, direction_id: 1, pattern: "P>Q>R", is_main_pattern: true, anchor_position: 2.0}
+          - {schedule_version: v, trip_id: p1, stop_sequence: 3, stop_id: "R", stop_headsign: null, line: X, direction_id: 1, pattern: "P>Q>R", is_main_pattern: true, anchor_position: 3.0}
+          - {schedule_version: v, trip_id: p2, stop_sequence: 1, stop_id: "P", stop_headsign: null, line: X, direction_id: 1, pattern: "P>Q>R", is_main_pattern: true, anchor_position: 1.0}
+          - {schedule_version: v, trip_id: p2, stop_sequence: 2, stop_id: "Q", stop_headsign: null, line: X, direction_id: 1, pattern: "P>Q>R", is_main_pattern: true, anchor_position: 2.0}
+          - {schedule_version: v, trip_id: p2, stop_sequence: 3, stop_id: "R", stop_headsign: null, line: X, direction_id: 1, pattern: "P>Q>R", is_main_pattern: true, anchor_position: 3.0}
+          - {schedule_version: v, trip_id: s1, stop_sequence: 1, stop_id: "P", stop_headsign: null, line: X, direction_id: 1, pattern: "P>Q", is_main_pattern: false, anchor_position: 1.0}
+          - {schedule_version: v, trip_id: s1, stop_sequence: 2, stop_id: "Q", stop_headsign: null, line: X, direction_id: 1, pattern: "P>Q", is_main_pattern: false, anchor_position: 2.0}
+          - {schedule_version: v, trip_id: s2, stop_sequence: 1, stop_id: "P", stop_headsign: null, line: X, direction_id: 1, pattern: "P>Q", is_main_pattern: false, anchor_position: 1.0}
+          - {schedule_version: v, trip_id: s2, stop_sequence: 2, stop_id: "Q", stop_headsign: null, line: X, direction_id: 1, pattern: "P>Q", is_main_pattern: false, anchor_position: 2.0}
+          - {schedule_version: v, trip_id: y1, stop_sequence: 1, stop_id: "L1", stop_headsign: "Y - Hollywood - Vine Station", line: Y, direction_id: 0, pattern: "L1>L2>L3>L1", is_main_pattern: true, anchor_position: 1.0}
+          - {schedule_version: v, trip_id: y1, stop_sequence: 2, stop_id: "L2", stop_headsign: "Y - Hollywood - Vine Station", line: Y, direction_id: 0, pattern: "L1>L2>L3>L1", is_main_pattern: true, anchor_position: 2.0}
+          - {schedule_version: v, trip_id: y1, stop_sequence: 3, stop_id: "L3", stop_headsign: "Y - Hollywood - Vine Station", line: Y, direction_id: 0, pattern: "L1>L2>L3>L1", is_main_pattern: true, anchor_position: 3.0}
+          - {schedule_version: v, trip_id: y1, stop_sequence: 4, stop_id: "L1", stop_headsign: "Y - Hollywood - Vine Station", line: Y, direction_id: 0, pattern: "L1>L2>L3>L1", is_main_pattern: true, anchor_position: 1.0}
+          - {schedule_version: v, trip_id: k1, stop_sequence: 1, stop_id: "K1", stop_headsign: "14 - Washington / Fairfax Transit Hub", line: "14/37", direction_id: 0, pattern: "K1>K2", is_main_pattern: true, anchor_position: 1.0}
+          - {schedule_version: v, trip_id: k1, stop_sequence: 2, stop_id: "K2", stop_headsign: "14 - Washington / Fairfax Transit Hub", line: "14/37", direction_id: 0, pattern: "K1>K2", is_main_pattern: true, anchor_position: 2.0}
       - input: ref('dim_stops')
         rows:
-          - {schedule_version: v, stop_id: A, stop_name: "Stop A"}
-          - {schedule_version: v, stop_id: B, stop_name: "Stop B"}
-          - {schedule_version: v, stop_id: C, stop_name: "Stop C"}
-          - {schedule_version: v, stop_id: D, stop_name: "Stop D"}
-          - {schedule_version: v, stop_id: E, stop_name: "Stop E"}
+          - {schedule_version: v, stop_id: "A", stop_name: "Stop A"}
+          - {schedule_version: v, stop_id: "B", stop_name: "Stop B"}
+          - {schedule_version: v, stop_id: "C", stop_name: "Stop C"}
+          - {schedule_version: v, stop_id: "C9", stop_name: "Stop C9"}
+          - {schedule_version: v, stop_id: "D", stop_name: "Stop D"}
+          - {schedule_version: v, stop_id: "E", stop_name: "Stop E"}
+          - {schedule_version: v, stop_id: "F", stop_name: "Stop F"}
+          - {schedule_version: v, stop_id: "G", stop_name: "Stop G"}
+          - {schedule_version: v, stop_id: "K1", stop_name: "Stop K1"}
+          - {schedule_version: v, stop_id: "K2", stop_name: "Stop K2"}
+          - {schedule_version: v, stop_id: "L1", stop_name: "Stop L1"}
+          - {schedule_version: v, stop_id: "L2", stop_name: "Stop L2"}
+          - {schedule_version: v, stop_id: "L3", stop_name: "Stop L3"}
+          - {schedule_version: v, stop_id: "P", stop_name: "Stop P"}
+          - {schedule_version: v, stop_id: "Q", stop_name: "Stop Q"}
+          - {schedule_version: v, stop_id: "R", stop_name: "Stop R"}
     expect:
       rows:
-        # Average relative position: A 0, B 0.4, C 0.75, D 1 (3 trips), E 1 (1 trip): ties go
-        # to the stop more trips serve.
-        - {line: X, direction_id: 0, stop_order: 1, stop_id: A, stop_name: "Stop A", n_trips: 5, in_main_pattern: true}
-        - {line: X, direction_id: 0, stop_order: 2, stop_id: B, stop_name: "Stop B", n_trips: 5, in_main_pattern: true}
-        - {line: X, direction_id: 0, stop_order: 3, stop_id: C, stop_name: "Stop C", n_trips: 4, in_main_pattern: true}
-        - {line: X, direction_id: 0, stop_order: 4, stop_id: D, stop_name: "Stop D", n_trips: 3, in_main_pattern: true}
-        - {line: X, direction_id: 0, stop_order: 5, stop_id: E, stop_name: "Stop E", n_trips: 1, in_main_pattern: false}
+        # F and C9 tie at 2.5: F wins on trips (2 vs 1) though C9 sorts first alphabetically.
+        # The mid-route short turn doesn't pull C ahead of B. The loop's L1 is first, once.
+        - {schedule_version: v, line: X, direction_id: 0, stop_order: 1, stop_id: "G", stop_name: "Stop G", n_trips: 1, in_main_pattern: false}
+        - {schedule_version: v, line: X, direction_id: 0, stop_order: 2, stop_id: "A", stop_name: "Stop A", n_trips: 6, in_main_pattern: true}
+        - {schedule_version: v, line: X, direction_id: 0, stop_order: 3, stop_id: "B", stop_name: "Stop B", n_trips: 6, in_main_pattern: true}
+        - {schedule_version: v, line: X, direction_id: 0, stop_order: 4, stop_id: "F", stop_name: "Stop F", n_trips: 2, in_main_pattern: false}
+        - {schedule_version: v, line: X, direction_id: 0, stop_order: 5, stop_id: "C9", stop_name: "Stop C9", n_trips: 1, in_main_pattern: false}
+        - {schedule_version: v, line: X, direction_id: 0, stop_order: 6, stop_id: "C", stop_name: "Stop C", n_trips: 5, in_main_pattern: true}
+        - {schedule_version: v, line: X, direction_id: 0, stop_order: 7, stop_id: "D", stop_name: "Stop D", n_trips: 5, in_main_pattern: true}
+        - {schedule_version: v, line: X, direction_id: 0, stop_order: 8, stop_id: "E", stop_name: "Stop E", n_trips: 5, in_main_pattern: true}
+        - {schedule_version: v, line: X, direction_id: 1, stop_order: 1, stop_id: "P", stop_name: "Stop P", n_trips: 4, in_main_pattern: true}
+        - {schedule_version: v, line: X, direction_id: 1, stop_order: 2, stop_id: "Q", stop_name: "Stop Q", n_trips: 4, in_main_pattern: true}
+        - {schedule_version: v, line: X, direction_id: 1, stop_order: 3, stop_id: "R", stop_name: "Stop R", n_trips: 2, in_main_pattern: true}
+        - {schedule_version: v, line: Y, direction_id: 0, stop_order: 1, stop_id: "L1", stop_name: "Stop L1", n_trips: 1, in_main_pattern: true}
+        - {schedule_version: v, line: Y, direction_id: 0, stop_order: 2, stop_id: "L2", stop_name: "Stop L2", n_trips: 1, in_main_pattern: true}
+        - {schedule_version: v, line: Y, direction_id: 0, stop_order: 3, stop_id: "L3", stop_name: "Stop L3", n_trips: 1, in_main_pattern: true}
+        - {schedule_version: v, line: "14/37", direction_id: 0, stop_order: 1, stop_id: "K1", stop_name: "Stop K1", n_trips: 1, in_main_pattern: true}
+        - {schedule_version: v, line: "14/37", direction_id: 0, stop_order: 2, stop_id: "K2", stop_name: "Stop K2", n_trips: 1, in_main_pattern: true}
 
-  - name: dim_line_direction_takes_the_common_headsign_and_main_pattern_ends
+  - name: dim_line_direction_headsigns_and_main_pattern_ends
     model: dim_line_direction
     given:
       - input: ref('int_line_trip_stops')
         rows:
-          - {schedule_version: v, trip_id: m1, stop_sequence: 1, stop_id: A, line: X, direction_id: 0, pattern: "A>B>C>D", is_main_pattern: true, rel_position: 0.0, stop_headsign: "X - Downtown"}
-          - {schedule_version: v, trip_id: m1, stop_sequence: 2, stop_id: B, line: X, direction_id: 0, pattern: "A>B>C>D", is_main_pattern: true, rel_position: 0.3333333333333333, stop_headsign: "X - Downtown"}
-          - {schedule_version: v, trip_id: m1, stop_sequence: 3, stop_id: C, line: X, direction_id: 0, pattern: "A>B>C>D", is_main_pattern: true, rel_position: 0.6666666666666666, stop_headsign: "X - Downtown"}
-          - {schedule_version: v, trip_id: m1, stop_sequence: 4, stop_id: D, line: X, direction_id: 0, pattern: "A>B>C>D", is_main_pattern: true, rel_position: 1.0, stop_headsign: "X - Downtown"}
-          - {schedule_version: v, trip_id: m2, stop_sequence: 1, stop_id: A, line: X, direction_id: 0, pattern: "A>B>C>D", is_main_pattern: true, rel_position: 0.0, stop_headsign: "X - Downtown"}
-          - {schedule_version: v, trip_id: m2, stop_sequence: 2, stop_id: B, line: X, direction_id: 0, pattern: "A>B>C>D", is_main_pattern: true, rel_position: 0.3333333333333333, stop_headsign: "X - Downtown"}
-          - {schedule_version: v, trip_id: m2, stop_sequence: 3, stop_id: C, line: X, direction_id: 0, pattern: "A>B>C>D", is_main_pattern: true, rel_position: 0.6666666666666666, stop_headsign: "X - Downtown"}
-          - {schedule_version: v, trip_id: m2, stop_sequence: 4, stop_id: D, line: X, direction_id: 0, pattern: "A>B>C>D", is_main_pattern: true, rel_position: 1.0, stop_headsign: "X - Downtown"}
-          - {schedule_version: v, trip_id: m3, stop_sequence: 1, stop_id: A, line: X, direction_id: 0, pattern: "A>B>C>D", is_main_pattern: true, rel_position: 0.0, stop_headsign: "X - Downtown"}
-          - {schedule_version: v, trip_id: m3, stop_sequence: 2, stop_id: B, line: X, direction_id: 0, pattern: "A>B>C>D", is_main_pattern: true, rel_position: 0.3333333333333333, stop_headsign: "X - Downtown"}
-          - {schedule_version: v, trip_id: m3, stop_sequence: 3, stop_id: C, line: X, direction_id: 0, pattern: "A>B>C>D", is_main_pattern: true, rel_position: 0.6666666666666666, stop_headsign: "X - Downtown"}
-          - {schedule_version: v, trip_id: m3, stop_sequence: 4, stop_id: D, line: X, direction_id: 0, pattern: "A>B>C>D", is_main_pattern: true, rel_position: 1.0, stop_headsign: "X - Downtown"}
-          - {schedule_version: v, trip_id: s1, stop_sequence: 1, stop_id: A, line: X, direction_id: 0, pattern: "A>B>C", is_main_pattern: false, rel_position: 0.0, stop_headsign: "X - Downtown"}
-          - {schedule_version: v, trip_id: s1, stop_sequence: 2, stop_id: B, line: X, direction_id: 0, pattern: "A>B>C", is_main_pattern: false, rel_position: 0.5, stop_headsign: "X - Downtown"}
-          - {schedule_version: v, trip_id: s1, stop_sequence: 3, stop_id: C, line: X, direction_id: 0, pattern: "A>B>C", is_main_pattern: false, rel_position: 1.0, stop_headsign: "X - Downtown"}
-          - {schedule_version: v, trip_id: b1, stop_sequence: 1, stop_id: A, line: X, direction_id: 0, pattern: "A>B>E", is_main_pattern: false, rel_position: 0.0, stop_headsign: "X - Beach"}
-          - {schedule_version: v, trip_id: b1, stop_sequence: 2, stop_id: B, line: X, direction_id: 0, pattern: "A>B>E", is_main_pattern: false, rel_position: 0.5, stop_headsign: "X - Beach"}
-          - {schedule_version: v, trip_id: b1, stop_sequence: 3, stop_id: E, line: X, direction_id: 0, pattern: "A>B>E", is_main_pattern: false, rel_position: 1.0, stop_headsign: "X - Beach"}
+          - {schedule_version: v, trip_id: m1, stop_sequence: 1, stop_id: "A", stop_headsign: "X - Downtown", line: X, direction_id: 0, pattern: "A>B>C>D>E", is_main_pattern: true, anchor_position: 1.0}
+          - {schedule_version: v, trip_id: m1, stop_sequence: 2, stop_id: "B", stop_headsign: "X - Downtown", line: X, direction_id: 0, pattern: "A>B>C>D>E", is_main_pattern: true, anchor_position: 2.0}
+          - {schedule_version: v, trip_id: m1, stop_sequence: 3, stop_id: "C", stop_headsign: "X - Downtown", line: X, direction_id: 0, pattern: "A>B>C>D>E", is_main_pattern: true, anchor_position: 3.0}
+          - {schedule_version: v, trip_id: m1, stop_sequence: 4, stop_id: "D", stop_headsign: "X - Downtown", line: X, direction_id: 0, pattern: "A>B>C>D>E", is_main_pattern: true, anchor_position: 4.0}
+          - {schedule_version: v, trip_id: m1, stop_sequence: 5, stop_id: "E", stop_headsign: "X - Downtown", line: X, direction_id: 0, pattern: "A>B>C>D>E", is_main_pattern: true, anchor_position: 5.0}
+          - {schedule_version: v, trip_id: m2, stop_sequence: 1, stop_id: "A", stop_headsign: "X - Downtown", line: X, direction_id: 0, pattern: "A>B>C>D>E", is_main_pattern: true, anchor_position: 1.0}
+          - {schedule_version: v, trip_id: m2, stop_sequence: 2, stop_id: "B", stop_headsign: "X - Downtown", line: X, direction_id: 0, pattern: "A>B>C>D>E", is_main_pattern: true, anchor_position: 2.0}
+          - {schedule_version: v, trip_id: m2, stop_sequence: 3, stop_id: "C", stop_headsign: "X - Downtown", line: X, direction_id: 0, pattern: "A>B>C>D>E", is_main_pattern: true, anchor_position: 3.0}
+          - {schedule_version: v, trip_id: m2, stop_sequence: 4, stop_id: "D", stop_headsign: "X - Downtown", line: X, direction_id: 0, pattern: "A>B>C>D>E", is_main_pattern: true, anchor_position: 4.0}
+          - {schedule_version: v, trip_id: m2, stop_sequence: 5, stop_id: "E", stop_headsign: "X - Downtown", line: X, direction_id: 0, pattern: "A>B>C>D>E", is_main_pattern: true, anchor_position: 5.0}
+          - {schedule_version: v, trip_id: m3, stop_sequence: 1, stop_id: "A", stop_headsign: "X - Downtown", line: X, direction_id: 0, pattern: "A>B>C>D>E", is_main_pattern: true, anchor_position: 1.0}
+          - {schedule_version: v, trip_id: m3, stop_sequence: 2, stop_id: "B", stop_headsign: "X - Downtown", line: X, direction_id: 0, pattern: "A>B>C>D>E", is_main_pattern: true, anchor_position: 2.0}
+          - {schedule_version: v, trip_id: m3, stop_sequence: 3, stop_id: "C", stop_headsign: "X - Downtown", line: X, direction_id: 0, pattern: "A>B>C>D>E", is_main_pattern: true, anchor_position: 3.0}
+          - {schedule_version: v, trip_id: m3, stop_sequence: 4, stop_id: "D", stop_headsign: "X - Downtown", line: X, direction_id: 0, pattern: "A>B>C>D>E", is_main_pattern: true, anchor_position: 4.0}
+          - {schedule_version: v, trip_id: m3, stop_sequence: 5, stop_id: "E", stop_headsign: "X - Downtown", line: X, direction_id: 0, pattern: "A>B>C>D>E", is_main_pattern: true, anchor_position: 5.0}
+          - {schedule_version: v, trip_id: t1, stop_sequence: 1, stop_id: "C", stop_headsign: "X - Downtown", line: X, direction_id: 0, pattern: "C>D>E", is_main_pattern: false, anchor_position: 3.0}
+          - {schedule_version: v, trip_id: t1, stop_sequence: 2, stop_id: "D", stop_headsign: "X - Downtown", line: X, direction_id: 0, pattern: "C>D>E", is_main_pattern: false, anchor_position: 4.0}
+          - {schedule_version: v, trip_id: t1, stop_sequence: 3, stop_id: "E", stop_headsign: "X - Downtown", line: X, direction_id: 0, pattern: "C>D>E", is_main_pattern: false, anchor_position: 5.0}
+          - {schedule_version: v, trip_id: t2, stop_sequence: 1, stop_id: "C", stop_headsign: "X - Downtown", line: X, direction_id: 0, pattern: "C>D>E", is_main_pattern: false, anchor_position: 3.0}
+          - {schedule_version: v, trip_id: t2, stop_sequence: 2, stop_id: "D", stop_headsign: "X - Downtown", line: X, direction_id: 0, pattern: "C>D>E", is_main_pattern: false, anchor_position: 4.0}
+          - {schedule_version: v, trip_id: t2, stop_sequence: 3, stop_id: "E", stop_headsign: "X - Downtown", line: X, direction_id: 0, pattern: "C>D>E", is_main_pattern: false, anchor_position: 5.0}
+          - {schedule_version: v, trip_id: b1, stop_sequence: 1, stop_id: "A", stop_headsign: "X - Beach", line: X, direction_id: 0, pattern: "A>B>F", is_main_pattern: false, anchor_position: 1.0}
+          - {schedule_version: v, trip_id: b1, stop_sequence: 2, stop_id: "B", stop_headsign: "X - Beach", line: X, direction_id: 0, pattern: "A>B>F", is_main_pattern: false, anchor_position: 2.0}
+          - {schedule_version: v, trip_id: b1, stop_sequence: 3, stop_id: "F", stop_headsign: "X - Beach", line: X, direction_id: 0, pattern: "A>B>F", is_main_pattern: false, anchor_position: 2.5}
+          - {schedule_version: v, trip_id: b2, stop_sequence: 1, stop_id: "A", stop_headsign: "X - Beach", line: X, direction_id: 0, pattern: "A>B>F", is_main_pattern: false, anchor_position: 1.0}
+          - {schedule_version: v, trip_id: b2, stop_sequence: 2, stop_id: "B", stop_headsign: "X - Beach", line: X, direction_id: 0, pattern: "A>B>F", is_main_pattern: false, anchor_position: 2.0}
+          - {schedule_version: v, trip_id: b2, stop_sequence: 3, stop_id: "F", stop_headsign: "X - Beach", line: X, direction_id: 0, pattern: "A>B>F", is_main_pattern: false, anchor_position: 2.5}
+          - {schedule_version: v, trip_id: b3, stop_sequence: 1, stop_id: "A", stop_headsign: "X - Beach", line: X, direction_id: 0, pattern: "A>B>C9", is_main_pattern: false, anchor_position: 1.0}
+          - {schedule_version: v, trip_id: b3, stop_sequence: 2, stop_id: "B", stop_headsign: "X - Beach", line: X, direction_id: 0, pattern: "A>B>C9", is_main_pattern: false, anchor_position: 2.0}
+          - {schedule_version: v, trip_id: b3, stop_sequence: 3, stop_id: "C9", stop_headsign: "X - Beach", line: X, direction_id: 0, pattern: "A>B>C9", is_main_pattern: false, anchor_position: 2.5}
+          - {schedule_version: v, trip_id: q1, stop_sequence: 1, stop_id: "G", stop_headsign: "X - Downtown", line: X, direction_id: 0, pattern: "G", is_main_pattern: false, anchor_position: 0.5}
+          - {schedule_version: v, trip_id: p1, stop_sequence: 1, stop_id: "P", stop_headsign: null, line: X, direction_id: 1, pattern: "P>Q>R", is_main_pattern: true, anchor_position: 1.0}
+          - {schedule_version: v, trip_id: p1, stop_sequence: 2, stop_id: "Q", stop_headsign: null, line: X, direction_id: 1, pattern: "P>Q>R", is_main_pattern: true, anchor_position: 2.0}
+          - {schedule_version: v, trip_id: p1, stop_sequence: 3, stop_id: "R", stop_headsign: null, line: X, direction_id: 1, pattern: "P>Q>R", is_main_pattern: true, anchor_position: 3.0}
+          - {schedule_version: v, trip_id: p2, stop_sequence: 1, stop_id: "P", stop_headsign: null, line: X, direction_id: 1, pattern: "P>Q>R", is_main_pattern: true, anchor_position: 1.0}
+          - {schedule_version: v, trip_id: p2, stop_sequence: 2, stop_id: "Q", stop_headsign: null, line: X, direction_id: 1, pattern: "P>Q>R", is_main_pattern: true, anchor_position: 2.0}
+          - {schedule_version: v, trip_id: p2, stop_sequence: 3, stop_id: "R", stop_headsign: null, line: X, direction_id: 1, pattern: "P>Q>R", is_main_pattern: true, anchor_position: 3.0}
+          - {schedule_version: v, trip_id: s1, stop_sequence: 1, stop_id: "P", stop_headsign: null, line: X, direction_id: 1, pattern: "P>Q", is_main_pattern: false, anchor_position: 1.0}
+          - {schedule_version: v, trip_id: s1, stop_sequence: 2, stop_id: "Q", stop_headsign: null, line: X, direction_id: 1, pattern: "P>Q", is_main_pattern: false, anchor_position: 2.0}
+          - {schedule_version: v, trip_id: s2, stop_sequence: 1, stop_id: "P", stop_headsign: null, line: X, direction_id: 1, pattern: "P>Q", is_main_pattern: false, anchor_position: 1.0}
+          - {schedule_version: v, trip_id: s2, stop_sequence: 2, stop_id: "Q", stop_headsign: null, line: X, direction_id: 1, pattern: "P>Q", is_main_pattern: false, anchor_position: 2.0}
+          - {schedule_version: v, trip_id: y1, stop_sequence: 1, stop_id: "L1", stop_headsign: "Y - Hollywood - Vine Station", line: Y, direction_id: 0, pattern: "L1>L2>L3>L1", is_main_pattern: true, anchor_position: 1.0}
+          - {schedule_version: v, trip_id: y1, stop_sequence: 2, stop_id: "L2", stop_headsign: "Y - Hollywood - Vine Station", line: Y, direction_id: 0, pattern: "L1>L2>L3>L1", is_main_pattern: true, anchor_position: 2.0}
+          - {schedule_version: v, trip_id: y1, stop_sequence: 3, stop_id: "L3", stop_headsign: "Y - Hollywood - Vine Station", line: Y, direction_id: 0, pattern: "L1>L2>L3>L1", is_main_pattern: true, anchor_position: 3.0}
+          - {schedule_version: v, trip_id: y1, stop_sequence: 4, stop_id: "L1", stop_headsign: "Y - Hollywood - Vine Station", line: Y, direction_id: 0, pattern: "L1>L2>L3>L1", is_main_pattern: true, anchor_position: 1.0}
+          - {schedule_version: v, trip_id: k1, stop_sequence: 1, stop_id: "K1", stop_headsign: "14 - Washington / Fairfax Transit Hub", line: "14/37", direction_id: 0, pattern: "K1>K2", is_main_pattern: true, anchor_position: 1.0}
+          - {schedule_version: v, trip_id: k1, stop_sequence: 2, stop_id: "K2", stop_headsign: "14 - Washington / Fairfax Transit Hub", line: "14/37", direction_id: 0, pattern: "K1>K2", is_main_pattern: true, anchor_position: 2.0}
       - input: ref('dim_stops')
         rows:
-          - {schedule_version: v, stop_id: A, stop_name: "Stop A"}
-          - {schedule_version: v, stop_id: B, stop_name: "Stop B"}
-          - {schedule_version: v, stop_id: C, stop_name: "Stop C"}
-          - {schedule_version: v, stop_id: D, stop_name: "Stop D"}
-          - {schedule_version: v, stop_id: E, stop_name: "Stop E"}
+          - {schedule_version: v, stop_id: "A", stop_name: "Stop A"}
+          - {schedule_version: v, stop_id: "B", stop_name: "Stop B"}
+          - {schedule_version: v, stop_id: "C", stop_name: "Stop C"}
+          - {schedule_version: v, stop_id: "C9", stop_name: "Stop C9"}
+          - {schedule_version: v, stop_id: "D", stop_name: "Stop D"}
+          - {schedule_version: v, stop_id: "E", stop_name: "Stop E"}
+          - {schedule_version: v, stop_id: "F", stop_name: "Stop F"}
+          - {schedule_version: v, stop_id: "G", stop_name: "Stop G"}
+          - {schedule_version: v, stop_id: "K1", stop_name: "Stop K1"}
+          - {schedule_version: v, stop_id: "K2", stop_name: "Stop K2"}
+          - {schedule_version: v, stop_id: "L1", stop_name: "Stop L1"}
+          - {schedule_version: v, stop_id: "L2", stop_name: "Stop L2"}
+          - {schedule_version: v, stop_id: "L3", stop_name: "Stop L3"}
+          - {schedule_version: v, stop_id: "P", stop_name: "Stop P"}
+          - {schedule_version: v, stop_id: "Q", stop_name: "Stop Q"}
+          - {schedule_version: v, stop_id: "R", stop_name: "Stop R"}
     expect:
       rows:
-        - {line: X, direction_id: 0, headsign: Downtown, first_stop_name: "Stop A", last_stop_name: "Stop D", n_patterns: 3, n_trips: 5}
+        - {schedule_version: v, line: X, direction_id: 0, headsign: Downtown, first_stop_name: "Stop A", last_stop_name: "Stop E", n_patterns: 5, n_trips: 9}
+        # No first stop has a headsign: the main pattern's last stop.
+        - {schedule_version: v, line: X, direction_id: 1, headsign: "Stop R", first_stop_name: "Stop P", last_stop_name: "Stop R", n_patterns: 2, n_trips: 4}
+        # A dash inside the name stays.
+        - {schedule_version: v, line: Y, direction_id: 0, headsign: "Hollywood - Vine Station", first_stop_name: "Stop L1", last_stop_name: "Stop L1", n_patterns: 1, n_trips: 1}
+        # Combined line: the prefix names the sub-line and stays.
+        - {schedule_version: v, line: "14/37", direction_id: 0, headsign: "14 - Washington / Fairfax Transit Hub", first_stop_name: "Stop K1", last_stop_name: "Stop K2", n_patterns: 1, n_trips: 1}
+
+  - name: dim_line_names_sorts_and_keeps_lines_with_trips
+    model: dim_line
+    given:
+      - input: ref('dim_routes')
+        rows:
+          - {schedule_version: v, route_id: a, line: "2", route_long_name: Metro Local Line}
+          - {schedule_version: v, route_id: b, line: "10/48", route_long_name: Metro Local Line}
+          - {schedule_version: v, route_id: c, line: "901", route_long_name: "Metro G Line (Orange) 901"}
+          - {schedule_version: v, route_id: d, line: Dodger Stadium Express, route_long_name: null}
+          - {schedule_version: v, route_id: e, line: "999", route_long_name: Metro Local Line}  # no trips
+          - {schedule_version: old, route_id: a, line: "2", route_long_name: Metro Local Line}
+      - input: ref('dim_schedule_version')
+        rows:
+          - {version_id: v, ever_in_force: true}
+          - {version_id: old, ever_in_force: false}
+      - input: ref('dim_trips')
+        rows:
+          - {schedule_version: v, trip_id: t1, route_id: a}
+          - {schedule_version: v, trip_id: t2, route_id: b}
+          - {schedule_version: v, trip_id: t3, route_id: c}
+          - {schedule_version: v, trip_id: t4, route_id: d}
+          - {schedule_version: old, trip_id: t5, route_id: a}
+    expect:
+      rows:
+        - {schedule_version: v, line: "2", display_name: "2", line_number: 2}
+        - {schedule_version: v, line: "10/48", display_name: "10/48", line_number: 10}
+        - {schedule_version: v, line: "901", display_name: G Line, line_number: 901}
+        - {schedule_version: v, line: Dodger Stadium Express, display_name: Dodger Stadium Express, line_number: null}

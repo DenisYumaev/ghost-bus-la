@@ -224,9 +224,9 @@ The trade-offs in Ghost Bus LA you should be able to defend out loud. Each entry
 
 ### 15l. Line tables: headsigns from stop headsigns, stop order from position
 
-- **Decision:** three line tables describe each line as it runs on the last synced service date (that day's schedule version): `dim_line`, `dim_line_direction` (headsign, main pattern) and `dim_line_stop` (every stop served, in order).
+- **Decision:** three line tables, built for every schedule version ever in force: `dim_line`, `dim_line_direction` (headsign, main pattern) and `dim_line_stop` (every stop served, in order). The API serves the version in force on the rider's own date, so commute validation is right across a service change. A first draft used only the last synced day's version: a backfill or a new schedule would then have accepted removed stops, whose alerts never fire, and rejected new ones.
 - **Headsigns:** Metro's `trips.txt` leaves `trip_headsign` empty for all 33,614 trips, but every stop time carries `stop_headsign` ("754 - Vermont / Athens Station"). The headsign is the most common one at the trips' first stops, without the line prefix. On combined lines (`14/37`) the prefix says which sub-line runs that direction, so it stays.
-- **Stop order:** a line-direction runs up to 11 stop patterns (median 2). Each stop is ranked by its average relative position along the trips that serve it, so branch and short-turn stops fall between the trunk's. Rejected: the main pattern only, which would drop branch stops a rider might commute from; and a full pattern merge, which is complex for a stop picker.
+- **Stop order:** a direction runs several stop patterns (branches, short turns). Main-pattern stops keep their index. Every other stop is interpolated between the main-pattern stops before and after it in its own trip, then averaged. A first draft averaged each trip's own 0..1 position, and review showed a peak short turn starting mid-route would drag a trunk stop ahead of earlier ones. A dbt test now checks that main-pattern stops stay in route order. Rejected: the main pattern only, which drops branch stops riders board at; a full pattern merge, which is complex for a stop picker.
 - **Record:** `pipeline/dbt/models/gold/dim_line*.sql`; quiz 035.
 
 ### 16. Ingest every line; scope the headline numbers
