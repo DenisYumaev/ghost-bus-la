@@ -57,14 +57,15 @@ T2_BACK = json.dumps({"id": "T2-back", "tripUpdate": {
     "vehicle": {"id": "4001"}, "timestamp": "1794680100"}})  # fmt: skip
 
 
-def run_dbt(data: Path, tmp: Path) -> Path:
+def run_dbt(data: Path, tmp: Path, tz: str = "America/Los_Angeles") -> Path:
     """`dbt build` into a fresh DuckDB file; returns a copy safe to open from the test."""
     db = tmp / "ghostbus.duckdb"
     env = {
         "GHOSTBUS_DUCKDB": str(db),  # profiles.yml reads it
         # Los Angeles, not UTC: SQL that relies on the session zone must fail here
-        # (pipeline spec, section 5).
-        "GHOSTBUS_DBT_TZ": "America/Los_Angeles",
+        # (pipeline spec, section 5). test_the_build_does_not_depend_on_the_session_zone also
+        # builds in a third zone, which catches SQL that quietly assumes Los Angeles.
+        "GHOSTBUS_DBT_TZ": tz,
         "DBT_SEND_ANONYMOUS_USAGE_STATS": "false",  # offline (hard rule 10)
     }
     old = {k: os.environ.get(k) for k in env}
@@ -98,17 +99,41 @@ def run_dbt(data: Path, tmp: Path) -> Path:
     return copy
 
 
-@pytest.fixture(scope="module")
-def warehouse(tmp_path_factory: pytest.TempPathFactory) -> Path:
-    tmp = tmp_path_factory.mktemp("dbt")
-    data = build(
+def _world(tmp: Path) -> Path:
+    return build(
         tmp,
         # The same vehicle report in two fetches.
         [("2026-11-14T16:50:00Z", [VEHICLE]), ("2026-11-14T16:50:30Z", [VEHICLE])],
         [("2026-11-14T16:50:00Z", [CANCELED, T1_STALE, T1_NEW, UNMATCHED]),
          ("2026-11-14T16:51:00Z", [CANCELED, T2_BACK])],
     )  # fmt: skip
-    return run_dbt(data, tmp)
+
+
+@pytest.fixture(scope="module")
+def warehouse(tmp_path_factory: pytest.TempPathFactory) -> Path:
+    tmp = tmp_path_factory.mktemp("dbt")
+    return run_dbt(_world(tmp), tmp)
+
+
+def test_the_build_does_not_depend_on_the_session_zone(
+    warehouse: Path, tmp_path_factory: pytest.TempPathFactory
+) -> None:
+    """The same world built in Asia/Kolkata (UTC+5:30) gives the same warehouse, and every unit
+    test passes there too: no model relies on the session being UTC or Los Angeles."""
+    from fingerprint_warehouse import fingerprints
+
+    tmp = tmp_path_factory.mktemp("dbt_kolkata")
+    other = run_dbt(_world(tmp), tmp, tz="Asia/Kolkata")
+    with (
+        duckdb.connect(str(warehouse), read_only=True) as a,
+        duckdb.connect(str(other), read_only=True) as b,
+    ):
+        fa, fb = fingerprints(a), fingerprints(b)
+    # Views over the world's files read different temp directories; compare everything else,
+    # and the views' rows, which don't contain the path.
+    assert {k: v for k, v in fa.items() if not k.startswith("main.src_")} == {
+        k: v for k, v in fb.items() if not k.startswith("main.src_")
+    }
 
 
 def rows(db: Path, sql: str) -> list[tuple[Any, ...]]:

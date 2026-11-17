@@ -179,7 +179,7 @@ Engine: dbt-duckdb reading Parquet from S3. Materialize silver and gold as Parqu
 | --- | --- | --- |
 | `fct_trip_outcomes` | scheduled trip × service date | `outcome`, `announced`, `announce_source`, `advance_notice_s`, `stop_coverage`, `match_method`, `is_metro_operated`. M1 (ADR-024): rules 1, 2, 3, 5; updates-only observed trips are `partial`; `is_metro_operated` NULL until the contracted-lines seed. Observed running needs evidence at or after the scheduled start (ADR-024). Acceptance query: `scripts/line_day_summary.py` (internal check, not quotable: line 754 on 2026-11-15, 110 scheduled, 105 ran, 4 partial, 1 missed; reconciliation holds) |
 | `fct_stop_service` | scheduled trip × stop × service date (P1) | Whether the trip served each stop |
-| `fct_reliability` | line × direction × day type × hour × window | Trip counts and rates with intervals; windows `28d`, `90d`, `all`. Day type comes from the schedule: the weekly pattern most of the date's trips come from, so a holiday on Sunday service is a sunday (`int_service_day_types`; calendar day only when no trip votes). Hour is the local clock hour of the scheduled start, so a 25:30 trip is hour 1 of its own service date. Windows end at the last service date with outcomes, never at the build clock. `n_trips` = scheduled − unknown, the rates' denominator. Suppression thresholds are dbt vars (`min_cell_trips` 30, `min_cell_service_days` 10). Intervals are NULL until the bootstrap lands |
+| `fct_reliability` | line × direction × day type × hour × window | Trip counts and rates with intervals; windows `28d`, `90d`, `all`. ADR-025: day type from the schedule (the pure weekly pattern most of the date's trips come from, so a holiday on Sunday service is a sunday; `int_service_day_types`); hour = local clock hour of the scheduled start, day type from the service date; windows end at the last service date with outcomes, and `first_data_date` says where a cell's data starts; suppression per section 9. `n_trips` = scheduled − unknown, the rates' denominator. Trips are kept unless `is_metro_operated` is false (NULL until the contracted-lines seed). Intervals are NULL until the bootstrap lands |
 | `fct_stop_reliability` | line × direction × stop × day type × hour × window (P1) | Same, at the stop |
 | `fct_feed_health` | feed × 5 minutes | Freshness, fetch error rate, healthy flag |
 | `fct_reconciliation_monthly` | line × month | This project's canceled rate, Metro's, the difference, an explanation field |
@@ -243,7 +243,7 @@ unplanned_share = unplanned_rate / missed_rate
 
 Trips on one day share causes (an operator shortage at one division), so they aren't independent and a Wilson interval would be too narrow. Use a **cluster bootstrap over service dates**: resample whole days with replacement, 2,000 replicates, fixed seed, 95% percentile interval. Runs nightly in Python (`analysis/bootstrap.py`) and writes interval columns into `fct_reliability`.
 
-Suppress any cell with fewer than 30 trips or fewer than 10 service days: publish `suppressed = true` and no rate.
+Suppress any cell with fewer than 30 trips, or fewer service days than its day type's minimum: 10 for weekday cells, 4 for Saturday and Sunday cells (ADR-025; a 28-day window holds only 4 of each weekend day). Publish `suppressed = true` and no rate.
 
 ## 10. Data quality
 
