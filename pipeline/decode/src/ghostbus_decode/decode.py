@@ -88,11 +88,15 @@ def _marker_key(feed: str, day: date) -> str:
 
 
 def decoded_parts(bucket: ReadBucket, feed: str, day: date) -> dict[str, list[str]]:
-    """Part files per output table of the day's last complete run; {} if none."""
+    """Part files per output table of the day's last complete run; {} if none, or if that
+    run was written by an older decoder (its columns differ: re-decode the day)."""
     key = _marker_key(feed, day)
     if key not in bucket.list_keys(key.rsplit("/", 1)[0] + "/"):
         return {}
-    parts: dict[str, list[str]] = json.loads(bucket.get(key))["part_keys"]
+    marker = json.loads(bucket.get(key))
+    if marker.get("decoder_version") != DECODER_VERSION:
+        return {}
+    parts: dict[str, list[str]] = marker["part_keys"]
     return parts
 
 

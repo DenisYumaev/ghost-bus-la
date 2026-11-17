@@ -255,3 +255,16 @@ def test_a_crash_mid_run_leaves_the_previous_decode_readable(tmp_path: Path) -> 
         decode_day(bucket, VP, DAY, workdir=tmp_path, run_id="r2")
     bucket.put = real_put  # type: ignore[method-assign]
     assert query(bucket, VP, "vehicle_position", sql, tmp_path) == before
+
+
+def test_a_marker_from_an_older_decoder_lists_no_parts(tmp_path: Path) -> None:
+    from ghostbus_decode.decode import DECODER_VERSION, output_prefix
+
+    bucket = FakeBucket()
+    store(bucket, VP, [("2026-11-14T05:00:00Z", [vehicle("1", 1794539500)])])
+    decode_day(bucket, VP, DAY, workdir=tmp_path)
+    key = output_prefix("vehicle_position", VP, DAY) + "_SUCCESS"
+    marker = json.loads(bucket.objects[key])
+    marker["decoder_version"] = DECODER_VERSION - 1
+    bucket.objects[key] = json.dumps(marker).encode()
+    assert decoded_parts(bucket, VP, DAY) == {}

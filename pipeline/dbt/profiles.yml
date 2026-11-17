@@ -7,7 +7,13 @@ ghostbus:
       path: "{{ env_var('GHOSTBUS_DUCKDB', 'data/ghostbus.duckdb') }}"
       threads: 2
       settings:
-        memory_limit: "1GB"
+        # A laptop build (ADR-023): 1GB ran out on the grain test over three days of trip
+        # updates (127M rows). On the VM, set GHOSTBUS_DBT_MEMORY lower and sync fewer days.
+        memory_limit: "{{ env_var('GHOSTBUS_DBT_MEMORY', '4GB') }}"
+        # Lets large aggregates (grain tests over ~40M trip-update rows a day) stream and
+        # spill to DuckDB's default temp folder next to the database file. (Setting
+        # temp_directory here fails: dbt-duckdb reapplies settings on every connection.)
+        preserve_insertion_order: false
         # UTC by default; tests run in Los Angeles time so SQL that relies on the session
         # zone fails (pipeline spec, section 5).
         TimeZone: "{{ env_var('GHOSTBUS_DBT_TZ', 'UTC') }}"
