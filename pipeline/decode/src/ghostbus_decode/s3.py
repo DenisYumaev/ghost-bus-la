@@ -15,6 +15,7 @@ class ReadBucket(Protocol):
 
 class Bucket(ReadBucket, Protocol):
     def put(self, key: str, body: bytes) -> None: ...
+    def delete(self, key: str) -> None: ...
 
 
 class BronzeWriteRefused(Exception):
@@ -22,7 +23,7 @@ class BronzeWriteRefused(Exception):
 
 
 class S3Bucket:
-    """`Bucket` over a boto3 S3 client. Refuses any write under `bronze/`."""
+    """`Bucket` over a boto3 S3 client. Refuses any write or delete under `bronze/`."""
 
     def __init__(self, client: Any, bucket: str) -> None:
         self._s3 = client
@@ -44,3 +45,9 @@ class S3Bucket:
         if key.startswith(BRONZE_PREFIX):
             raise BronzeWriteRefused(key)
         self._s3.put_object(Bucket=self._bucket, Key=key, Body=body)
+
+    def delete(self, key: str) -> None:
+        """Delete a derived object (a stale part file). Never under `bronze/`."""
+        if key.startswith(BRONZE_PREFIX):
+            raise BronzeWriteRefused(key)
+        self._s3.delete_object(Bucket=self._bucket, Key=key)

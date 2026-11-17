@@ -4,7 +4,7 @@
 # never an apply target (CLAUDE.md hard rule 8).
 
 .DEFAULT_GOAL := help
-.PHONY: help install test lint fmt hooks tf-test plan-bootstrap plan selftest-s3 deploy-ingest gtfs-versions gtfs-load
+.PHONY: help install test lint fmt hooks tf-test plan-bootstrap plan selftest-s3 deploy-ingest gtfs-versions gtfs-load compact
 
 help:  ## List the targets
 	@grep -E '^[a-z0-9-]+:.*## ' $(MAKEFILE_LIST) | awk -F':.*## ' '{printf "  %-15s %s\n", $$1, $$2}'
@@ -52,3 +52,7 @@ gtfs-versions:  ## Rebuild dim_schedule_version in derived/ from the GTFS ZIPs i
 
 gtfs-load:  ## Rebuild dim_schedule_version and extract every new GTFS version's tables to derived/
 	uv run python -m ghostbus_decode.gtfs_tables --bucket "$$(terraform -chdir=infra output -raw data_bucket_name)"
+
+compact:  ## Compact one closed UTC day of snapshots into derived/compacted/: make compact DAY=YYYY-MM-DD
+	@test -n "$(DAY)" || (echo "usage: make compact DAY=YYYY-MM-DD" && exit 2)
+	uv run python -m ghostbus_decode.compact --bucket "$$(terraform -chdir=infra output -raw data_bucket_name)" --day $(DAY)

@@ -39,6 +39,7 @@ All quizzes are in `docs/learning/quizzes/` on `main`. Take them whenever you ha
 | [#27](https://github.com/DenisYumaev/ghost-bus-la/pull/27) | Drill 1 record; M0 acceptance met | n/a (no code) | [ ] | n/a | Ran on the VM, 2026-11-17 |
 | [#28](https://github.com/DenisYumaev/ghost-bus-la/pull/28) | GTFS loader part 1: `dim_schedule_version` from bronze | [ ] [023](quizzes/023-gtfs-versions-loader.md) | [ ] | n/a | Wrote `derived/decoded/gtfs/dim_schedule_version.parquet`, 2026-11-17 |
 | [#29](https://github.com/DenisYumaev/ghost-bus-la/pull/29) | GTFS loader part 2: strict table extraction | [ ] [024](quizzes/024-gtfs-tables.md) | [ ] | n/a | Extracted to `derived/decoded/gtfs/cb1a2283abecc0af/`, 2026-11-17 |
+| [#30](https://github.com/DenisYumaev/ghost-bus-la/pull/30) | Compaction | [ ] [025](quizzes/025-compaction.md) | [ ] | n/a | Compacted 2026-11-14 to `derived/compacted/`, 2026-11-17 |
 
 **Suggested order, if you take them:** 004, 005, and 006 first, because they describe what is live in AWS right now. Then 002, 001, and 003.
 

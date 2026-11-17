@@ -76,6 +76,7 @@ make fmt
 make plan      # terraform plan; there is deliberately no apply target
 make gtfs-versions  # rebuild dim_schedule_version in derived/ from the GTFS ZIPs in bronze
 make gtfs-load      # that, plus extract each new version's tables to derived/decoded/gtfs/<version>/
+make compact DAY=2026-11-14  # one closed UTC day of snapshots into derived/compacted/
 ```
 
 Add `make dbt`, `make backfill START= END=`, and `make resume-metrics` as those pieces arrive.

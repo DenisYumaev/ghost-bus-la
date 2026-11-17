@@ -144,6 +144,15 @@ The trade-offs in Ghost Bus LA you should be able to defend out loud. Each entry
 - **Rebuildable:** `_SUCCESS` records the extractor version, so a stricter extractor redoes old versions rather than leaving a mix of schemas.
 - **Record:** `docs/spec/01-data-pipeline.md` sections 3 and 4; `pipeline/decode/src/ghostbus_decode/gtfs_tables.py`; quiz 024.
 
+### 15c. Compaction: rows from the fetch log, bounded files
+
+- **Decision:** each closed UTC day's snapshots become Parquet files under `derived/compacted/`, one row per `written` or `duplicate` fetch, with the exact stored bytes. 200 snapshots per file.
+- **Why rows come from the fetch log, not the bucket listing:** content addressing stores identical bytes once, but the same bytes cut at two times are two observations. Those minutes of coverage are what let the pipeline say `unknown` instead of `missed`. Fetches whose object never arrived are listed, not dropped.
+- **Why bounded files:** measured, DuckDB 2.0's Parquet writer allocated one buffer the size of the whole BLOB column: 512 MiB for a day of trip updates, failing at a 512 MB limit whatever the row-group setting. Two hundred snapshots (or 64 MB) per file caps memory (peak 750 MB for the whole run, with downloads in flight) no matter how big a day gets.
+- **Why a marker, not a glob:** each run writes a new `run=<id>/` folder, then `_SUCCESS` listing its files, then deletes older runs. A crash at any point leaves the previous marker pointing at a complete run, so a reader never sees a mixed or half-written day (the review found the in-place version could silently lose a row). The marker records missing fetch-log hours too, so an incomplete log is visible.
+- **Proof:** Nov 14 compacted to 2,880 + 1,436 rows with 129.46 MB + 363.98 MB of payload, matching the measured-day report.
+- **Record:** `docs/spec/01-data-pipeline.md` section 3; `pipeline/decode/src/ghostbus_decode/compact.py`; quiz 025.
+
 ### 16. Ingest every line; scope the headline numbers
 
 - **Decision:** archive all lines, and compute headline metrics on Metro-operated lines only.
