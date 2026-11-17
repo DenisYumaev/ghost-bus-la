@@ -333,7 +333,7 @@ The realtime stream shows only the present. Every day without the archive is his
 - GTFS static loader with versioning from day one; daily download and hash check
 - Compaction and decode steps; DuckDB over Parquet
 - dbt silver models; schedule expansion; trip matching v1 on trip ID
-- `fct_trip_outcomes` v1: `ran`, `missed`, `unknown`; `fct_feed_health`
+- `fct_trip_outcomes` v1: `ran`, `partial`, `missed`, `unknown` (ADR-024; `likely_untracked` in M4); `fct_feed_health`
 - Measure advance notice of announced cancellations (product gate, 2.6)
 - Start rider conversations (5)
 

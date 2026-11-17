@@ -26,6 +26,9 @@ vars:
   min_feed_healthy_share: 0.90
   match_rate_alert: 0.95
   match_rate_error: 0.80
+  # A feed is healthy in a 5-minute bucket if a fetch succeeded with a feed timestamp under
+  # this many seconds old (ADR-024; measured age: median 10-13 s, max 98 s).
+  feed_fresh_max_s: 180
 
 models:
   ghostbus:
