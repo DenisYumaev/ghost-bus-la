@@ -209,3 +209,44 @@ def test_observations_end_to_end(warehouse: Path) -> None:
         # was withdrawn at 16:51 Nov 14, long before the start.
         ("T2-JUNE26", 0, None, None, 0, False, False, None),
     ]
+
+
+def test_outcomes_end_to_end(warehouse: Path) -> None:
+    sql = (
+        "SELECT trip_id, outcome, round(stop_coverage, 3), feed_healthy_share, announced "
+        "FROM fct_trip_outcomes ORDER BY trip_id"
+    )
+    assert rows(warehouse, sql) == [
+        # T1: vehicle 3912 reached stop 2 of 3 after the start -> coverage 0.667 -> partial.
+        # Its window (16:20-18:05 UTC) has 21 buckets; the world fetched only at 16:50.
+        ("T1-JUNE26", "partial", 0.667, 1 / 21, False),
+        # T2: not observed; nothing was fetched during its window (13:15-14:45 UTC Nov 15),
+        # so feeds count as unhealthy there -> unknown, not missed.
+        ("T2-JUNE26", "unknown", None, 0.0, False),
+    ]
+
+
+def test_feed_health_end_to_end(warehouse: Path) -> None:
+    # 3 synced UTC days x 288 five-minute buckets x 2 feeds.
+    assert rows(warehouse, "SELECT count(*) FROM fct_feed_health") == [(1728,)]
+    healthy = rows(warehouse, "SELECT feed, CAST(timezone('UTC', bucket_start) AS VARCHAR), "
+                   "n_success FROM fct_feed_health WHERE healthy ORDER BY feed")  # fmt: skip
+    assert healthy == [
+        ("trip_updates", "2026-11-14 16:50:00", 2),
+        ("vehicle_positions", "2026-11-14 16:50:00", 2),
+    ]
+
+
+def test_the_acceptance_query_reports_a_line_and_refuses_an_empty_one(warehouse: Path) -> None:
+    import subprocess
+    import sys
+
+    script = str(DBT.parents[1] / "scripts" / "line_day_summary.py")
+    ok = subprocess.run([sys.executable, script, "2", "2026-11-14", str(warehouse)],  # noqa: S603
+                        capture_output=True, text=True, check=False)  # fmt: skip
+    assert ok.returncode == 0, ok.stderr
+    assert "scheduled: 1" in ok.stdout
+    assert "partial: 1" in ok.stdout
+    empty = subprocess.run([sys.executable, script, "999", "2026-11-14", str(warehouse)],  # noqa: S603
+                           capture_output=True, text=True, check=False)  # fmt: skip
+    assert empty.returncode == 1

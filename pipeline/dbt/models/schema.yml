@@ -230,6 +230,34 @@ models:
       - name: rt_canceled
         data_tests: [not_null]
 
+  - name: int_feed_health_5min
+    description: One row per realtime feed per 5-minute bucket over the synced UTC days.
+    data_tests:
+      - unique_combination:
+          arguments: {columns: [feed, bucket_start]}
+
+  - name: fct_feed_health
+    description: Feed freshness, fetch error rate and healthy flag per 5 minutes.
+    data_tests:
+      - unique_combination:
+          arguments: {columns: [feed, bucket_start]}
+
+  - name: fct_trip_outcomes
+    description: One outcome per scheduled trip per service date (ADR-024).
+    data_tests:
+      - unique_combination:
+          arguments: {columns: [service_date, schedule_version, trip_id]}
+    columns:
+      - name: outcome
+        data_tests:
+          - not_null
+          - accepted_values:
+              arguments: {values: [ran, partial, unknown, missed]}
+      - name: announced
+        data_tests: [not_null]
+      - name: feed_healthy_share
+        data_tests: [not_null]
+
 unit_tests:
   - name: stg_fetch_log_collapses_repeated_lines_and_keeps_only_fetches
     model: stg_fetch_log
@@ -562,3 +590,108 @@ unit_tests:
         - {trip_id: D, n_positions: 0, n_positions_after_start: 0, n_positions_ambiguous: 0, vehicle_ids: null, max_stop_sequence: null, max_stop_sequence_after_start: null, n_updates: 1, n_updates_with_vehicle: 0, observed_running: false, rt_canceled: false, first_seen_utc: null, last_seen_utc: null}
         - {trip_id: E, n_positions: 0, n_positions_after_start: 0, n_positions_ambiguous: 0, vehicle_ids: null, max_stop_sequence: null, max_stop_sequence_after_start: null, n_updates: 0, n_updates_with_vehicle: 0, observed_running: false, rt_canceled: true, first_seen_utc: null, last_seen_utc: null}
         - {trip_id: F, n_positions: 0, n_positions_after_start: 0, n_positions_ambiguous: 0, vehicle_ids: null, max_stop_sequence: null, max_stop_sequence_after_start: null, n_updates: 0, n_updates_with_vehicle: 0, observed_running: false, rt_canceled: false, first_seen_utc: null, last_seen_utc: null}
+
+  - name: fct_trip_outcomes_walks_the_decision_table
+    model: fct_trip_outcomes
+    given:
+      - input: ref('int_trip_observations')
+        rows:
+          - {trip_id: A, service_date: "2026-11-15", schedule_version: v, n_stops: 10, sched_start_utc: "2026-11-15 16:00:00+00", sched_end_utc: "2026-11-15 16:15:00+00", window_start: "2026-11-15 16:00:00+00", window_end: "2026-11-15 16:15:00+00", observed_running: true, max_stop_sequence: 8, rt_canceled: false, canceled_first_seen_at: null, n_positions: 1, n_updates_with_vehicle: 0}
+          - {trip_id: B, service_date: "2026-11-15", schedule_version: v, n_stops: 10, sched_start_utc: "2026-11-15 16:00:00+00", sched_end_utc: "2026-11-15 16:15:00+00", window_start: "2026-11-15 16:00:00+00", window_end: "2026-11-15 16:15:00+00", observed_running: true, max_stop_sequence: 2, rt_canceled: false, canceled_first_seen_at: null, n_positions: 1, n_updates_with_vehicle: 0}
+          - {trip_id: C, service_date: "2026-11-15", schedule_version: v, n_stops: 10, sched_start_utc: "2026-11-15 16:00:00+00", sched_end_utc: "2026-11-15 16:15:00+00", window_start: "2026-11-15 16:00:00+00", window_end: "2026-11-15 16:15:00+00", observed_running: true, max_stop_sequence: null, rt_canceled: false, canceled_first_seen_at: null, n_positions: 1, n_updates_with_vehicle: 0}
+          - {trip_id: D, service_date: "2026-11-15", schedule_version: v, n_stops: 10, sched_start_utc: "2026-11-15 16:00:00+00", sched_end_utc: "2026-11-15 16:15:00+00", window_start: "2026-11-15 16:00:00+00", window_end: "2026-11-15 16:15:00+00", observed_running: false, max_stop_sequence: null, rt_canceled: true, canceled_first_seen_at: "2026-11-15 15:30:00+00", n_positions: 1, n_updates_with_vehicle: 0}
+          - {trip_id: U, service_date: "2026-11-15", schedule_version: v, n_stops: 10, sched_start_utc: "2026-11-15 16:00:00+00", sched_end_utc: "2026-11-15 16:15:00+00", window_start: "2026-11-15 16:00:00+00", window_end: "2026-11-15 16:15:00+00", observed_running: false, max_stop_sequence: null, rt_canceled: false, canceled_first_seen_at: null, n_positions: 1, n_updates_with_vehicle: 0}
+          - {trip_id: R, service_date: "2026-11-15", schedule_version: v, n_stops: 10, sched_start_utc: "2026-11-15 16:00:00+00", sched_end_utc: "2026-11-15 16:15:00+00", window_start: "2026-11-15 16:00:00+00", window_end: "2026-11-15 16:15:00+00", observed_running: true, max_stop_sequence: 10, rt_canceled: true, canceled_first_seen_at: "2026-11-15 15:00:00+00", n_positions: 1, n_updates_with_vehicle: 0}
+          - {trip_id: E, service_date: "2026-11-15", schedule_version: v, n_stops: 10, sched_start_utc: "2026-11-15 17:00:00+00", sched_end_utc: "2026-11-15 17:15:00+00", window_start: "2026-11-15 17:00:00+00", window_end: "2026-11-15 17:15:00+00", observed_running: false, max_stop_sequence: null, rt_canceled: false, canceled_first_seen_at: null, n_positions: 1, n_updates_with_vehicle: 0}
+          - {trip_id: O, service_date: "2026-11-15", schedule_version: v, n_stops: 10, sched_start_utc: "2026-11-15 17:00:00+00", sched_end_utc: "2026-11-15 17:15:00+00", window_start: "2026-11-15 17:00:00+00", window_end: "2026-11-15 17:15:00+00", observed_running: true, max_stop_sequence: 9, rt_canceled: false, canceled_first_seen_at: null, n_positions: 1, n_updates_with_vehicle: 0}
+          - {trip_id: N, service_date: "2026-11-15", schedule_version: v, n_stops: 10, sched_start_utc: "2026-11-15 18:00:00+00", sched_end_utc: "2026-11-15 18:50:00+00", window_start: "2026-11-15 18:00:00+00", window_end: "2026-11-15 18:50:00+00", observed_running: false, max_stop_sequence: null, rt_canceled: false, canceled_first_seen_at: null, n_positions: 1, n_updates_with_vehicle: 0}
+          - {trip_id: Z, service_date: "2026-11-15", schedule_version: v, n_stops: 10, sched_start_utc: "2026-11-15 23:00:00+00", sched_end_utc: "2026-11-15 23:15:00+00", window_start: "2026-11-15 23:00:00+00", window_end: "2026-11-15 23:15:00+00", observed_running: false, max_stop_sequence: null, rt_canceled: false, canceled_first_seen_at: null, n_positions: 1, n_updates_with_vehicle: 0}
+      - input: ref('int_feed_health_5min')
+        rows:
+          - {feed: vehicle_positions, bucket_start: "2026-11-15 15:55:00+00", healthy: false}
+          - {feed: trip_updates, bucket_start: "2026-11-15 15:55:00+00", healthy: false}
+          - {feed: vehicle_positions, bucket_start: "2026-11-15 16:00:00+00", healthy: true}
+          - {feed: trip_updates, bucket_start: "2026-11-15 16:00:00+00", healthy: true}
+          - {feed: vehicle_positions, bucket_start: "2026-11-15 16:05:00+00", healthy: true}
+          - {feed: trip_updates, bucket_start: "2026-11-15 16:05:00+00", healthy: true}
+          - {feed: vehicle_positions, bucket_start: "2026-11-15 16:10:00+00", healthy: true}
+          - {feed: trip_updates, bucket_start: "2026-11-15 16:10:00+00", healthy: true}
+          - {feed: vehicle_positions, bucket_start: "2026-11-15 16:15:00+00", healthy: false}
+          - {feed: trip_updates, bucket_start: "2026-11-15 16:15:00+00", healthy: false}
+          - {feed: vehicle_positions, bucket_start: "2026-11-15 17:00:00+00", healthy: true}
+          - {feed: trip_updates, bucket_start: "2026-11-15 17:00:00+00", healthy: true}
+          - {feed: vehicle_positions, bucket_start: "2026-11-15 17:05:00+00", healthy: true}
+          - {feed: trip_updates, bucket_start: "2026-11-15 17:05:00+00", healthy: false}
+          - {feed: vehicle_positions, bucket_start: "2026-11-15 17:10:00+00", healthy: true}
+          - {feed: trip_updates, bucket_start: "2026-11-15 17:10:00+00", healthy: true}
+          - {feed: vehicle_positions, bucket_start: "2026-11-15 18:00:00+00", healthy: true}
+          - {feed: trip_updates, bucket_start: "2026-11-15 18:00:00+00", healthy: true}
+          - {feed: vehicle_positions, bucket_start: "2026-11-15 18:05:00+00", healthy: true}
+          - {feed: trip_updates, bucket_start: "2026-11-15 18:05:00+00", healthy: true}
+          - {feed: vehicle_positions, bucket_start: "2026-11-15 18:10:00+00", healthy: true}
+          - {feed: trip_updates, bucket_start: "2026-11-15 18:10:00+00", healthy: true}
+          - {feed: vehicle_positions, bucket_start: "2026-11-15 18:15:00+00", healthy: true}
+          - {feed: trip_updates, bucket_start: "2026-11-15 18:15:00+00", healthy: true}
+          - {feed: vehicle_positions, bucket_start: "2026-11-15 18:20:00+00", healthy: true}
+          - {feed: trip_updates, bucket_start: "2026-11-15 18:20:00+00", healthy: true}
+          - {feed: vehicle_positions, bucket_start: "2026-11-15 18:25:00+00", healthy: true}
+          - {feed: trip_updates, bucket_start: "2026-11-15 18:25:00+00", healthy: false}
+          - {feed: vehicle_positions, bucket_start: "2026-11-15 18:30:00+00", healthy: true}
+          - {feed: trip_updates, bucket_start: "2026-11-15 18:30:00+00", healthy: true}
+          - {feed: vehicle_positions, bucket_start: "2026-11-15 18:35:00+00", healthy: true}
+          - {feed: trip_updates, bucket_start: "2026-11-15 18:35:00+00", healthy: true}
+          - {feed: vehicle_positions, bucket_start: "2026-11-15 18:40:00+00", healthy: true}
+          - {feed: trip_updates, bucket_start: "2026-11-15 18:40:00+00", healthy: true}
+          - {feed: vehicle_positions, bucket_start: "2026-11-15 18:45:00+00", healthy: true}
+          - {feed: trip_updates, bucket_start: "2026-11-15 18:45:00+00", healthy: true}
+    expect:
+      rows:
+        - {trip_id: A, outcome: ran, stop_coverage: 0.8, feed_healthy_share: 1.0, announced: false, advance_notice_s: null}
+        - {trip_id: B, outcome: partial, stop_coverage: 0.2, feed_healthy_share: 1.0, announced: false, advance_notice_s: null}
+        - {trip_id: C, outcome: partial, stop_coverage: null, feed_healthy_share: 1.0, announced: false, advance_notice_s: null}
+        - {trip_id: D, outcome: missed, stop_coverage: null, feed_healthy_share: 1.0, announced: true, advance_notice_s: 1800}
+        - {trip_id: U, outcome: missed, stop_coverage: null, feed_healthy_share: 1.0, announced: false, advance_notice_s: null}
+        - {trip_id: R, outcome: ran, stop_coverage: 1.0, feed_healthy_share: 1.0, announced: true, advance_notice_s: 3600}
+        - {trip_id: E, outcome: unknown, stop_coverage: null, feed_healthy_share: 0.6666666666666666, announced: false, advance_notice_s: null}
+        - {trip_id: O, outcome: ran, stop_coverage: 0.9, feed_healthy_share: 0.6666666666666666, announced: false, advance_notice_s: null}
+        - {trip_id: N, outcome: missed, stop_coverage: null, feed_healthy_share: 0.9, announced: false, advance_notice_s: null}
+        - {trip_id: Z, outcome: unknown, stop_coverage: null, feed_healthy_share: null, announced: false, advance_notice_s: null}
+
+  - name: int_feed_health_5min_marks_quiet_and_stale_buckets_unhealthy
+    model: int_feed_health_5min
+    given:
+      - input: ref('src_sync_range')
+        rows:
+          - {start: "2026-11-15", end: "2026-11-15"}
+      - input: ref('stg_fetch_log')
+        rows:
+          # 16:00: a fresh success. 16:05: only a stale success (200 s old). 16:10: only an
+          # error. 16:15: nothing at all.
+          - {feed: vehicle_positions, fetched_at: "2026-11-15 16:00:30+00", outcome: written, feed_header_ts: "2026-11-15 16:00:20+00"}
+          - {feed: vehicle_positions, fetched_at: "2026-11-15 16:05:30+00", outcome: written, feed_header_ts: "2026-11-15 16:02:10+00"}
+          - {feed: vehicle_positions, fetched_at: "2026-11-15 16:10:30+00", outcome: network_error, feed_header_ts: null}
+          # 16:20: a stale written and a fresh duplicate: the freshest success decides.
+          - {feed: vehicle_positions, fetched_at: "2026-11-15 16:20:10+00", outcome: written, feed_header_ts: "2026-11-15 16:15:00+00"}
+          - {feed: vehicle_positions, fetched_at: "2026-11-15 16:20:40+00", outcome: duplicate, feed_header_ts: "2026-11-15 16:20:30+00"}
+          # 16:25: exactly 180 s old: not under the limit.
+          - {feed: vehicle_positions, fetched_at: "2026-11-15 16:28:00+00", outcome: written, feed_header_ts: "2026-11-15 16:25:00+00"}
+          - {feed: gtfs_static, fetched_at: "2026-11-15 16:00:30+00", outcome: written, feed_header_ts: null}
+    expect:
+      format: sql
+      rows: |
+        -- Every bucket of the synced UTC days (Nov 14-16), both feeds: quiet unless listed.
+        select f.feed, b.bucket_start,
+               coalesce(o.n_fetches, 0) as n_fetches, coalesce(o.n_success, 0) as n_success,
+               o.freshest_age_s, coalesce(o.healthy, false) as healthy,
+               cast(b.bucket_start at time zone 'UTC' as date) <> date '2026-11-15' as is_padding
+        from generate_series(timestamptz '2026-11-14 00:00:00+00',
+                             timestamptz '2026-11-16 23:55:00+00', interval 5 minute) as b(bucket_start)
+        cross join (values ('vehicle_positions'), ('trip_updates')) as f(feed)
+        left join (values
+            ('vehicle_positions', timestamptz '2026-11-15 16:00:00+00', 1, 1, 10.0, true),
+            ('vehicle_positions', timestamptz '2026-11-15 16:05:00+00', 1, 1, 200.0, false),
+            ('vehicle_positions', timestamptz '2026-11-15 16:10:00+00', 1, 0, null, false),
+            ('vehicle_positions', timestamptz '2026-11-15 16:20:00+00', 2, 2, 10.0, true),
+            ('vehicle_positions', timestamptz '2026-11-15 16:25:00+00', 1, 1, 180.0, false)
+        ) as o(feed, bucket_start, n_fetches, n_success, freshest_age_s, healthy)
+            using (feed, bucket_start)

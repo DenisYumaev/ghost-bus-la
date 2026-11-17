@@ -191,6 +191,14 @@ The trade-offs in Ghost Bus LA you should be able to defend out loud. Each entry
 - **A correction worth remembering:** my first write-up said "117 canceled after the last position, median coverage 0.15". The reviewer noticed 121/117 matched an unrelated pair (the reinstatement counts) and that 0.15 didn't fit "first stop". A committed script showed the real breakdown. Ad-hoc numbers in docs are how wrong stories survive, hence hard rule 11.
 - **Record:** `pipeline/dbt/models/intermediate/int_trip_crosswalk.sql`, `int_trip_observations.sql`; quiz 030.
 
+### 15i. Outcomes v1: four labels, and the reconciliation identity
+
+- **Decision (ADR-024):** every scheduled trip gets exactly one outcome, by section 8's table, first match wins: `ran` (observed, coverage ≥ 0.80), `partial` (observed, coverage below that or unknown), `unknown` (not observed and feeds healthy in under 90% of the trip's 5-minute buckets), `missed` (everything else). `likely_untracked` (block neighbours) waits for M4.
+- **Why `partial` is in M1:** mid-trip cancellations would otherwise count as `ran` (76 of the 121 observed-and-canceled trips on Nov 15). **Why "observed" needs evidence after the scheduled start:** a bus waiting at the first stop in the 30 minutes before departure isn't running the trip; requiring a sighting after the start moved 25 trips from `partial` to `missed`. **Why updates-only trips are `partial`:** a vehicle was assigned but never reported a position, so claiming `ran` would overstate service, and `unknown` would misreport feed health.
+- **The identity:** scheduled = ran + partial + missed + unknown for every service date, enforced by a dbt test. If a join drops or doubles a trip, the build fails.
+- **M1 acceptance:** `scripts/line_day_summary.py 754 2026-11-15`: 110 scheduled, 105 ran, 4 partial, 1 missed (announced), reconciliation ok. The script exits non-zero on a mismatch or an empty line, so it can't report a false "ok". These are internal numbers: M1's `missed` still includes trips M4 may call `likely_untracked`, and nothing is quoted until M5 checks against Metro's report.
+- **Record:** ADR-024; `pipeline/dbt/models/gold/`; quiz 031.
+
 ### 16. Ingest every line; scope the headline numbers
 
 - **Decision:** archive all lines, and compute headline metrics on Metro-operated lines only.
