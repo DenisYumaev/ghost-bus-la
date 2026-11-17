@@ -18,6 +18,14 @@ seed-paths: ["../../tests/fixtures/dbt_seeds"]  # only CSVs meant as dbt seeds
 vars:
   # Local folder filled by `ghostbus_decode.sync` with marker-listed files only.
   data_dir: data
+  # Outcome thresholds (pipeline spec, section 8): starting points, to be tuned against
+  # hand-checked trips and frozen in an ADR. A sensitivity run is one --vars override.
+  window_before_start_min: 30
+  window_after_end_min: 60
+  min_stop_coverage: 0.80
+  min_feed_healthy_share: 0.90
+  match_rate_alert: 0.95
+  match_rate_error: 0.80
 
 models:
   ghostbus:

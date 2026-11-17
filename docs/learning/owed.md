@@ -44,6 +44,7 @@ All quizzes are in `docs/learning/quizzes/` on `main`. Take them whenever you ha
 | [#32](https://github.com/DenisYumaev/ghost-bus-la/pull/32) | dbt setup, sync, fetch log and schedule dims | [ ] [027](quizzes/027-dbt-setup.md) | [ ] | n/a | n/a (local build over synced Nov 14) |
 | [#33](https://github.com/DenisYumaev/ghost-bus-la/pull/33) | Realtime silver: vehicle positions, trip reports and updates, cancellations | [ ] [028](quizzes/028-realtime-silver.md) | [ ] | n/a | n/a (local build) |
 | [#34](https://github.com/DenisYumaev/ghost-bus-la/pull/34) | Schedule expansion (int_schedule_expanded) | [ ] [029](quizzes/029-schedule-expansion.md) | [ ] | n/a | n/a (local build) |
+| [#35](https://github.com/DenisYumaev/ghost-bus-la/pull/35) | Trip crosswalk (exact) and observations | [ ] [030](quizzes/030-observations.md) | [ ] | n/a | n/a (local build) |
 
 **Suggested order, if you take them:** 004, 005, and 006 first, because they describe what is live in AWS right now. Then 002, 001, and 003.
 

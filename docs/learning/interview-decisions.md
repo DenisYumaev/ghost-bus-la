@@ -183,6 +183,14 @@ The trade-offs in Ghost Bus LA you should be able to defend out loud. Each entry
 - **Scope:** only service dates the local copy covers completely (`_sync.json`), because the UTC days around the range are partial.
 - **Record:** `pipeline/dbt/models/intermediate/`, `pipeline/dbt/macros/gtfs_to_utc.sql`; quiz 029.
 
+### 15h. Observations: what counts as "seen running"
+
+- **Decision:** a scheduled trip is observed running if, inside its window (start −30 min to end +60 min), a vehicle position with a SCHEDULED descriptor matched it through the crosswalk, or a chosen SCHEDULED trip update carried a vehicle. Furthest progress comes from vehicle positions, not trip-update predictions. A cancellation counts only if not withdrawn before the scheduled start.
+- **Why each piece:** trip updates predict the *remaining* stops, so their maximum stop sequence is always near the end; only positions show progress. Non-chosen duplicate reports can be stale vehicle assignments next to a newer cancellation. The alerts spec withdraws a cancellation only while the start is still ahead.
+- **What data showed** (`docs/research/observations.md`): on Nov 15, 121 trips were both "observed" and canceled. Most were mid-trip cancellations: 76 had positions after the start, with median progress 0.21 of the route, and 84 of the 88 with positions were canceled after the last one. Twelve only waited before departure. Calling them `ran` would be wrong, so outcomes need the coverage rule (`partial`) from day one.
+- **A correction worth remembering:** my first write-up said "117 canceled after the last position, median coverage 0.15". The reviewer noticed 121/117 matched an unrelated pair (the reinstatement counts) and that 0.15 didn't fit "first stop". A committed script showed the real breakdown. Ad-hoc numbers in docs are how wrong stories survive, hence hard rule 11.
+- **Record:** `pipeline/dbt/models/intermediate/int_trip_crosswalk.sql`, `int_trip_observations.sql`; quiz 030.
+
 ### 16. Ingest every line; scope the headline numbers
 
 - **Decision:** archive all lines, and compute headline metrics on Metro-operated lines only.
