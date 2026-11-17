@@ -37,6 +37,7 @@ All quizzes are in `docs/learning/quizzes/` on `main`. Take them whenever you ha
 | [#25](https://github.com/DenisYumaev/ghost-bus-la/pull/25) | GTFS time and service-date math (M1 piece 1) | [ ] [021](quizzes/021-service-date.md) | [ ] | n/a | n/a |
 | [#26](https://github.com/DenisYumaev/ghost-bus-la/pull/26) | Schedule-version rule (version in force) | [ ] [022](quizzes/022-schedule-versions.md) | [ ] | n/a | n/a |
 | [#27](https://github.com/DenisYumaev/ghost-bus-la/pull/27) | Drill 1 record; M0 acceptance met | n/a (no code) | [ ] | n/a | Ran on the VM, 2026-11-17 |
+| [#28](https://github.com/DenisYumaev/ghost-bus-la/pull/28) | GTFS loader part 1: `dim_schedule_version` from bronze | [ ] [023](quizzes/023-gtfs-versions-loader.md) | [ ] | n/a | Wrote `derived/decoded/gtfs/dim_schedule_version.parquet`, 2026-11-17 |
 
 **Suggested order, if you take them:** 004, 005, and 006 first, because they describe what is live in AWS right now. Then 002, 001, and 003.
 
