@@ -13,7 +13,7 @@ On the VM, through SSM Run Command:
 2. `docker compose … stop ingest` at 01:31:38.5. The container finished at 01:31:40.3 (exit code 0, last log line `service_stop`). The restart policy `always` doesn't restart a container stopped by hand.
 3. Watched for the Healthchecks.io email, then checked the restart, the fetch log and objects in S3, and the spool.
 
-**This was a graceful stop (SIGTERM), not a hard kill.** The service made its final cuts and uploaded them before exiting. The criterion's observable result (a gap and the alert) doesn't depend on how the process dies, but the crash path, a SIGKILL that leaves spool files and an open fetch-log hour behind for the next start, was **not** exercised here. Recovery of leftover spool files at startup is covered by unit tests, not by a drill.
+**This was a graceful stop (SIGTERM), not a hard kill.** The service made its final cuts and uploaded them before exiting. The criterion's observable result (a gap and the alert) doesn't depend on how the process dies, but the crash path, a SIGKILL that leaves spool files and an open fetch-log hour behind for the next start, was **not** exercised here. Recovery after a crash is covered by unit tests, not by a drill: stale temp files are removed at startup (`test_stale_temp_files_are_cleaned_at_startup`), and any spool file without an `.uploaded` marker is uploaded (`test_pending_lists_unuploaded_files_oldest_first`, `test_pending_snapshot_is_uploaded_marked_and_logged`).
 
 ## What was expected
 
