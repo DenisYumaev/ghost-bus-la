@@ -148,7 +148,7 @@ def test_s3_bucket_follows_pagination_and_reads_bodies() -> None:
     import boto3
     from botocore.response import StreamingBody
     from botocore.stub import Stubber
-    from ghostbus_decode.gtfs_sightings import S3Bucket
+    from ghostbus_decode.s3 import BronzeWriteRefused, S3Bucket
 
     client = boto3.client(
         "s3", region_name="us-west-2", aws_access_key_id="testing",
@@ -173,4 +173,8 @@ def test_s3_bucket_follows_pagination_and_reads_bodies() -> None:
         bucket = S3Bucket(client, "b")
         assert bucket.list_keys("p/") == ["p/a", "p/b"]
         assert bucket.get("p/a") == b"hello"
+        stub.add_response("put_object", {}, {"Bucket": "b", "Key": "derived/x", "Body": b"1"})
+        bucket.put("derived/x", b"1")
+        with pytest.raises(BronzeWriteRefused):
+            bucket.put("bronze/gtfs_static/dt=2026-11-15/x.zip", b"1")
         stub.assert_no_pending_responses()

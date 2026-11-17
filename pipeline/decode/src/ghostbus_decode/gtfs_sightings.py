@@ -21,7 +21,9 @@ import re
 from collections.abc import Iterable
 from dataclasses import dataclass, field
 from datetime import datetime
-from typing import Any, Protocol
+from typing import Any
+
+from ghostbus_decode.s3 import ReadBucket
 
 GTFS_PREFIX = "bronze/gtfs_static/"
 FETCH_LOG_PREFIX = "bronze/_fetch_log/"
@@ -31,13 +33,6 @@ _KEY = re.compile(r"bronze/gtfs_static/dt=([0-9]{4}-[0-9]{2}-[0-9]{2})/([0-9a-f]
 
 class MissingSighting(Exception):
     """A ZIP is in bronze but no fetch-log line says when it was written."""
-
-
-class Bucket(Protocol):
-    """The two S3 reads the loader makes; `S3Bucket` wraps boto3, tests use a fake."""
-
-    def list_keys(self, prefix: str) -> list[str]: ...
-    def get(self, key: str) -> bytes: ...
 
 
 @dataclass(frozen=True)
@@ -104,7 +99,7 @@ def find_zips(keys: Iterable[str], scan: Scan) -> list[ZipSighting]:
     return sorted(found.values(), key=lambda z: (z.first_seen_at, z.sha256))
 
 
-def load_sightings(bucket: Bucket) -> list[ZipSighting]:
+def load_sightings(bucket: ReadBucket) -> list[ZipSighting]:
     """List the stored ZIPs, read the fetch log for the days they were stored, match them."""
     keys = [k for k in bucket.list_keys(GTFS_PREFIX) if k.endswith(".zip")]
     days = sorted({m.group(1) for k in keys if (m := _KEY.fullmatch(k))})
@@ -113,21 +108,3 @@ def load_sightings(bucket: Bucket) -> list[ZipSighting]:
         for log_key in bucket.list_keys(f"{FETCH_LOG_PREFIX}dt={day}/"):
             lines.extend(bucket.get(log_key).decode().splitlines())
     return find_zips(keys, scan_lines(lines))
-
-
-class S3Bucket:
-    """`Bucket` over a boto3 S3 client (credentials: the configured profile, hard rule 9)."""
-
-    def __init__(self, client: Any, bucket: str) -> None:
-        self._s3 = client
-        self._bucket = bucket
-
-    def list_keys(self, prefix: str) -> list[str]:
-        pages = self._s3.get_paginator("list_objects_v2").paginate(
-            Bucket=self._bucket, Prefix=prefix
-        )
-        return [obj["Key"] for page in pages for obj in page.get("Contents", [])]
-
-    def get(self, key: str) -> bytes:
-        body: bytes = self._s3.get_object(Bucket=self._bucket, Key=key)["Body"].read()
-        return body
