@@ -49,6 +49,7 @@ All quizzes are in `docs/learning/quizzes/` on `main`. Take them whenever you ha
 | [#37](https://github.com/DenisYumaev/ghost-bus-la/pull/37) | Drill 3: re-derive a day from bronze; outputs identical | [ ] [032](quizzes/032-rerun-day.md) | [ ] | n/a | n/a (local build) |
 | [#38](https://github.com/DenisYumaev/ghost-bus-la/pull/38) | Postgres `serving` and `ops` schemas (ADR-007); integration tests | [ ] [033](quizzes/033-postgres-schemas.md) | [ ] | n/a | n/a (not deployed yet) |
 | [#39](https://github.com/DenisYumaev/ghost-bus-la/pull/39) | `fct_reliability` and schedule-based day types | [ ] [034](quizzes/034-reliability.md) | [ ] | n/a | n/a (local build) |
+| [#40](https://github.com/DenisYumaev/ghost-bus-la/pull/40) | Line tables: `dim_line`, `dim_line_direction`, `dim_line_stop` | [ ] [035](quizzes/035-line-tables.md) | [ ] | n/a | n/a (local build) |
 
 **Suggested order, if you take them:** 004, 005, and 006 first, because they describe what is live in AWS right now. Then 002, 001, and 003.
 

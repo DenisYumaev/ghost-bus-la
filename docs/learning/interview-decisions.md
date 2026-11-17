@@ -222,6 +222,13 @@ The trade-offs in Ghost Bus LA you should be able to defend out loud. Each entry
 - **Holidays, from evidence:** the schedule removes the weekday services and adds Sunday ones on Thanksgiving and Labor Day (`docs/research/holiday-service.md`).
 - **Record:** ADR-025; `pipeline/dbt/models/gold/fct_reliability.sql`, `int_service_day_types.sql`; quiz 034.
 
+### 15l. Line tables: headsigns from stop headsigns, stop order from position
+
+- **Decision:** three line tables describe each line as it runs on the last synced service date (that day's schedule version): `dim_line`, `dim_line_direction` (headsign, main pattern) and `dim_line_stop` (every stop served, in order).
+- **Headsigns:** Metro's `trips.txt` leaves `trip_headsign` empty for all 33,614 trips, but every stop time carries `stop_headsign` ("754 - Vermont / Athens Station"). The headsign is the most common one at the trips' first stops, without the line prefix. On combined lines (`14/37`) the prefix says which sub-line runs that direction, so it stays.
+- **Stop order:** a line-direction runs up to 11 stop patterns (median 2). Each stop is ranked by its average relative position along the trips that serve it, so branch and short-turn stops fall between the trunk's. Rejected: the main pattern only, which would drop branch stops a rider might commute from; and a full pattern merge, which is complex for a stop picker.
+- **Record:** `pipeline/dbt/models/gold/dim_line*.sql`; quiz 035.
+
 ### 16. Ingest every line; scope the headline numbers
 
 - **Decision:** archive all lines, and compute headline metrics on Metro-operated lines only.
