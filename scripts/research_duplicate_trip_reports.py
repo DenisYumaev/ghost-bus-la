@@ -51,6 +51,28 @@ QUERIES = {
         SELECT vehicle_id IS NOT NULL AS has_vehicle, count(*) FROM r WHERE rn = 1
         GROUP BY 1 ORDER BY 1
     """,
+    "VERIFY trip reports without Metro's timestamp, by relationship": """
+        SELECT trip_schedule_relationship, count(*), count(*) FILTER (WHERE entity_ts IS NULL)
+        FROM stg_trip_reports GROUP BY 1 ORDER BY 1
+    """,
+    "VERIFY canceled entities: count, with an unchanging / changing timestamp, avg/max stamps": """
+        WITH x AS (
+            SELECT trip_id, service_date, entity_key, count(DISTINCT entity_ts) AS d
+            FROM stg_trip_reports WHERE trip_schedule_relationship = 'CANCELED' GROUP BY ALL)
+        SELECT count(*), count(*) FILTER (WHERE d = 1), count(*) FILTER (WHERE d > 1),
+               round(avg(d), 1), max(d)
+        FROM x
+    """,
+    "VERIFY canceled report timestamp behind fetch time, seconds (p50, p90; max)": """
+        SELECT quantile_cont(epoch(fetched_at) - epoch(entity_ts), [0.5, 0.9]),
+               max(epoch(fetched_at) - epoch(entity_ts))
+        FROM stg_trip_reports WHERE trip_schedule_relationship = 'CANCELED'
+    """,
+    "Nov 15 cancellations: total, reinstated, final episode later than first-ever": """
+        SELECT count(*), count(*) FILTER (WHERE reinstated),
+               count(*) FILTER (WHERE first_seen_at > first_ever_canceled_at)
+        FROM stg_cancellations WHERE service_date = DATE '2026-11-15'
+    """,
     "canceled trips (service date Nov 15) with a SCHEDULED report after the last CANCELED": """
         SELECT count(*) FROM stg_cancellations
         WHERE service_date = DATE '2026-11-15' AND reinstated

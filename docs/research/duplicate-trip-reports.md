@@ -24,7 +24,7 @@ Run on the same build after decode v3 (entity ids), 2026-11-17:
 | Canceled entities whose timestamp changes between fetches | 1,107 of 1,111 (average 128 distinct timestamps each, up to 838) |
 | Canceled report timestamp behind our fetch time | median 15 s, 90th percentile 29 s, max 77 s |
 | Nov 15 cancellations reinstated, by report time / by fetch time | 121 / 121 |
-| Nov 15 cancellations with a later final episode: ordering raw reports / one chosen state per fetch | 11 / 6 |
+| Nov 15 cancellations with a later final episode: ordering raw reports / one chosen state per fetch | 11 (the model at commit d40beaf) / 6 (current; the script's last query) |
 
 So Metro re-stamps a lingering canceled entry on every fetch. It isn't a stale row; each fetch restates the cancellation, which is why report-time and fetch-time ordering agree. The remaining hazard is two live entities for one trip both refreshing their timestamps: ordering raw reports interleaved them into fake episodes (5 of the 11). `stg_cancellations` therefore uses one state per fetch, the report `stg_trip_reports` chose (newest by Metro's timestamp), ordered by fetch time.
 
