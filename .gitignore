@@ -35,3 +35,10 @@ spool/
 .DS_Store
 .idea/
 .vscode/
+
+# --- Pipeline working data and dbt artifacts (rebuildable; never committed) ---
+data/
+pipeline/dbt/target/
+pipeline/dbt/logs/
+pipeline/dbt/dbt_packages/
+pipeline/dbt/.user.yml

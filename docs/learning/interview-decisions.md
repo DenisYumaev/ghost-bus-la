@@ -161,6 +161,14 @@ The trade-offs in Ghost Bus LA you should be able to defend out loud. Each entry
 - **Proof:** Nov 14 decoded to 3,331,689 vehicle rows and 42,417,214 trip-update rows, 0 quarantined; 563 distinct trips flagged `CANCELED`.
 - **Record:** `docs/spec/01-data-pipeline.md` sections 3 and 10; `pipeline/decode/src/ghostbus_decode/{frames,decode}.py`; quiz 026.
 
+### 15e. dbt reads a local, marker-filtered copy
+
+- **Decision:** `make dbt-sync` copies only marker-listed files (decoded parts, fetch-log hours, extracted schedule versions) into a gitignored `data/`. dbt-duckdb builds there, with a thin `src_*` view over each external source.
+- **Why:** a glob over S3 could read a half-written run. The local copy can be globbed safely, and DuckDB needs no S3 credentials. The views exist because dbt unit tests can't mock an external source.
+- **Tested end to end:** `test_dbt.py` pushes a synthetic world through the real GTFS load, compaction, decode and sync, then runs `dbt build` with every grain, data and unit test, offline, in 2 seconds.
+- **What real data caught on day one:** the G Line and J Line have no `route_short_name` (1,274 trips would have had no line). And a check query in a Los Angeles-time session shifted counts by 8 hours, which led to a rule: SQL converts time zones explicitly.
+- **Record:** `docs/spec/01-data-pipeline.md` sections 5 and 6; `pipeline/dbt/`; quiz 027.
+
 ### 16. Ingest every line; scope the headline numbers
 
 - **Decision:** archive all lines, and compute headline metrics on Metro-operated lines only.

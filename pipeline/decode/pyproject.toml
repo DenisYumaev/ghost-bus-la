@@ -9,6 +9,9 @@ dependencies = [
     # (pipeline spec, section 4). DuckDB is in the stack list. uv.lock pins the tested version.
     "duckdb>=1.1",
     "boto3>=1.36",  # read bronze, write derived/
+    # The dbt project in pipeline/dbt/ runs in this package's environment (stack list:
+    # dbt-duckdb). 1.11 is the first release tested here against DuckDB 2.0.
+    "dbt-duckdb>=1.11",
 ]
 
 [tool.uv.sources]

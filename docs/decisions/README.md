@@ -21,6 +21,7 @@ Update this table in the same PR that adds or changes an ADR.
 | [004](004-bronze-storage-guardrails.md) | Bronze storage: content-addressed keys, conditional writes, deny-delete and no-overwrite policy, instance role, remote state | Accepted | Supersedes 001 decision 6's key format |
 | [021](021-realtime-source-websocket.md) | Realtime source: WebSocket snapshots; cancellations from trip updates | Accepted | Supersedes 001 decisions 1 and 3 |
 | [022](022-claude-writes-all-review-replaces-gates.md) | Claude writes all code and ADRs; quizzes logged, not gated; tests and independent review replace the owner gates | Accepted | Supersedes 003 decision 1, learning spec section 3, and the owner Why-rewrite rule |
+| [023](023-dbt-reads-a-local-marker-filtered-copy.md) | dbt reads a local, marker-filtered copy of derived data | Accepted | Supersedes pipeline spec section 6's "read Parquet from S3" for M1 |
 
 ## Planned
 
@@ -45,7 +46,7 @@ Already decided in `docs/SPEC.md` section 5, which holds the one-line why and th
 | 005 | Likely-missing detector: micro-batch baseline first, streaming only on evidence | M5–M6 |
 | 020 | Dataset on Hugging Face and GitHub Releases, not a public bucket | M6 |
 
-New decisions that come up during the build take the next free number after 022.
+New decisions that come up during the build take the next free number after 023.
 
 ## Template
 

@@ -1,0 +1,44 @@
+version: 2
+
+# External sources: Parquet and JSONL that ghostbus_decode wrote and `sync` copied locally.
+# Only marker-listed files are ever copied, so globbing the local folder is safe.
+sources:
+  - name: decoded
+    meta:
+      external_location: "read_parquet('{{ var('data_dir') }}/decoded/{name}/*/*.parquet', hive_partitioning = false)"
+    tables:
+      - name: vehicle_position
+      - name: trip_update
+
+  - name: gtfs
+    meta:
+      external_location: "read_parquet('{{ var('data_dir') }}/gtfs/*/{name}.parquet', union_by_name = true)"
+    tables:
+      - name: routes
+      - name: trips
+      - name: stops
+      - name: stop_times
+      - name: calendar
+      - name: calendar_dates
+      - name: dim_schedule_version
+        meta:
+          external_location: "read_parquet('{{ var('data_dir') }}/gtfs/dim_schedule_version.parquet')"
+
+  - name: raw
+    tables:
+      - name: fetch_log
+        description: Hour files of the fetch log (pipeline spec, section 2.5), one JSON object per line.
+        meta:
+          # dbt-duckdb passes external_location through str.format(), so DuckDB's struct
+          # literal braces must reach it doubled: Jinja's {{ '{{' }} renders as "{{", which
+          # format() turns back into "{".
+          external_location: >-
+            read_json('{{ var('data_dir') }}/fetch_log/*/*.jsonl', format = 'newline_delimited',
+            auto_detect = false, columns = {{ '{{' }}event: 'VARCHAR', feed: 'VARCHAR',
+            fetched_at: 'VARCHAR', outcome: 'VARCHAR', content_hash: 'VARCHAR',
+            partial: 'BOOLEAN', n_entities: 'BIGINT', bytes: 'BIGINT', bytes_gz: 'BIGINT',
+            error: 'VARCHAR', connected_s: 'DOUBLE', interval_s: 'INTEGER',
+            feed_header_ts: 'VARCHAR', ingest_version: 'VARCHAR', url_key: 'VARCHAR',
+            object_key: 'VARCHAR', spool_file: 'VARCHAR', n_messages: 'BIGINT',
+            n_unkeyed: 'BIGINT', n_unframed: 'BIGINT', http_status: 'INTEGER',
+            latency_ms: 'BIGINT'{{ '}}' }})

@@ -38,10 +38,10 @@ from typing import cast
 import duckdb
 
 from ghostbus_decode.gtfs_sql import gtfs_seconds_sql, trim_sql
-from ghostbus_decode.s3 import Bucket
+from ghostbus_decode.s3 import Bucket, ReadBucket
 
 # Bump when the output changes (columns, typing, rules), so existing versions are redone.
-EXTRACTOR_VERSION = 2
+EXTRACTOR_VERSION = 3
 GTFS_DERIVED = "derived/decoded/gtfs/"
 SUCCESS = "_SUCCESS"
 MEMORY_LIMIT = "768MB"
@@ -64,17 +64,27 @@ class Table:
     required: bool
     columns: tuple[str, ...]  # must be present (GTFS-required, or used downstream)
     typed: dict[str, str] = field(default_factory=dict)  # column -> int|lat|lon|date|time
+    optional: tuple[str, ...] = ()  # text columns models use; NULL when a version lacks one
 
 
 TABLES = {
-    "routes": Table(True, ("route_id", "route_short_name", "route_type"), {"route_type": "int"}),
+    "routes": Table(
+        True,
+        ("route_id", "route_short_name", "route_type"),
+        {"route_type": "int"},
+        ("route_long_name", "route_desc"),
+    ),
     "trips": Table(
-        True, ("route_id", "service_id", "trip_id", "direction_id"), {"direction_id": "int"}
+        True,
+        ("route_id", "service_id", "trip_id", "direction_id"),
+        {"direction_id": "int"},
+        ("block_id", "shape_id"),
     ),
     "stops": Table(
         True,
         ("stop_id", "stop_name", "stop_lat", "stop_lon"),
         {"stop_lat": "lat", "stop_lon": "lon", "location_type": "int"},
+        ("stop_code", "parent_station"),
     ),
     "stop_times": Table(
         True,
@@ -87,6 +97,7 @@ TABLES = {
             "drop_off_type": "int",
             "timepoint": "int",
         },
+        ("stop_headsign",),
     ),
     "calendar": Table(
         False,
@@ -106,7 +117,7 @@ def version_prefix(version_id: str) -> str:
     return f"{GTFS_DERIVED}{version_id}/"
 
 
-def is_extracted(bucket: Bucket, version_id: str) -> bool:
+def is_extracted(bucket: ReadBucket, version_id: str) -> bool:
     """True if the version has a `_SUCCESS` written by this extractor version."""
     key = version_prefix(version_id) + SUCCESS
     if key not in bucket.list_keys(version_prefix(version_id)):
@@ -228,6 +239,9 @@ def _convert(
     for c, kind in spec.typed.items():  # optional typed columns this version lacks
         if c not in columns and kind != "time":
             select.append(f'CAST(NULL AS {_SQL_TYPE[kind]}) AS "{c}"')
+    for c in spec.optional:  # optional text columns this version lacks
+        if c not in columns:
+            select.append(f'CAST(NULL AS VARCHAR) AS "{c}"')
     select.append(f"'{version}' AS schedule_version")
     _check(con, table, raw, checks)
     written = con.execute(
@@ -283,16 +297,27 @@ class LoadResult:
 
 
 def load_gtfs(bucket: Bucket, workdir: Path | None = None, *, force: bool = False) -> LoadResult:
-    """Rebuild `dim_schedule_version`, then extract every version not yet extracted.
+    """Extract every version not yet extracted, then write `dim_schedule_version` from the
+    versions that extracted successfully.
 
     Superseded versions are extracted too: rows matched against them must still resolve.
     One refused version doesn't stop the others; failures are returned for the caller to
-    report and exit non-zero on.
+    report and exit non-zero on. Because the dimension is resolved only over versions that
+    loaded, a refused version gets no date range and the previous one stays in force
+    (spec section 4), rather than leaving its dates with no trips at all.
     """
-    from ghostbus_decode.gtfs_versions import report, write_dim
+    from ghostbus_core.schedule_versions import resolve_versions
 
-    build = write_dim(bucket)
-    result = LoadResult([report(build)], {})
+    from ghostbus_decode.gtfs_versions import (
+        DIM_KEY,
+        VersionBuild,
+        build_versions,
+        report,
+        versions_parquet,
+    )
+
+    build = build_versions(bucket)
+    result = LoadResult([], {})
     for v in build.versions:
         try:
             marker = extract_version(
@@ -308,6 +333,10 @@ def load_gtfs(bucket: Bucket, workdir: Path | None = None, *, force: bool = Fals
             rows = cast("dict[str, int]", marker["rows"])
             counts = ", ".join(f"{t} {n:,}" for t, n in sorted(rows.items()))
             result.lines.append(f"  {v.version_id}: extracted {counts}")
+    loaded = [z for z in build.zips if z.sha256[:16] not in result.failed]
+    final = VersionBuild(resolve_versions(loaded), build.waiting, build.zip_keys, loaded)
+    bucket.put(DIM_KEY, versions_parquet(final.versions))
+    result.lines.insert(0, report(final))
     return result
 
 

@@ -21,7 +21,7 @@ dev = [
 # Each member has its own pyproject.toml and declares its own dependencies.
 # `uv sync --all-packages` installs all of them; the root itself is never installed.
 [tool.uv.workspace]
-members = ["packages/*", "services/*", "pipeline/*"]
+members = ["packages/*", "services/*", "pipeline/decode"]  # pipeline/dbt is SQL, not a package
 
 [tool.ruff]
 line-length = 100
@@ -44,7 +44,7 @@ warn_unreachable = true
 # Each src/ dir (and scripts/) is a root that module names are counted from,
 # so src/ghostbus_core/__init__.py is the module `ghostbus_core`, as at runtime.
 # Test directories hold top-level modules: keep test file names unique.
-mypy_path = ["packages/ghostbus_core/src", "services/ingest/src", "pipeline/decode/src", "scripts", "services/ingest/tests"]
+mypy_path = ["packages/ghostbus_core/src", "services/ingest/src", "pipeline/decode/src", "scripts", "services/ingest/tests", "pipeline/decode/tests"]
 explicit_package_bases = true
 
 # boto3 and botocore ship no type hints. Code that uses them defines a small Protocol for the
@@ -57,7 +57,7 @@ ignore_missing_imports = true
 # importlib mode lets several directories named tests/ coexist without __init__.py files.
 addopts = ["--import-mode=importlib", "--strict-markers", "-ra"]
 testpaths = ["packages", "services", "pipeline", "tests"]
-pythonpath = ["scripts", "services/ingest/tests"]
+pythonpath = ["scripts", "services/ingest/tests", "pipeline/decode/tests"]
 xfail_strict = true
 
 [tool.coverage.run]
