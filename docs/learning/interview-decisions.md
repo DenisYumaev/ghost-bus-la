@@ -183,6 +183,13 @@ The trade-offs in Ghost Bus LA you should be able to defend out loud. Each entry
 - **Scope:** only service dates the local copy covers completely (`_sync.json`), because the UTC days around the range are partial.
 - **Record:** `pipeline/dbt/models/intermediate/`, `pipeline/dbt/macros/gtfs_to_utc.sql`; quiz 029.
 
+### 15h. Observations: what counts as "seen running"
+
+- **Decision:** a scheduled trip is observed running if, inside its window (start −30 min to end +60 min), a vehicle position matched it exactly, or a chosen SCHEDULED trip update carried a vehicle. Furthest progress comes from vehicle positions, not trip-update predictions. A cancellation counts only if not withdrawn before the scheduled start.
+- **Why each piece:** trip updates predict the *remaining* stops, so their maximum stop sequence is always near the end; only positions show progress. Non-chosen duplicate reports can be stale vehicle assignments next to a newer cancellation. The alerts spec withdraws a cancellation only while the start is still ahead.
+- **What data showed:** on Nov 15, 121 trips were both "observed" and canceled. 117 were canceled after the vehicle's last position, with median coverage 0.15: the bus sat at the first stop during the window's 30 minutes before departure, then the trip was canceled and never left. Calling them `ran` would be wrong, so outcomes need the coverage rule (`partial`) from day one.
+- **Record:** `pipeline/dbt/models/intermediate/int_trip_crosswalk.sql`, `int_trip_observations.sql`; quiz 030.
+
 ### 16. Ingest every line; scope the headline numbers
 
 - **Decision:** archive all lines, and compute headline metrics on Metro-operated lines only.
