@@ -1,0 +1,19 @@
+# Postgres for integration tests (API spec section 9): make test-integration.
+# Data lives in tmpfs, so every start is a clean database. Bound to localhost only.
+name: ghostbus-test
+services:
+  postgres:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_USER: ghostbus
+      POSTGRES_PASSWORD: ghostbus-test  # test-only container, not a secret
+      POSTGRES_DB: ghostbus_test
+    ports:
+      - "127.0.0.1:54329:5432"
+    tmpfs:
+      - /var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ghostbus -d ghostbus_test"]
+      interval: 1s
+      timeout: 3s
+      retries: 30

@@ -305,6 +305,8 @@ Notes for the build:
 | `serving.system_summary` | window | Home page |
 | `serving.feed_health` | feed × 5 minutes, last 7 days | Status page |
 
+Ownership (ADR-007): `publish` creates each serving table, with its indexes, on every load; Alembic creates the `serving` and `ops` schemas and the `ops` tables (migration `0001`, `services/api/src/ghostbus_api/alembic/`); `ops.alert_feedback` arrives with its P1 feature.
+
 `ops` tables: `ops.publish_run`, `ops.consumer_cursor` (detector position), `ops.feed_status` (latest success per feed, written by the detector and pipeline, never by `ingest`), `ops.deploy` (git SHA, time), `ops.alert_feedback` (outbox ID, useful yes or no, time; P1).
 
 Index every serving table on exactly the columns its endpoint filters by, and confirm each endpoint's query plan with `EXPLAIN ANALYZE` in M5. Record the plans in `docs/perf/`.
@@ -340,7 +342,7 @@ api/
 ├── repos/             # SQL access, one module per table group; no SQL in routers
 ├── security/          # tokens, sessions, origin check, unsubscribe signing
 ├── cache.py  etag.py  problems.py  settings.py
-├── migrations/        # Alembic
+├── alembic/  migrations.py   # Alembic scripts (inside the package, so they ship in the image)
 └── tests/
 ```
 

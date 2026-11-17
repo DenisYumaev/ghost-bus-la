@@ -1,0 +1,14 @@
+[project]
+name = "ghostbus-api"
+version = "0.1.0"
+description = "Public REST API and the Postgres schema for Ghost Bus LA. Not affiliated with LA Metro."
+requires-python = ">=3.12,<3.13"
+dependencies = [
+    "alembic>=1.13",  # migrations for the ops and app schemas (ADR-007 decision 4)
+    "psycopg[binary]>=3.2",  # PostgreSQL driver (stack: psycopg 3)
+    "sqlalchemy>=2.0",  # engine and connection handling; repositories write plain SQL
+]
+
+[build-system]
+requires = ["uv_build>=0.13,<0.14"]
+build-backend = "uv_build"
