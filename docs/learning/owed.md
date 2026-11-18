@@ -51,6 +51,7 @@ All quizzes are in `docs/learning/quizzes/` on `main`. Take them whenever you ha
 | [#39](https://github.com/DenisYumaev/ghost-bus-la/pull/39) | `fct_reliability` and schedule-based day types | [ ] [034](quizzes/034-reliability.md) | [ ] | n/a | n/a (local build) |
 | [#40](https://github.com/DenisYumaev/ghost-bus-la/pull/40) | Line tables: `dim_line`, `dim_line_direction`, `dim_line_stop` | [ ] [035](quizzes/035-line-tables.md) | [ ] | n/a | n/a (local build) |
 | [#41](https://github.com/DenisYumaev/ghost-bus-la/pull/41) | System summary and weekly line trend; shared trip cells and windows | [ ] [036](quizzes/036-summary-trend.md) | [ ] | n/a | n/a (local build) |
+| [#42](https://github.com/DenisYumaev/ghost-bus-la/pull/42) | Cluster bootstrap intervals in dbt (ADR-027) | [ ] [037](quizzes/037-bootstrap.md) | [ ] | n/a | n/a (local build) |
 
 **Suggested order, if you take them:** 004, 005, and 006 first, because they describe what is live in AWS right now. Then 002, 001, and 003.
 

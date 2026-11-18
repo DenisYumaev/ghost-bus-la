@@ -246,7 +246,7 @@ unplanned_share = unplanned_rate / missed_rate
 
 ## 9. Uncertainty
 
-Trips on one day share causes (an operator shortage at one division), so they aren't independent and a Wilson interval would be too narrow. Use a **cluster bootstrap over service dates**: resample whole days with replacement, 2,000 replicates, fixed seed, 95% percentile interval. Runs nightly in Python (`analysis/bootstrap.py`) and writes interval columns into `fct_reliability` (`missed_rate`), `fct_line_summary` and `fct_system_summary` (`missed_rate` and `unplanned_share`); trend points carry none (ADR-026).
+Trips on one day share causes (an operator shortage at one division), so they aren't independent and a Wilson interval would be too narrow. Use a **cluster bootstrap over service dates**: resample whole days with replacement, 2,000 replicates, fixed seed, 95% percentile interval. Runs inside the dbt build as DuckDB SQL (ADR-027: `int_bootstrap_weights`, `int_bootstrap_replicates`, `int_bootstrap_intervals`) and fills interval columns in `fct_reliability` (`missed_rate`), `fct_line_summary` and `fct_system_summary` (`missed_rate` and `unplanned_share`); trend points carry none (ADR-026).
 
 Suppress any cell with fewer than 30 trips, or fewer service days than its day type's minimum: 10 for weekday cells, 4 for Saturday and Sunday cells (ADR-025; a 28-day window holds only 4 of each weekend day). Publish `suppressed = true` and no rate. Line and system summaries and weekly trend points follow ADR-026 (10 days for summaries; 4 days for a week; 30 trips everywhere).
 

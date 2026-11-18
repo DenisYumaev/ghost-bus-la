@@ -237,6 +237,15 @@ The trade-offs in Ghost Bus LA you should be able to defend out loud. Each entry
 - **Line headlines live in dbt:** `fct_line_summary`, built from the same trips, so the API never pools cells or invents a suppression rule. Both directions are pooled, never averaged.
 - **Record:** `pipeline/dbt/models/gold/fct_system_summary.sql`, `fct_line_trend.sql`; quiz 036.
 
+### 15n. Bootstrap intervals in SQL
+
+- **Decision (ADR-027):** the cluster bootstrap over service dates (2,000 replicates, 95% percentile) runs as three dbt models in DuckDB, not as a Python job. Each replicate re-weights every cell's daily counts by how often its date was drawn, so cells, line summaries and the system summary come from the same resampled days in one pass.
+- **Why resample days, not trips:** trips on one day share causes (an operator shortage, a freeway closure). Treating them as independent would make intervals too narrow. The "cluster" is the day.
+- **Reproducible randomness:** draw k of replicate r is `hash(seed, window, r, k) mod n_dates`. No random state, and a rebuild is identical.
+- **Scale, measured:** at 90 days (858,000 trips) the replicate step is 75 million rows in about 67 s and the percentiles 22–24 s on a laptop (`scripts/bench_bootstrap.py`). A first version using DuckDB's `quantile_cont` ran out of memory at 3 GB because it can't spill. Ranking and interpolating (same definition, checked to 6 × 10⁻¹⁶) can spill. The VM's memory must still be measured at deploy.
+- **Rejected:** numpy (not on the stack); pure Python (hours); the delta method (poor near 0 with few days, exactly the weekend cells).
+- **Record:** ADR-027; quiz 037.
+
 ### 16. Ingest every line; scope the headline numbers
 
 - **Decision:** archive all lines, and compute headline metrics on Metro-operated lines only.
