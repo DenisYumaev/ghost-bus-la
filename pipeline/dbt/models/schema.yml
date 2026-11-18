@@ -360,6 +360,12 @@ models:
     columns:
       - name: hour_local
         data_tests: [not_null]
+      - name: line
+        data_tests: [not_null]
+      - name: day_type
+        data_tests: [not_null]
+      - name: outcome
+        data_tests: [not_null]
 
   - name: int_windows
     description: The 28d, 90d and all windows, anchored on the last service date with outcomes.
@@ -380,6 +386,21 @@ models:
     data_tests:
       - unique_combination:
           arguments: {columns: [line, direction_id, week_start]}
+    columns:
+      - name: suppressed
+        data_tests: [not_null]
+
+  - name: fct_line_summary
+    description: >
+      Counts and rates per line x direction x window, plus a both-directions row per line x
+      window (direction_id NULL). Uniqueness: tests/line_summary_has_one_row_per_key.sql.
+    columns:
+      - name: line
+        data_tests: [not_null]
+      - name: time_window
+        data_tests: [not_null]
+      - name: suppressed
+        data_tests: [not_null]
 
 unit_tests:
   - name: stg_fetch_log_collapses_repeated_lines_and_keeps_only_fetches
@@ -1305,7 +1326,7 @@ unit_tests:
   - name: fct_system_summary_totals_per_window
     model: fct_system_summary
     overrides:
-      vars: {min_cell_trips: 3, min_cell_service_days_weekday: 4}
+      vars: {min_cell_trips: 3, min_cell_service_days_weekday: 4, min_cell_service_days_weekend: 1}
     given:
       - input: ref('int_trip_cells')
         rows:
@@ -1330,6 +1351,8 @@ unit_tests:
           - {service_date: "2026-12-26", trip_id: h2, line: "1", direction_id: 0, day_type: saturday, hour_local: 9, outcome: missed, announced: false}
           - {service_date: "2026-12-26", trip_id: h3, line: "1", direction_id: 0, day_type: saturday, hour_local: 9, outcome: ran, announced: false}
           - {service_date: "2026-12-31", trip_id: z1, line: "2", direction_id: 0, day_type: weekday, hour_local: 8, outcome: ran, announced: false}
+          # Dec 29 has only an unknown trip: not a service day.
+          - {service_date: "2026-12-29", trip_id: u1, line: "1", direction_id: 0, day_type: weekday, hour_local: 8, outcome: unknown, announced: false}
       - input: ref('int_windows')
         rows:
           - {time_window: "28d", window_start: "2026-12-04", window_end: "2026-12-31"}
@@ -1338,14 +1361,14 @@ unit_tests:
     expect:
       rows:
         # 28d has only 3 service days (unknown-only days don't count): suppressed under 4.
-        - {time_window: "28d", first_data_date: "2026-12-26", n_service_days: 3, n_lines: 2, n_scheduled: 17, n_unknown: 2, n_trips: 15, n_ran: 10, n_partial: 1, n_missed: 4, n_missed_announced: 1, n_missed_unplanned: 3, n_ran_announced: 0, missed_rate: null, announced_rate: null, unplanned_rate: null, unplanned_share: null, suppressed: true}
-        - {time_window: "90d", first_data_date: "2026-10-31", n_service_days: 5, n_lines: 2, n_scheduled: 20, n_unknown: 2, n_trips: 18, n_ran: 12, n_partial: 1, n_missed: 5, n_missed_announced: 1, n_missed_unplanned: 4, n_ran_announced: 1, missed_rate: 0.2777777777777778, announced_rate: 0.05555555555555555, unplanned_rate: 0.2222222222222222, unplanned_share: 0.8, suppressed: false}
-        - {time_window: "all", first_data_date: "2026-08-03", n_service_days: 6, n_lines: 2, n_scheduled: 21, n_unknown: 2, n_trips: 19, n_ran: 12, n_partial: 1, n_missed: 6, n_missed_announced: 2, n_missed_unplanned: 4, n_ran_announced: 1, missed_rate: 0.3157894736842105, announced_rate: 0.10526315789473684, unplanned_rate: 0.21052631578947367, unplanned_share: 0.6666666666666666, suppressed: false}
+        - {time_window: "28d", first_data_date: "2026-12-26", n_service_days: 3, n_lines: 2, n_scheduled: 18, n_unknown: 3, n_trips: 15, n_ran: 10, n_partial: 1, n_missed: 4, n_missed_announced: 1, n_missed_unplanned: 3, n_ran_announced: 0, missed_rate: null, announced_rate: null, unplanned_rate: null, unplanned_share: null, suppressed: true}
+        - {time_window: "90d", first_data_date: "2026-10-31", n_service_days: 5, n_lines: 2, n_scheduled: 21, n_unknown: 3, n_trips: 18, n_ran: 12, n_partial: 1, n_missed: 5, n_missed_announced: 1, n_missed_unplanned: 4, n_ran_announced: 1, missed_rate: 0.2777777777777778, announced_rate: 0.05555555555555555, unplanned_rate: 0.2222222222222222, unplanned_share: 0.8, suppressed: false}
+        - {time_window: "all", first_data_date: "2026-08-03", n_service_days: 6, n_lines: 2, n_scheduled: 22, n_unknown: 3, n_trips: 19, n_ran: 12, n_partial: 1, n_missed: 6, n_missed_announced: 2, n_missed_unplanned: 4, n_ran_announced: 1, missed_rate: 0.3157894736842105, announced_rate: 0.10526315789473684, unplanned_rate: 0.21052631578947367, unplanned_share: 0.6666666666666666, suppressed: false}
 
   - name: fct_line_trend_weeks_start_on_monday
     model: fct_line_trend
     overrides:
-      vars: {min_cell_trips: 3}
+      vars: {min_cell_trips: 3, min_week_service_days: 2}
     given:
       - input: ref('int_trip_cells')
         rows:
@@ -1356,7 +1379,57 @@ unit_tests:
           - {service_date: "2027-01-03", trip_id: d, line: "1", direction_id: 0, outcome: unknown, announced: false}
           # Mon Jan 4 starts the next week: 1 trip, suppressed.
           - {service_date: "2027-01-04", trip_id: e, line: "1", direction_id: 0, outcome: partial, announced: false}
+          # Week of Jan 11: enough trips, but one day only: suppressed (ADR-026).
+          - {service_date: "2027-01-12", trip_id: f, line: "1", direction_id: 0, outcome: ran, announced: false}
+          - {service_date: "2027-01-12", trip_id: g, line: "1", direction_id: 0, outcome: missed, announced: false}
+          - {service_date: "2027-01-12", trip_id: h, line: "1", direction_id: 0, outcome: ran, announced: false}
     expect:
       rows:
         - {line: "1", direction_id: 0, week_start: "2026-12-28", n_service_days: 2, n_scheduled: 4, n_unknown: 1, n_trips: 3, n_ran: 1, n_partial: 0, n_missed: 2, n_missed_announced: 1, n_missed_unplanned: 1, missed_rate: 0.6666666666666666, announced_rate: 0.3333333333333333, unplanned_rate: 0.3333333333333333, suppressed: false}
         - {line: "1", direction_id: 0, week_start: "2027-01-04", n_service_days: 1, n_scheduled: 1, n_unknown: 0, n_trips: 1, n_ran: 0, n_partial: 1, n_missed: 0, n_missed_announced: 0, n_missed_unplanned: 0, missed_rate: null, announced_rate: null, unplanned_rate: null, suppressed: true}
+        - {line: "1", direction_id: 0, week_start: "2027-01-11", n_service_days: 1, n_scheduled: 3, n_unknown: 0, n_trips: 3, n_ran: 2, n_partial: 0, n_missed: 1, n_missed_announced: 0, n_missed_unplanned: 1, missed_rate: null, announced_rate: null, unplanned_rate: null, suppressed: true}
+
+  - name: fct_system_summary_suppresses_below_the_trip_floor
+    model: fct_system_summary
+    overrides:
+      vars: {min_cell_trips: 5, min_cell_service_days_weekday: 2, min_cell_service_days_weekend: 99}
+    given:
+      # Four service days, one trip each: enough days, too few trips.
+      - input: ref('int_trip_cells')
+        rows:
+          - {service_date: "2026-12-28", trip_id: a, line: "1", direction_id: 0, day_type: weekday, hour_local: 8, outcome: ran, announced: false}
+          - {service_date: "2026-12-29", trip_id: b, line: "1", direction_id: 0, day_type: weekday, hour_local: 8, outcome: ran, announced: false}
+          - {service_date: "2026-12-30", trip_id: c, line: "1", direction_id: 0, day_type: weekday, hour_local: 8, outcome: missed, announced: false}
+          - {service_date: "2026-12-31", trip_id: d, line: "1", direction_id: 0, day_type: weekday, hour_local: 8, outcome: ran, announced: false}
+      - input: ref('int_windows')
+        rows:
+          - {time_window: "28d", window_start: "2026-12-04", window_end: "2026-12-31"}
+    expect:
+      rows:
+        - {time_window: "28d", n_service_days: 4, n_trips: 4, n_missed: 1, missed_rate: null, suppressed: true}
+
+  - name: fct_line_summary_by_direction_and_both
+    model: fct_line_summary
+    overrides:
+      vars: {min_cell_trips: 2, min_cell_service_days_weekday: 2, min_cell_service_days_weekend: 99}
+    given:
+      - input: ref('int_trip_cells')
+        rows:
+          - {service_date: "2026-12-31", trip_id: a, line: "1", direction_id: 0, day_type: weekday, hour_local: 8, outcome: ran, announced: false}
+          - {service_date: "2026-12-30", trip_id: b, line: "1", direction_id: 0, day_type: weekday, hour_local: 9, outcome: missed, announced: false}
+          - {service_date: "2026-12-31", trip_id: c, line: "1", direction_id: 1, day_type: weekday, hour_local: 8, outcome: missed, announced: true}
+          - {service_date: "2026-08-03", trip_id: d, line: "1", direction_id: 0, day_type: weekday, hour_local: 8, outcome: ran, announced: false}
+      - input: ref('int_windows')
+        rows:
+          - {time_window: "28d", window_start: "2026-12-04", window_end: "2026-12-31"}
+          - {time_window: "all", window_start: "2026-08-03", window_end: "2026-12-31"}
+    expect:
+      rows:
+        - {line: "1", direction_id: 0, time_window: "28d", n_service_days: 2, n_trips: 2, n_missed: 1, n_missed_announced: 0, missed_rate: 0.5, announced_rate: 0.0, unplanned_rate: 0.5, unplanned_share: 1.0, suppressed: false}
+        # One trip on one day: suppressed.
+        - {line: "1", direction_id: 1, time_window: "28d", n_service_days: 1, n_trips: 1, n_missed: 1, n_missed_announced: 1, missed_rate: null, announced_rate: null, unplanned_rate: null, unplanned_share: null, suppressed: true}
+        # Both directions: pooled trips, not an average of the direction rates.
+        - {line: "1", direction_id: null, time_window: "28d", n_service_days: 2, n_trips: 3, n_missed: 2, n_missed_announced: 1, missed_rate: 0.6666666666666666, announced_rate: 0.3333333333333333, unplanned_rate: 0.3333333333333333, unplanned_share: 0.5, suppressed: false}
+        - {line: "1", direction_id: 0, time_window: "all", n_service_days: 3, n_trips: 3, n_missed: 1, n_missed_announced: 0, missed_rate: 0.3333333333333333, announced_rate: 0.0, unplanned_rate: 0.3333333333333333, unplanned_share: 1.0, suppressed: false}
+        - {line: "1", direction_id: 1, time_window: "all", n_service_days: 1, n_trips: 1, n_missed: 1, n_missed_announced: 1, missed_rate: null, announced_rate: null, unplanned_rate: null, unplanned_share: null, suppressed: true}
+        - {line: "1", direction_id: null, time_window: "all", n_service_days: 3, n_trips: 4, n_missed: 2, n_missed_announced: 1, missed_rate: 0.5, announced_rate: 0.25, unplanned_rate: 0.25, unplanned_share: 0.5, suppressed: false}

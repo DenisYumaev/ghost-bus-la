@@ -45,7 +45,7 @@ So it counts exactly the trips the reliability grid counts: the same Metro-opera
 <details>
 <summary>Model answer</summary>
 
-Every week would be suppressed forever, because a week has at most 7 service days, or 5 weekdays. The trend chart would never show a point. A week is a natural unit for the chart, so only the 30-trip floor applies, and `n_service_days` lets the chart grey out partial weeks.
+Every week would be suppressed forever, because a week has at most 7 service days, or 5 weekdays. The trend chart would never show a point. But no day floor at all would let a week with a single day of data, such as the newest or the first, plot one bad day as a weekly spike. ADR-026 sets 4 days, a majority of the week, plus the 30-trip floor, and `n_service_days` lets the chart mark weeks with 4 to 6 days as partial.
 
 </details>
 

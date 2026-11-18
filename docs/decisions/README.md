@@ -25,6 +25,7 @@ Update this table in the same PR that adds or changes an ADR.
 | [023](023-dbt-reads-a-local-marker-filtered-copy.md) | dbt reads a local, marker-filtered copy of derived data | Accepted | Supersedes pipeline spec section 6's "read Parquet from S3" for M1 |
 | [024](024-outcome-classification-v1.md) | Outcome classification v1: `partial` in M1, updates-only trips are partial, feed health definition | Accepted | Supersedes SPEC M1's three-outcome list |
 | [025](025-reliability-cells.md) | Reliability cells: schedule day types, service-day hours, data-anchored windows, weekend day minimum 4 | Accepted | Supersedes pipeline spec section 9's single 10-day minimum |
+| [026](026-aggregate-suppression.md) | Suppression and intervals for line and system summaries and the weekly trend; trend takes a direction | Accepted | Supplements ADR-025 |
 
 ## Planned
 
@@ -48,7 +49,7 @@ Already decided in `docs/SPEC.md` section 5, which holds the one-line why and th
 | 005 | Likely-missing detector: micro-batch baseline first, streaming only on evidence | M5–M6 |
 | 020 | Dataset on Hugging Face and GitHub Releases, not a public bucket | M6 |
 
-New decisions that come up during the build take the next free number after 025.
+New decisions that come up during the build take the next free number after 026.
 
 ## Template
 

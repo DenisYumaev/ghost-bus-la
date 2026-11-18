@@ -2,10 +2,10 @@
 -- GET /v1/system/summary (pipeline spec section 6.3, API spec section 4.1): counts and the
 -- section 8 rates over every trip in scope, plus how much data stands behind them. It sums the
 -- same trips as fct_reliability, so the home page and the line pages always agree.
--- Suppressed below min_cell_trips trips or min_cell_service_days_weekday service days, the
--- stricter of ADR-025's minimums: a system-wide rate from a few days would be a headline built
--- on noise. Nothing here is quotable until M5 validates against Metro's report (hard rule 11).
--- ci_low and ci_high come with the bootstrap; NULL until then.
+-- Suppressed below min_cell_trips trips or min_cell_service_days_weekday service days (ADR-026):
+-- a system-wide rate from a few days would be a headline built on noise. Nothing here is
+-- quotable until M5 validates against Metro's report (hard rule 11). Intervals for missed_rate
+-- and unplanned_share (SPEC section 1.3) come with the bootstrap; NULL until then.
 with totals as (
     select
         w.time_window,
@@ -59,6 +59,8 @@ select
     case when not suppressed and n_missed > 0 then n_missed_unplanned / n_missed end
         as unplanned_share,
     suppressed,
-    cast(null as double) as ci_low,
-    cast(null as double) as ci_high
+    cast(null as double) as missed_rate_ci_low,
+    cast(null as double) as missed_rate_ci_high,
+    cast(null as double) as unplanned_share_ci_low,
+    cast(null as double) as unplanned_share_ci_high
 from judged

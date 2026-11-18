@@ -1,9 +1,11 @@
 -- One row per line x direction x week: (line, direction_id, week_start). Weekly missed,
 -- announced and unplanned rates for the trend chart (API spec GET /v1/lines/{line}/trend; web
--- TrendChart). week_start is the Monday of the service date's week; a week has at most 7 service
--- days, so the day minimum doesn't apply, and a week is suppressed only below min_cell_trips
--- trips. n_service_days tells the chart when a week is partial (the first and last weeks of the
--- data, or a gap).
+-- TrendChart). week_start is the Monday of the service date's week. A week is suppressed below
+-- min_cell_trips trips or min_week_service_days service days (ADR-026): trips on one day share
+-- causes, so a week with only a day or two of data (the newest week, a gap) would turn one bad
+-- day into a spike. n_service_days lets the chart mark partial weeks. Weeks with no trips have
+-- no row; the API anchors "the last N weeks" on the newest week_start of all lines and fills
+-- gaps as empty points (API spec section 4.1). Trend points carry no intervals (ADR-026).
 with weeks as (
     select
         line,
@@ -23,7 +25,8 @@ with weeks as (
 
 judged as (
     select *, n_scheduled - n_unknown as n_trips,
-           n_scheduled - n_unknown < {{ var('min_cell_trips') }} as suppressed
+           n_scheduled - n_unknown < {{ var('min_cell_trips') }}
+               or n_service_days < {{ var('min_week_service_days') }} as suppressed
     from weeks
 )
 

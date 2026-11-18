@@ -58,7 +58,7 @@ Never return a stack trace. Never reveal whether an email has an account.
 | `GET /v1/lines/{line}/stops?direction_id=` | Ordered stops for a direction |
 | `GET /v1/lines/{line}/reliability?direction_id=&window=&day_type=` | Hour-by-day-type grid of rates |
 | `GET /v1/lines/{line}/stops/{stop_id}/reliability?direction_id=&window=` (P1) | Same, at one stop |
-| `GET /v1/lines/{line}/trend?direction_id=&weeks=` | Weekly missed, announced, and unplanned rates |
+| `GET /v1/lines/{line}/trend?direction_id=&weeks=` | Weekly missed, announced, and unplanned rates. `direction_id` is required; the last `weeks` are counted back from the newest week in the data across all lines, and weeks with no trips come back as empty points (ADR-026) |
 | `GET /v1/cancellations/current?line=` | Currently announced cancellations |
 | `GET /v1/flags/current?line=` (P1) | Trips flagged likely missing right now, with the detector version and its measured precision. Always labeled an estimate |
 | `GET /v1/trips/outcomes?line=&service_date=&cursor=` | Trip-level outcomes for one line and date |
