@@ -3,47 +3,16 @@
 --   missed_rate    = missed / (scheduled - unknown)
 --   announced_rate = (missed and announced) / (scheduled - unknown)
 --   unplanned_rate = (missed and not announced) / (scheduled - unknown)
--- n_trips is that denominator. partial is counted but never missed. hour_local is the
--- America/Los_Angeles clock hour of the scheduled start, so a 25:30 trip is hour 1 of its own
--- service date (and its day type). Windows end at the last service date with outcomes, never at
--- the build clock, so a rebuild of the same data gives the same table. A cell with fewer than
--- min_cell_trips trips, or fewer service days (days with at least one trip in the denominator)
--- than min_cell_service_days_weekday (weekday cells) or min_cell_service_days_weekend (Saturday
--- and Sunday cells; ADR-025), is suppressed: no rates. first_data_date is the first service date with data in
--- the window, which can be later than window_start early on or after a gap. Trips are kept
--- unless is_metro_operated is false: NULL until the contracted-lines seed (ADR-024 decision 6),
--- after which contracted lines drop out here (SPEC section 2).
+-- n_trips is that denominator. partial is counted but never missed. Day type, hour and the
+-- Metro-operated scope come from int_trip_cells; the windows from int_windows (ADR-025).
+-- A cell with fewer than min_cell_trips trips, or fewer service days (days with at least one trip
+-- in the denominator) than min_cell_service_days_weekday (weekday cells) or
+-- min_cell_service_days_weekend (Saturday and Sunday cells; ADR-025), is suppressed: no rates.
+-- first_data_date is the first service date with data in the window, which can be later than
+-- window_start early on or after a gap.
 -- ci_low and ci_high come from the cluster bootstrap over service dates (section 9), added in a
 -- later PR; NULL until then.
-with outcomes as (
-    select
-        o.line,
-        o.direction_id,
-        o.service_date,
-        d.day_type,
-        cast(extract(hour from o.sched_start_utc at time zone 'America/Los_Angeles') as integer)
-            as hour_local,
-        o.outcome,
-        o.announced
-    from {{ ref('fct_trip_outcomes') }} as o
-    inner join {{ ref('int_service_day_types') }} as d on o.service_date = d.service_date
-    where o.is_metro_operated is distinct from false
-),
-
-bounds as (
-    select min(service_date) as first_day, max(service_date) as last_day from outcomes
-),
-
-windows as (
-    select '28d' as time_window, cast(last_day - 27 as date) as window_start, last_day as window_end
-    from bounds
-    union all
-    select '90d', cast(last_day - 89 as date), last_day from bounds
-    union all
-    select 'all', first_day, last_day from bounds
-),
-
-cells as (
+with cells as (
     select
         o.line,
         o.direction_id,
@@ -62,8 +31,9 @@ cells as (
         count(*) filter (where o.outcome = 'ran' and o.announced) as n_ran_announced,
         count(distinct o.service_date) filter (where o.outcome <> 'unknown') as n_service_days,
         min(o.service_date) as first_data_date
-    from outcomes as o
-    inner join windows as w on o.service_date between w.window_start and w.window_end
+    from {{ ref('int_trip_cells') }} as o
+    inner join {{ ref('int_windows') }} as w
+        on o.service_date between w.window_start and w.window_end
     group by all
 ),
 

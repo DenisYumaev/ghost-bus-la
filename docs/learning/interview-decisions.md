@@ -229,6 +229,14 @@ The trade-offs in Ghost Bus LA you should be able to defend out loud. Each entry
 - **Stop order:** a direction runs several stop patterns (branches, short turns). Main-pattern stops keep their index. Every other stop is interpolated between the main-pattern stops before and after it in its own trip, then averaged. A first draft averaged each trip's own 0..1 position, and review showed a peak short turn starting mid-route would drag a trunk stop ahead of earlier ones. A dbt test now checks that main-pattern stops stay in route order. Rejected: the main pattern only, which drops branch stops riders board at; a full pattern merge, which is complex for a stop picker.
 - **Record:** `pipeline/dbt/models/gold/dim_line*.sql`; quiz 035.
 
+### 15m. One set of trips behind every number
+
+- **Decision:** the home-page summary, the weekly trend and the reliability grid all read the same `int_trip_cells` (each trip with its day type, local hour and Metro-operated scope) and the same `int_windows`. dbt tests check that the summary equals the sum of the grid in every window, and that the trend sums to the `all` window.
+- **Why:** if the home page says one rate and a line page implies another, a reader trusts neither. Sharing the inputs makes agreement structural, and the tests make it checked.
+- **Suppression (ADR-026):** line and system summaries need 30 trips and 10 service days, the stricter minimum, because headlines are what people quote. A trend week needs 30 trips and 4 service days. The first draft had no day floor for weeks, and review showed a single Monday could become a full-looking weekly point.
+- **Line headlines live in dbt:** `fct_line_summary`, built from the same trips, so the API never pools cells or invents a suppression rule. Both directions are pooled, never averaged.
+- **Record:** `pipeline/dbt/models/gold/fct_system_summary.sql`, `fct_line_trend.sql`; quiz 036.
+
 ### 16. Ingest every line; scope the headline numbers
 
 - **Decision:** archive all lines, and compute headline metrics on Metro-operated lines only.
