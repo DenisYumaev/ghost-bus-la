@@ -237,6 +237,16 @@ The trade-offs in Ghost Bus LA you should be able to defend out loud. Each entry
 - **Line headlines live in dbt:** `fct_line_summary`, built from the same trips, so the API never pools cells or invents a suppression rule. Both directions are pooled, never averaged.
 - **Record:** `pipeline/dbt/models/gold/fct_system_summary.sql`, `fct_line_trend.sql`; quiz 036.
 
+### 15n. Bootstrap intervals in SQL
+
+- **Decision (ADR-027):** the cluster bootstrap over service dates (2,000 replicates, 95% percentile) runs as three nightly dbt models in DuckDB, not as a Python job. Dates are redrawn within day-type strata, so a 28-day replicate always has 20 weekdays and 4 of each weekend day. Each replicate re-weights every cell's daily counts by how often its date was drawn, so cells, line summaries and the system summary come from the same resampled days in one pass.
+- **Why resample days, not trips:** trips on one day share causes (an operator shortage, a freeway closure). Treating them as independent would make intervals too narrow. The "cluster" is the day.
+- **Reproducible randomness, and a trap:** draws come from hashing fixed inputs, so a rebuild is identical. The first draft used `hash(seed, window, r, k) % n`. Review found, and a query confirmed, that DuckDB's multi-argument hash XORs the last argument in without a final mix. For 16, 32 or 64 dates, every replicate was then the same pattern relabelled: identical counts of distinct dates, standard deviation 0. `hash(hash(...))` fixes it, and a test checks the draw function's randomness for 13 sizes.
+- **Scale, measured:** at 90 days (858,000 trips) the replicate step is 75 million rows in 62–68 s and the percentiles 20–24 s on a laptop (`scripts/bench_bootstrap.py`). A first version using DuckDB's `quantile_cont` ran out of memory at 3 GB because it can't spill. Ranking and interpolating can spill; `--check` matched `quantile_cont` on 25,236 keys to 1.1 × 10⁻¹⁶ at 5 days. Peak memory was 4.2 GB, so a VERIFY in pipeline spec section 11 requires measuring the VM and a container memory cap before M4.
+- **No interval at 0:** a percentile bootstrap of a rate that is 0 on every day gives [0, 0]. Publishing that would claim certainty, so no interval is shown at 0, or at a share of 0 or 1.
+- **Rejected:** numpy (not on the stack); pure Python (hours); the delta method (poor near 0 with few days, exactly the weekend cells).
+- **Record:** ADR-027; quiz 037.
+
 ### 16. Ingest every line; scope the headline numbers
 
 - **Decision:** archive all lines, and compute headline metrics on Metro-operated lines only.

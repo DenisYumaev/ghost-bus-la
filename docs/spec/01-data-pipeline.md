@@ -246,7 +246,7 @@ unplanned_share = unplanned_rate / missed_rate
 
 ## 9. Uncertainty
 
-Trips on one day share causes (an operator shortage at one division), so they aren't independent and a Wilson interval would be too narrow. Use a **cluster bootstrap over service dates**: resample whole days with replacement, 2,000 replicates, fixed seed, 95% percentile interval. Runs nightly in Python (`analysis/bootstrap.py`) and writes interval columns into `fct_reliability` (`missed_rate`), `fct_line_summary` and `fct_system_summary` (`missed_rate` and `unplanned_share`); trend points carry none (ADR-026).
+Trips on one day share causes (an operator shortage at one division), so they aren't independent and a Wilson interval would be too narrow. Use a **cluster bootstrap over service dates**: resample whole days with replacement, within day-type strata, 2,000 replicates, fixed seed, 95% percentile interval; no interval at a rate of 0 or a share of 0 or 1 (ADR-027). Runs inside the dbt build as DuckDB SQL (ADR-027: `int_bootstrap_weights`, `int_bootstrap_replicates`, `int_bootstrap_intervals`) and fills interval columns in `fct_reliability` (`missed_rate`), `fct_line_summary` and `fct_system_summary` (`missed_rate` and `unplanned_share`); trend points carry none (ADR-026).
 
 Suppress any cell with fewer than 30 trips, or fewer service days than its day type's minimum: 10 for weekday cells, 4 for Saturday and Sunday cells (ADR-025; a 28-day window holds only 4 of each weekend day). Publish `suppressed = true` and no rate. Line and system summaries and weekly trend points follow ADR-026 (10 days for summaries; 4 days for a week; 30 trips everywhere).
 
@@ -272,13 +272,15 @@ Suppress any cell with fewer than 30 trips, or fewer service days than its day t
 | Job | Cadence | Budget |
 | --- | --- | --- |
 | Open-day compact + decode | Every 10 minutes | 60 s |
-| dbt build for open service dates (today, and yesterday until it closes) | Every 10 minutes | 90 s |
+| dbt build for open service dates (today, and yesterday until it closes), `--exclude tag:nightly` (the bootstrap; ADR-027) | Every 10 minutes | 90 s |
 | Publish to Postgres | After each build | 30 s |
 | Close a service date (3 hours after its last scheduled trip ends), final build | Daily | 5 min |
 | Compaction of closed days, bootstrap, reconciliation, dataset export | Nightly | 20 min |
 | GTFS static check | Daily | 2 min |
 
 A lock file prevents overlapping runs. If a run exceeds twice its budget, alert.
+
+**VERIFY before scheduling on the VM (M4):** the nightly build's peak memory on the t4g.medium. On a laptop the bootstrap peaked at 4.2 GB with DuckDB limited to 3 GB (ADR-027), and the VM has 4 GB shared with ingest, Postgres and the API. Run the pipeline in a container with its own memory cap, and set `GHOSTBUS_DBT_MEMORY` well below it, so the OOM killer can never pick ingest (hard rule 3).
 
 **Late data:** rows arriving after a service date closes still land in bronze. A weekly job reports closed dates with new bronze rows; reprocess them with a backfill.
 

@@ -31,6 +31,9 @@ vars:
   min_cell_service_days_weekend: 4
   # A trend week needs this many service days (ADR-026).
   min_week_service_days: 4
+  # Cluster bootstrap over service dates (pipeline spec section 9; ADR-027).
+  bootstrap_replicates: 2000
+  bootstrap_seed: 20261115
   match_rate_alert: 0.95
   match_rate_error: 0.80
   # A feed is healthy in a 5-minute bucket if a fetch succeeded with a feed timestamp under

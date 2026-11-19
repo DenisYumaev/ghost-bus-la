@@ -4,7 +4,7 @@
 -- and windows as fct_reliability, pooled over hours and day types, so a line's headline is the
 -- sum of its own grid (a dbt test checks it). Suppression (ADR-026): below min_cell_trips trips
 -- or min_cell_service_days_weekday service days. Intervals for missed_rate and unplanned_share
--- come with the bootstrap; NULL until then.
+-- come from the cluster bootstrap (ADR-027), published only where the rate is.
 with by_direction as (
     select
         o.line,
@@ -39,30 +39,40 @@ judged as (
 )
 
 select
-    line,
-    direction_id,
-    time_window,
-    window_start,
-    window_end,
-    first_data_date,
-    n_service_days,
-    n_scheduled,
-    n_unknown,
-    n_trips,
-    n_ran,
-    n_partial,
-    n_missed,
-    n_missed_announced,
-    n_missed_unplanned,
-    n_ran_announced,
-    case when not suppressed then n_missed / nullif(n_trips, 0) end as missed_rate,
-    case when not suppressed then n_missed_announced / nullif(n_trips, 0) end as announced_rate,
-    case when not suppressed then n_missed_unplanned / nullif(n_trips, 0) end as unplanned_rate,
-    case when not suppressed and n_missed > 0 then n_missed_unplanned / n_missed end
+    j.line,
+    j.direction_id,
+    j.time_window,
+    j.window_start,
+    j.window_end,
+    j.first_data_date,
+    j.n_service_days,
+    j.n_scheduled,
+    j.n_unknown,
+    j.n_trips,
+    j.n_ran,
+    j.n_partial,
+    j.n_missed,
+    j.n_missed_announced,
+    j.n_missed_unplanned,
+    j.n_ran_announced,
+    case when not j.suppressed then j.n_missed / nullif(j.n_trips, 0) end as missed_rate,
+    case when not j.suppressed then j.n_missed_announced / nullif(j.n_trips, 0) end as announced_rate,
+    case when not j.suppressed then j.n_missed_unplanned / nullif(j.n_trips, 0) end as unplanned_rate,
+    case when not j.suppressed and j.n_missed > 0 then j.n_missed_unplanned / j.n_missed end
         as unplanned_share,
-    suppressed,
-    cast(null as double) as missed_rate_ci_low,
-    cast(null as double) as missed_rate_ci_high,
-    cast(null as double) as unplanned_share_ci_low,
-    cast(null as double) as unplanned_share_ci_high
-from judged
+    j.suppressed,
+    -- No interval for a rate of 0 or a share of 0 or 1: every replicate agrees there, and a
+    -- percentile bootstrap would claim a certainty the data can't give (ADR-027).
+    case when not j.suppressed and j.n_missed > 0 then b.missed_rate_ci_low end
+        as missed_rate_ci_low,
+    case when not j.suppressed and j.n_missed > 0 then b.missed_rate_ci_high end
+        as missed_rate_ci_high,
+    case when not j.suppressed and j.n_missed_unplanned between 1 and j.n_missed - 1
+        then b.unplanned_share_ci_low end as unplanned_share_ci_low,
+    case when not j.suppressed and j.n_missed_unplanned between 1 and j.n_missed - 1
+        then b.unplanned_share_ci_high end as unplanned_share_ci_high
+from judged as j
+left join {{ ref('int_bootstrap_intervals') }} as b
+    on b.grain = case when j.direction_id is null then 'line' else 'line_direction' end
+    and j.time_window = b.time_window and j.line = b.line
+    and j.direction_id is not distinct from b.direction_id

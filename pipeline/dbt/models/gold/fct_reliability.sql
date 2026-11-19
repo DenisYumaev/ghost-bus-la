@@ -10,8 +10,9 @@
 -- min_cell_service_days_weekend (Saturday and Sunday cells; ADR-025), is suppressed: no rates.
 -- first_data_date is the first service date with data in the window, which can be later than
 -- window_start early on or after a gap.
--- ci_low and ci_high come from the cluster bootstrap over service dates (section 9), added in a
--- later PR; NULL until then.
+-- ci_low and ci_high: the 95% cluster-bootstrap interval for missed_rate only (section 9;
+-- ADR-026, ADR-027), published only where the rate is and is above 0. The interval tables are
+-- nightly (tag nightly); a frequent build without them reads the last night's intervals.
 with cells as (
     select
         o.line,
@@ -50,31 +51,37 @@ judged as (
 )
 
 select
-    line,
-    direction_id,
-    day_type,
-    hour_local,
-    time_window,
-    window_start,
-    window_end,
-    first_data_date,
-    n_scheduled,
-    n_unknown,
-    n_trips,
-    n_ran,
-    n_partial,
-    n_missed,
-    n_missed_announced,
-    n_missed_unplanned,
-    n_ran_announced,
-    n_service_days,
-    case when not suppressed then n_missed / nullif(n_trips, 0) end as missed_rate,
-    case when not suppressed then n_missed_announced / nullif(n_trips, 0) end as announced_rate,
-    case when not suppressed then n_missed_unplanned / nullif(n_trips, 0) end as unplanned_rate,
+    j.line,
+    j.direction_id,
+    j.day_type,
+    j.hour_local,
+    j.time_window,
+    j.window_start,
+    j.window_end,
+    j.first_data_date,
+    j.n_scheduled,
+    j.n_unknown,
+    j.n_trips,
+    j.n_ran,
+    j.n_partial,
+    j.n_missed,
+    j.n_missed_announced,
+    j.n_missed_unplanned,
+    j.n_ran_announced,
+    j.n_service_days,
+    case when not j.suppressed then j.n_missed / nullif(j.n_trips, 0) end as missed_rate,
+    case when not j.suppressed then j.n_missed_announced / nullif(j.n_trips, 0) end as announced_rate,
+    case when not j.suppressed then j.n_missed_unplanned / nullif(j.n_trips, 0) end as unplanned_rate,
     -- Share of missed trips that were never announced: the headline (SPEC section 1.3).
-    case when not suppressed and n_missed > 0 then n_missed_unplanned / n_missed end
+    case when not j.suppressed and j.n_missed > 0 then j.n_missed_unplanned / j.n_missed end
         as unplanned_share,
-    suppressed,
-    cast(null as double) as ci_low,
-    cast(null as double) as ci_high
-from judged
+    j.suppressed,
+    -- No interval for a rate of 0: every replicate agrees, and the bootstrap can't bound it.
+    case when not j.suppressed and j.n_missed > 0 then b.missed_rate_ci_low end as ci_low,
+    case when not j.suppressed and j.n_missed > 0 then b.missed_rate_ci_high end as ci_high
+from judged as j
+left join {{ ref('int_bootstrap_intervals') }} as b
+    on b.grain = 'cell'
+    and j.time_window = b.time_window and j.line = b.line
+    and j.direction_id is not distinct from b.direction_id
+    and j.day_type = b.day_type and j.hour_local = b.hour_local
