@@ -103,7 +103,7 @@ def query(bucket: FakeBucket, table: str, sql: str, tmp_path: Path) -> list[tupl
     path = tmp_path / f"{table}.parquet"
     path.write_bytes(bucket.objects[f"{version_prefix(VERSION)}{table}.parquet"])
     with duckdb.connect() as con:
-        con.execute(f"CREATE VIEW {table} AS SELECT * FROM read_parquet('{path}')")  # noqa: S608
+        con.execute(f"CREATE VIEW {table} AS SELECT * FROM read_parquet('{path}')")
         return con.execute(sql).fetchall()
 
 

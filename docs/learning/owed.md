@@ -53,6 +53,7 @@ All quizzes are in `docs/learning/quizzes/` on `main`. Take them whenever you ha
 | [#41](https://github.com/DenisYumaev/ghost-bus-la/pull/41) | System summary and weekly line trend; shared trip cells and windows | [ ] [036](quizzes/036-summary-trend.md) | [ ] | n/a | n/a (local build) |
 | [#42](https://github.com/DenisYumaev/ghost-bus-la/pull/42) | Cluster bootstrap intervals in dbt (ADR-027) | [ ] [037](quizzes/037-bootstrap.md) | [ ] | n/a | n/a (local build) |
 | [#43](https://github.com/DenisYumaev/ghost-bus-la/pull/43) | Publish engine: load, validate, atomic swap (ADR-007) | [ ] [038](quizzes/038-publish-engine.md) | [ ] | n/a | n/a (not deployed yet) |
+| [#44](https://github.com/DenisYumaev/ghost-bus-la/pull/44) | Serving tables, `make migrate`, `make publish` | [ ] [039](quizzes/039-serving-tables.md) | [ ] | n/a | n/a (not deployed yet) |
 
 **Suggested order, if you take them:** 004, 005, and 006 first, because they describe what is live in AWS right now. Then 002, 001, and 003.
 

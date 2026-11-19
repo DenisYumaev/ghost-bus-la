@@ -300,10 +300,13 @@ Notes for the build:
 | `serving.schedule_version` | version | Version in force |
 | `serving.reliability` | line × direction × day type × hour × window | Reliability grid |
 | `serving.stop_reliability` (P1) | adds stop | Stop view |
+| `serving.line_summary` | line × direction × window, plus line × window with `direction_id` NULL (ADR-026) | Line list headline, line page summary |
 | `serving.line_trend` | line × direction × week | Trend chart |
-| `serving.trip_outcome_recent` | trip × service date, last 35 days | Trip list |
+| `serving.trip_outcome_recent` | trip × service date, last 35 days (by the newest service date published) | Trip list; index on (`line`, `service_date`) |
 | `serving.system_summary` | window | Home page |
-| `serving.feed_health` | feed × 5 minutes, last 7 days | Status page |
+| `serving.feed_health` | feed × 5 minutes, last 7 days (by the newest bucket) | Status page |
+
+The table list, keys and indexes live in `services/publish/src/ghostbus_publish/tables.py`. `serving.trip_stop_time` comes with commute matching (M3); `serving.stop_reliability` is P1.
 
 Ownership (ADR-007): `publish` creates each serving table, with its indexes, on every load; Alembic creates the `serving` and `ops` schemas and the `ops` tables (migration `0001`, `services/api/src/ghostbus_api/alembic/`); `ops.alert_feedback` arrives with its P1 feature.
 

@@ -261,6 +261,13 @@ The trade-offs in Ghost Bus LA you should be able to defend out loud. Each entry
   - an unmapped DuckDB type fails loudly rather than becoming text.
 - **Record:** `services/publish/src/ghostbus_publish/engine.py`; quiz 038.
 
+### 15p. The serving tables, and proving publish end to end
+
+- **Decision:** ten serving tables (`services/publish/.../tables.py`), each a DuckDB query over a gold model with the key and indexes its endpoint needs. Trip outcomes keep 35 days and feed health 7, counted back from the newest data, not the clock.
+- **Proved on a real build:** an integration test builds the dbt test world, publishes every table into Postgres 16, and checks each row count against DuckDB. A second publish leaves every table's content digest unchanged (hard rule 2). The real warehouse publishes all ten tables in under a second.
+- **Credentials:** the database URL is read from `GHOSTBUS_DATABASE_URL`, never from the command line, where it would land in shell history and process listings (hard rule 9).
+- **Record:** `services/publish/src/ghostbus_publish/tables.py`, `__main__.py`; quiz 039.
+
 ### 16. Ingest every line; scope the headline numbers
 
 - **Decision:** archive all lines, and compute headline metrics on Metro-operated lines only.

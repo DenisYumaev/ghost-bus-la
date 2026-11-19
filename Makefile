@@ -4,7 +4,7 @@
 # never an apply target (CLAUDE.md hard rule 8).
 
 .DEFAULT_GOAL := help
-.PHONY: help install test lint fmt hooks tf-test plan-bootstrap plan selftest-s3 deploy-ingest gtfs-versions gtfs-load compact decode dbt-sync dbt test-integration
+.PHONY: help install test lint fmt hooks tf-test plan-bootstrap plan selftest-s3 deploy-ingest gtfs-versions gtfs-load compact decode dbt-sync dbt test-integration migrate publish
 
 help:  ## List the targets
 	@grep -E '^[a-z0-9-]+:.*## ' $(MAKEFILE_LIST) | awk -F':.*## ' '{printf "  %-15s %s\n", $$1, $$2}'
@@ -22,6 +22,14 @@ test-integration:  ## Start Postgres in Docker (compose.test.yml), run the integ
 	trap 'docker compose -f compose.test.yml down' EXIT; \
 	  docker compose -f compose.test.yml up -d --wait && \
 	  GHOSTBUS_TEST_DATABASE_URL=$(TEST_DATABASE_URL) uv run pytest -m integration
+
+migrate:  ## Apply the Alembic migrations to $$GHOSTBUS_DATABASE_URL (never a URL on the command line)
+	@test -n "$$GHOSTBUS_DATABASE_URL" || (echo "set GHOSTBUS_DATABASE_URL" && exit 2)
+	uv run python -c "import os; from ghostbus_api.migrations import upgrade_to_head; upgrade_to_head(os.environ['GHOSTBUS_DATABASE_URL'])"
+
+publish:  ## Publish the serving tables from data/ghostbus.duckdb to $$GHOSTBUS_DATABASE_URL: make publish [ARGS=--force]
+	@test -n "$$GHOSTBUS_DATABASE_URL" || (echo "set GHOSTBUS_DATABASE_URL" && exit 2)
+	uv run python -m ghostbus_publish $(ARGS)
 
 lint:  ## Lint, format check, type check, fixture sizes
 	uv run ruff check .

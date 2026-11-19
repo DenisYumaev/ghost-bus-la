@@ -99,7 +99,7 @@ def run_dbt(data: Path, tmp: Path, tz: str = "America/Los_Angeles") -> Path:
     return copy
 
 
-def _world(tmp: Path) -> Path:
+def build_world(tmp: Path) -> Path:
     return build(
         tmp,
         # The same vehicle report in two fetches.
@@ -112,7 +112,7 @@ def _world(tmp: Path) -> Path:
 @pytest.fixture(scope="module")
 def warehouse(tmp_path_factory: pytest.TempPathFactory) -> Path:
     tmp = tmp_path_factory.mktemp("dbt")
-    return run_dbt(_world(tmp), tmp)
+    return run_dbt(build_world(tmp), tmp)
 
 
 def test_the_build_does_not_depend_on_the_session_zone(
@@ -123,7 +123,7 @@ def test_the_build_does_not_depend_on_the_session_zone(
     from fingerprint_warehouse import fingerprints
 
     tmp = tmp_path_factory.mktemp("dbt_kolkata")
-    other = run_dbt(_world(tmp), tmp, tz="Asia/Kolkata")
+    other = run_dbt(build_world(tmp), tmp, tz="Asia/Kolkata")
     with (
         duckdb.connect(str(warehouse), read_only=True) as a,
         duckdb.connect(str(other), read_only=True) as b,

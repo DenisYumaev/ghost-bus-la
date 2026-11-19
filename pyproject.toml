@@ -33,9 +33,9 @@ target-version = "py312"
 select = ["E", "W", "F", "I", "B", "UP", "S", "DTZ", "PT", "SIM", "RUF"]
 
 [tool.ruff.lint.per-file-ignores]
-# assert is how pytest checks things.
-"**/tests/**" = ["S101"]
-"tests/**" = ["S101"]
+# assert is how pytest checks things; tests build SQL from names defined in code (S608).
+"**/tests/**" = ["S101", "S608"]
+"tests/**" = ["S101", "S608"]
 
 [tool.mypy]
 python_version = "3.12"
