@@ -6,6 +6,7 @@ requires-python = ">=3.12,<3.13"
 dependencies = [
     "duckdb>=1.1",  # reads the dbt warehouse (read-only)
     "psycopg[binary]>=3.2",  # COPY into Postgres; the swap in one transaction
+    "pytz",  # DuckDB needs it to return TIMESTAMPTZ values to Python
 ]
 
 [dependency-groups]

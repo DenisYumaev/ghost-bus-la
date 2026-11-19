@@ -298,7 +298,7 @@ For each serving table: load into `serving.<table>__new`, validate (row count wi
 
 Serving tables are listed in the API spec, section 7.
 
-Implementation (`services/publish`, `ghostbus_publish.engine`): each table is a `ServingTable` (DuckDB source query, primary key, extra indexes). Columns are created from the source query's DuckDB types (an unmapped type is an error, not a silent text column). Rows stream in with `COPY`; the key and indexes are built after the load, with names carrying a per-run suffix so repeated swaps never collide. A leftover `__new` from a crash is dropped first. A refused or failed table records a failed `ops.publish_run` row, leaves the live table as it was, and doesn't stop the other tables. The run exits non-zero if any table failed.
+Implementation (`services/publish`, `ghostbus_publish.engine`): each table is a `ServingTable` (DuckDB source query, primary key, extra indexes). Columns are created from the source query's DuckDB types (an unmapped type is an error, not a silent text column). Rows stream in with `COPY`; the key and indexes are built after the load, with names carrying a per-run suffix so repeated swaps never collide. A leftover `__new` from a crash is dropped first. A refused or failed table records a failed `ops.publish_run` row, leaves the live table as it was, and doesn't stop the other tables. `publish` raises `PublishError` if any table failed. Only one run at a time (a Postgres advisory lock); the swap waits at most 2 s for its lock, three tries, so a reader holding the table can't make it hang.
 
 ## 14. Validation before any number is published
 

@@ -12,10 +12,18 @@ Pipeline spec section 13 and ADR-007. For each table:
    never a mix; if anything in the transaction fails, all of it rolls back.
 
 A failed table leaves the live table as it was, drops its staging table, records a failed run,
-and doesn't stop the other tables; publish raises PublishError at the end if any failed.
+and doesn't stop the other tables; publish raises PublishError at the end if any failed. (If
+the Postgres connection itself drops, the run stops there with the connection's error.)
+Only one publish runs at a time (an advisory lock). The swap waits at most SWAP_LOCK_TIMEOUT for
+its exclusive lock, so a reader holding the table open makes it retry, then fail, never hang
+while every new reader queues behind it. Failed runs also add ops.publish_run rows, so an API
+that watches max(id) to clear its cache clears it once more than needed; data_as_of only
+uses succeeded rows.
 Constraint and index names carry a per-run suffix so repeated swaps never collide.
 """
 
+import re
+import time
 import uuid
 from collections.abc import Sequence
 from dataclasses import dataclass, field
@@ -35,6 +43,14 @@ PG_TYPES = {
     "TIMESTAMP WITH TIME ZONE": "timestamptz",
 }
 MAX_CHANGE = 0.2  # pipeline spec section 13
+# The swap needs an exclusive lock on the live table; a reader holding it open mustn't make the
+# swap wait forever while every new API query queues behind it. Wait this long, then retry.
+SWAP_LOCK_TIMEOUT = "2s"
+SWAP_ATTEMPTS = 3
+# One publish at a time: concurrent runs would drop each other's staging tables.
+ADVISORY_LOCK = "ghostbus_publish"
+# ops.publish_run's CHECK, and room for "<name>_ix9_<8 hex>" within Postgres's 63-byte names.
+NAME = re.compile(r"^[a-z][a-z0-9_]{0,48}$")
 
 
 @dataclass(frozen=True)
@@ -47,6 +63,10 @@ class ServingTable:
     indexes: tuple[tuple[str, ...], ...] = ()
     # Key columns allowed to be NULL (then the key is a unique index, not a primary key).
     nullable_key: frozenset[str] = field(default_factory=frozenset)
+
+    def __post_init__(self) -> None:
+        if not NAME.match(self.name) or self.name.endswith(("__new", "__old")):
+            raise ValueError(f"bad serving table name {self.name!r}: lowercase, at most 49 chars")
 
 
 @dataclass(frozen=True)
@@ -66,9 +86,14 @@ def pg_type(duck_type: str) -> str:
         raise ValueError(f"no Postgres type for DuckDB {duck_type}: add it to PG_TYPES") from None
 
 
-def create_table_sql(table: ServingTable, columns: Sequence[tuple[str, str]]) -> str:
-    cols = ", ".join(f'"{name}" {pg_type(duck)}' for name, duck in columns)
-    return f'CREATE TABLE serving."{table.name}__new" ({cols})'
+def create_table_sql(table: ServingTable, columns: Sequence[tuple[str, str]]) -> sql.Composed:
+    cols = sql.SQL(", ").join(
+        sql.SQL("{} {}").format(sql.Identifier(name), sql.SQL(pg_type(duck)))
+        for name, duck in columns
+    )
+    return sql.SQL("CREATE TABLE serving.{} ({})").format(
+        sql.Identifier(f"{table.name}__new"), cols
+    )
 
 
 def row_count_problem(previous: int | None, new: int, *, force: bool) -> str | None:
@@ -77,7 +102,7 @@ def row_count_problem(previous: int | None, new: int, *, force: bool) -> str | N
         return None
     if new == 0:
         return "no rows"
-    if previous is not None and abs(new - previous) > MAX_CHANGE * previous:
+    if previous and abs(new - previous) > MAX_CHANGE * previous:  # 0: a forced empty load
         return f"{new} rows against {previous} last time (more than {MAX_CHANGE:.0%} apart)"
     return None
 
@@ -97,6 +122,12 @@ def publish(
         duckdb.connect(str(warehouse), read_only=True) as duck,
         psycopg.connect(database_url.replace("postgresql+psycopg://", "postgresql://")) as pg,
     ):
+        with pg.cursor() as cur:
+            cur.execute("SELECT pg_try_advisory_lock(hashtext(%s))", (ADVISORY_LOCK,))
+            got = cur.fetchone()
+        pg.commit()
+        if not (got and got[0]):
+            raise PublishError("another publish run holds the lock; not starting")
         for table in tables:
             with pg.cursor() as cur:
                 cur.execute("SELECT clock_timestamp()")
@@ -139,7 +170,7 @@ def _publish_table(
     n = 0
     with pg.cursor() as cur:
         cur.execute(sql.SQL("DROP TABLE IF EXISTS serving.{}").format(new))
-        cur.execute(create_table_sql(table, columns).encode())
+        cur.execute(create_table_sql(table, columns))
         names = sql.SQL(", ").join(sql.Identifier(c) for c, _ in columns)
         copy_sql = sql.SQL("COPY serving.{} ({}) FROM STDIN").format(new, names)
         result = duck.execute(table.source_sql)
@@ -168,17 +199,31 @@ def _publish_table(
         problem = row_count_problem(last[0] if last else None, n, force=force)
         if problem:
             raise ValueError(problem)
+        # Column statistics now, so the first API query on the new table plans well.
+        cur.execute(sql.SQL("ANALYZE serving.{}").format(new))
     pg.commit()  # the staging table is complete; now swap in one transaction
-    with pg.transaction(), pg.cursor() as cur:
-        cur.execute(sql.SQL("ALTER TABLE IF EXISTS serving.{} RENAME TO {}").format(live, old))
-        cur.execute(sql.SQL("ALTER TABLE serving.{} RENAME TO {}").format(new, live))
-        cur.execute(sql.SQL("DROP TABLE IF EXISTS serving.{}").format(old))
-        cur.execute(
-            "INSERT INTO ops.publish_run (run_id, table_name, status, row_count, source,"
-            " started_at) VALUES (%s, %s, 'succeeded', %s, %s, %s)",
-            (run_id, table.name, n, source, started),
-        )
-    return n
+    for attempt in range(1, SWAP_ATTEMPTS + 1):
+        try:
+            with pg.transaction(), pg.cursor() as cur:
+                cur.execute(f"SET LOCAL lock_timeout = '{SWAP_LOCK_TIMEOUT}'")
+                # A stray __old (a manual repair) would make the first rename fail every run.
+                cur.execute(sql.SQL("DROP TABLE IF EXISTS serving.{}").format(old))
+                cur.execute(
+                    sql.SQL("ALTER TABLE IF EXISTS serving.{} RENAME TO {}").format(live, old)
+                )
+                cur.execute(sql.SQL("ALTER TABLE serving.{} RENAME TO {}").format(new, live))
+                cur.execute(sql.SQL("DROP TABLE IF EXISTS serving.{}").format(old))
+                cur.execute(
+                    "INSERT INTO ops.publish_run (run_id, table_name, status, row_count, source,"
+                    " started_at) VALUES (%s, %s, 'succeeded', %s, %s, %s)",
+                    (run_id, table.name, n, source, started),
+                )
+            return n
+        except psycopg.errors.LockNotAvailable:
+            if attempt == SWAP_ATTEMPTS:
+                raise
+            time.sleep(attempt)
+    raise AssertionError("unreachable")
 
 
 def _record_failure(

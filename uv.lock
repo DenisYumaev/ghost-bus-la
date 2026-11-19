@@ -542,6 +542,7 @@ source = { editable = "services/publish" }
 dependencies = [
     { name = "duckdb" },
     { name = "psycopg", extra = ["binary"] },
+    { name = "pytz" },
 ]
 
 [package.dev-dependencies]
@@ -554,6 +555,7 @@ dev = [
 requires-dist = [
     { name = "duckdb", specifier = ">=1.1" },
     { name = "psycopg", extras = ["binary"], specifier = ">=3.2" },
+    { name = "pytz" },
 ]
 
 [package.metadata.requires-dev]

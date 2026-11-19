@@ -29,14 +29,26 @@ def test_refuses_types_it_has_not_been_taught(duck: str) -> None:
         pg_type(duck)
 
 
-def test_ddl_quotes_names_and_suffixes_constraints() -> None:
+def test_ddl_quotes_every_name() -> None:
     table = ServingTable("reliability", "select 1", key=("line", "time_window"))
-    sql = create_table_sql(
-        table, [("line", "VARCHAR"), ("time_window", "VARCHAR"), ("n", "BIGINT")]
+    columns = [("line", "VARCHAR"), ("time_window", "VARCHAR"), ('odd"name', "BIGINT")]
+    assert create_table_sql(table, columns).as_string() == (
+        'CREATE TABLE serving."reliability__new" ('
+        '"line" text, "time_window" text, "odd""name" bigint)'
     )
-    assert sql == (
-        'CREATE TABLE serving."reliability__new" ("line" text, "time_window" text, "n" bigint)'
-    )
+
+
+@pytest.mark.parametrize(
+    "name", ["Reliability", "reliability__new", "x__old", "1line", "a" * 50, "has space"]
+)
+def test_refuses_table_names_ops_or_postgres_would_reject(name: str) -> None:
+    with pytest.raises(ValueError, match="bad serving table name"):
+        ServingTable(name, "select 1", key=("id",))
+
+
+def test_a_forced_empty_load_is_not_a_baseline() -> None:
+    # After a forced load of 0 rows, any later non-empty load would be "infinitely" different.
+    assert row_count_problem(0, 25_000, force=False) is None
 
 
 @given(st.integers(1, 10**7), st.floats(0.8, 1.2))
