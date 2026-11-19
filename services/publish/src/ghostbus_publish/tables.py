@@ -94,9 +94,10 @@ TABLES: tuple[ServingTable, ...] = (
     ),
     ServingTable(
         "feed_health",
-        # FEED_HEALTH_DAYS days.
-        "SELECT * FROM fct_feed_health WHERE bucket_start > "
-        "(SELECT max(bucket_start) FROM fct_feed_health) - INTERVAL 7 DAY",
+        # FEED_HEALTH_DAYS days. Padding buckets (the synced days either side of the range) are
+        # left out: once the open day syncs they lie in the future and would read as outages.
+        "SELECT * FROM fct_feed_health WHERE NOT is_padding AND bucket_start > "
+        "(SELECT max(bucket_start) FROM fct_feed_health WHERE NOT is_padding) - INTERVAL 7 DAY",
         key=("feed", "bucket_start"),
         indexes=(("bucket_start",),),  # the status page asks for the last N hours, all feeds
     ),

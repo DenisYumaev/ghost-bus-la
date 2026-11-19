@@ -84,6 +84,8 @@ def test_the_recent_windows_match_their_constants() -> None:
     by_name = {t.name: t.source_sql for t in TABLES}
     assert f"- {RECENT_OUTCOME_DAYS}" in by_name["trip_outcome_recent"]
     assert f"INTERVAL {FEED_HEALTH_DAYS} DAY" in by_name["feed_health"]
+    # Padding is excluded from the rows and from the window's anchor alike.
+    assert by_name["feed_health"].count("NOT is_padding") == 2
 
 
 def test_a_table_without_a_limit_may_double() -> None:

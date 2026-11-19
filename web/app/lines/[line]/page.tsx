@@ -14,7 +14,7 @@ import { CancellationList } from "@/components/CancellationList";
 import { LineSummary, periodText } from "@/components/LineSummary";
 import { StaleNotice } from "@/components/StaleNotice";
 import { ReliabilityHeatmap } from "@/components/charts/ReliabilityHeatmap";
-import { ApiError, apiGet } from "@/lib/api/client";
+import { ApiError, apiGet, orNull } from "@/lib/api/client";
 import { percent } from "@/lib/format";
 import { t } from "@/lib/messages";
 
@@ -26,17 +26,6 @@ export async function generateStaticParams(): Promise<{ line: string }[]> {
 }
 
 type Props = { params: Promise<{ line: string }> };
-
-/** For the secondary sections only: null for a 404 or 503 answer, so the section says it's
- * unavailable while the rest of the page renders. Anything else (a network failure) throws. */
-async function orNull<T>(request: Promise<T>): Promise<T | null> {
-  try {
-    return await request;
-  } catch (error) {
-    if (error instanceof ApiError && (error.status === 404 || error.status === 503)) return null;
-    throw error;
-  }
-}
 
 /** Only a 404 means the line doesn't exist. A 503 (database down) must reach the error page,
  * never "we couldn't find that line". */

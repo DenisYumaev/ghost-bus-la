@@ -77,6 +77,17 @@ type Args<P extends keyof paths> = [Params<P>] extends [never]
   : [Options<P>];
 
 /** GET a path. Missing path parameters or required query parameters are compile errors. */
+/** For a page's secondary sections: null for a 404 or 503 answer, so the section can say it's
+ * unavailable while the rest of the page renders. Anything else (a network failure) throws. */
+export async function orNull<T>(request: Promise<T>): Promise<T | null> {
+  try {
+    return await request;
+  } catch (error) {
+    if (error instanceof ApiError && (error.status === 404 || error.status === 503)) return null;
+    throw error;
+  }
+}
+
 export async function apiGet<P extends keyof paths>(
   path: P,
   ...[options = {} as Options<P>]: Args<P>

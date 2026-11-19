@@ -336,6 +336,15 @@ The trade-offs in Ghost Bus LA you should be able to defend out loud. Each entry
 - **Measured trade-off:** the page ships 179 KB of gzipped JavaScript, about 1.2 KB of it ours. The Next.js runtime alone breaks the spec's 120 KB budget, so that budget is an open owner question, not something to fix quietly.
 - **Record:** web spec sections 3, 4 and 7; `web/app/lines/[line]/page.tsx`; quiz 048.
 
+### 15z. The web build never needs the API
+
+- **Decision:** home, method and status render per request (`force-dynamic`); line pages are ISR with no pages built ahead (`generateStaticParams` returns `[]`). The API responses are cached on the Next server (fetch `revalidate` 60 or 300 s), so per-request rendering costs HTML work, not API calls.
+- **Why:** prerendering at build time makes every web deploy depend on the VM being up and published. A web deploy that fails because of a database blip is a coupling with no benefit at this scale.
+- **Measured:** 8 page loads made 3 API requests on a production build, so the fetch cache still holds under `force-dynamic`.
+- **Trade-off:** no CDN-cached HTML for those three pages, so each visit runs a server render. If the M5 load test shows that matters, add `use cache` (cache components) or an on-demand revalidation hook from publish.
+- **Also:** the home page shows no system-wide percentage until M5 validates it against Metro's report; the API itself labels those numbers internal.
+- **Record:** web spec section 3; quiz 049.
+
 ### 16. Ingest every line; scope the headline numbers
 
 - **Decision:** archive all lines, and compute headline metrics on Metro-operated lines only.
