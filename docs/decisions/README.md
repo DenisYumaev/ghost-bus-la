@@ -20,6 +20,7 @@ Update this table in the same PR that adds or changes an ADR.
 | [003](003-operating-standards.md) | Operating standards: explain-back merge gate (predictions optional), SLOs and error budget, incident log, tools on evidence | Accepted; decision 1 superseded | → 022 |
 | [004](004-bronze-storage-guardrails.md) | Bronze storage: content-addressed keys, conditional writes, deny-delete and no-overwrite policy, instance role, remote state | Accepted | Supersedes 001 decision 6's key format |
 | [007](007-postgres-serving-atomic-swap.md) | Postgres serves precomputed aggregates; publish swaps tables atomically and owns the serving DDL; Alembic owns `ops` and `app` | Accepted | Settles who defines the serving tables and the role model (specs silent) |
+| [013](013-sync-fastapi-with-a-pool.md) | Sync FastAPI endpoints with a connection pool, server-side timeouts, served by uvicorn | Accepted | Adds uvicorn to the stack |
 | [021](021-realtime-source-websocket.md) | Realtime source: WebSocket snapshots; cancellations from trip updates | Accepted | Supersedes 001 decisions 1 and 3 |
 | [022](022-claude-writes-all-review-replaces-gates.md) | Claude writes all code and ADRs; quizzes logged, not gated; tests and independent review replace the owner gates | Accepted | Supersedes 003 decision 1, learning spec section 3, and the owner Why-rewrite rule |
 | [023](023-dbt-reads-a-local-marker-filtered-copy.md) | dbt reads a local, marker-filtered copy of derived data | Accepted | Supersedes pipeline spec section 6's "read Parquet from S3" for M1 |
@@ -39,7 +40,6 @@ Already decided in `docs/SPEC.md` section 5, which holds the one-line why and th
 | 015 | DuckDB and dbt on Parquet; no warehouse | M1 |
 | 016 | cron first, Airflow in M4 | M1 |
 | 012 | Postgres on the VM with nightly dumps to S3 | M2 |
-| 013 | Sync FastAPI endpoints with a connection pool | M2 |
 | 017 | Web on Vercel, API on the VM, same parent domain | M2 |
 | 019 | No staging environment | M2 |
 | 006 | Hot path separate from batch path | M3 |

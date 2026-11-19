@@ -274,6 +274,16 @@ The trade-offs in Ghost Bus LA you should be able to defend out loud. Each entry
 - **Why:** a slash can't sit in a path segment, and encoding it as `%2F` doesn't help, because the framework decodes it before routing. Eight combined lines and six named services in Metro's schedule would otherwise have no working URL.
 - **Stability:** dbt tests make the slug unique per version and one-to-one with the line across all versions, so a bookmarked URL can't come to mean a different line.
 
+### 15r. The first endpoint end to end
+
+- **Decision (ADR-013):** plain `def` FastAPI endpoints over a pooled SQLAlchemy Core engine (psycopg 3), served by uvicorn. Routers hold no SQL; repositories own every parameterized query (hard rule 7).
+- **Timeouts that protect publish:** every API connection sets `statement_timeout` 5 s and `idle_in_transaction_session_timeout` 10 s. A connection that forgets to end its transaction can't hold the `serving` table lock that the publish swap waits for. The swap's own `lock_timeout` is the other half.
+- **Caching:** `Cache-Control: public, max-age=300, stale-while-revalidate=600`, and an ETag from `data_as_of` plus the query, with 304 on a match. A browser or CDN revalidates cheaply until a new publish changes the tag.
+- **Errors:** RFC 9457 problem documents with the request ID for every error, including validation (422 listing the fields), 404s and 503s; never a stack trace.
+- **Which schedule version:** the line and headsign come from the version in force on the rider's local date in Los Angeles (ADR-028); the rates come from the reliability table, which is by line.
+- **Proved end to end:** the integration test builds the dbt test world, publishes it into Postgres 16, and calls the endpoint through the real app.
+- **Record:** ADR-013; `services/api/src/ghostbus_api/`; quiz 040.
+
 ### 16. Ingest every line; scope the headline numbers
 
 - **Decision:** archive all lines, and compute headline metrics on Metro-operated lines only.

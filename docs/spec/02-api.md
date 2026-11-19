@@ -94,7 +94,7 @@ Example, `GET /v1/lines/720/reliability?direction_id=0&window=28d`:
 }
 ```
 
-The numbers in this example are illustrative.
+The numbers in this example are illustrative. The implemented response (`services/api`, PR #46) also carries `line_slug`, `display_name`, `window_start` and `data_through` (the last service date in the window; `data_as_of` is only the publish time). `direction_id` is required. An unknown line or a direction without data is a 404 problem.
 
 ### 4.2 Auth
 
