@@ -306,7 +306,10 @@ Notes for the build:
 | `serving.system_summary` | window | Home page |
 | `serving.feed_health` | feed × 5 minutes, last 7 days (by the newest bucket) | Status page |
 
-The table list, keys and indexes live in `services/publish/src/ghostbus_publish/tables.py`. `serving.trip_stop_time` comes with commute matching (M3); `serving.stop_reliability` is P1.
+The table list, keys, indexes and row-count guard policy live in `services/publish/src/ghostbus_publish/tables.py`. Not yet built:
+- `serving.trip_stop_time` comes with commute matching (M3); `serving.stop_reliability` is P1.
+- `GET /v1/meta/method` needs the thresholds that built the numbers: a small table published from the dbt vars, so the method page can't drift from the build. It comes with that endpoint's PR.
+- `GET /v1/cancellations/current` is realtime, which a nightly batch can't produce. Its PR decides, with an ADR, between a table from the 10-minute build (today's chosen `CANCELED` reports) and waiting for the detector's events (M3).
 
 Ownership (ADR-007): `publish` creates each serving table, with its indexes, on every load; Alembic creates the `serving` and `ops` schemas and the `ops` tables (migration `0001`, `services/api/src/ghostbus_api/alembic/`); `ops.alert_feedback` arrives with its P1 feature.
 

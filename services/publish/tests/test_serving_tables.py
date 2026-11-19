@@ -6,11 +6,11 @@ from typing import Any
 
 import duckdb
 import pytest
+from dbt_world import build_world, run_dbt
 from ghostbus_api.migrations import downgrade_to_base, upgrade_to_head
 from ghostbus_publish.engine import publish
 from ghostbus_publish.tables import TABLES
 from sqlalchemy import Engine, create_engine, text
-from test_dbt import build_world, run_dbt
 
 pytestmark = pytest.mark.integration
 

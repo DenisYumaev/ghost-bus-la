@@ -13,6 +13,8 @@ import os
 import sys
 from pathlib import Path
 
+import psycopg
+
 from ghostbus_publish.engine import PublishError, publish
 from ghostbus_publish.tables import TABLES
 
@@ -37,6 +39,9 @@ def main() -> None:
         results = publish(args.warehouse, url, tables, source=source, force=args.force)
     except PublishError as exc:
         sys.exit(f"publish failed: {exc}")
+    except psycopg.Error:
+        # libpq's errors can quote the URL, password included (hard rule 9): say nothing more.
+        sys.exit("cannot connect with GHOSTBUS_DATABASE_URL (check the URL); details withheld")
     for r in results:
         print(f"{r.table}: {r.row_count:,} rows")
 

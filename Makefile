@@ -25,7 +25,7 @@ test-integration:  ## Start Postgres in Docker (compose.test.yml), run the integ
 
 migrate:  ## Apply the Alembic migrations to $$GHOSTBUS_DATABASE_URL (never a URL on the command line)
 	@test -n "$$GHOSTBUS_DATABASE_URL" || (echo "set GHOSTBUS_DATABASE_URL" && exit 2)
-	uv run python -c "import os; from ghostbus_api.migrations import upgrade_to_head; upgrade_to_head(os.environ['GHOSTBUS_DATABASE_URL'])"
+	uv run python -m ghostbus_api.migrations
 
 publish:  ## Publish the serving tables from data/ghostbus.duckdb to $$GHOSTBUS_DATABASE_URL: make publish [ARGS=--force]
 	@test -n "$$GHOSTBUS_DATABASE_URL" || (echo "set GHOSTBUS_DATABASE_URL" && exit 2)
