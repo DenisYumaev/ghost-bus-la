@@ -96,4 +96,6 @@ def test_only_grow_in_steps_tables_skip_the_guard() -> None:
     from ghostbus_publish.tables import TABLES
 
     unguarded = {t.name for t in TABLES if t.max_change is None}
-    assert unguarded == {"schedule_version", "line", "line_direction", "line_stop", "line_trend"}
+    assert unguarded == {
+        "schedule_version", "line", "line_direction", "line_stop", "line_trend", "method_param",
+    }  # fmt: skip
