@@ -1,0 +1,23 @@
+[project]
+name = "ghostbus-publish"
+version = "0.1.0"
+description = "Copies gold tables from DuckDB into Postgres serving with an atomic swap (ADR-007). Not affiliated with LA Metro."
+requires-python = ">=3.12,<3.13"
+dependencies = [
+    "duckdb>=1.1",  # reads the dbt warehouse (read-only)
+    "psycopg[binary]>=3.2",  # COPY into Postgres; the swap in one transaction
+    "pytz",  # DuckDB needs it to return TIMESTAMPTZ values to Python
+]
+
+[dependency-groups]
+dev = [
+    "ghostbus-api",  # tests apply the ops schema with its migrations
+    "sqlalchemy>=2.0",
+]
+
+[tool.uv.sources]
+ghostbus-api = { workspace = true }
+
+[build-system]
+requires = ["uv_build>=0.13,<0.14"]
+build-backend = "uv_build"

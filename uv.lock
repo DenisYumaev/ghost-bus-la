@@ -9,6 +9,7 @@ members = [
     "ghostbus-core",
     "ghostbus-decode",
     "ghostbus-ingest",
+    "ghostbus-publish",
 ]
 
 [[package]]
@@ -532,6 +533,35 @@ requires-dist = [
     { name = "botocore", specifier = ">=1.36" },
     { name = "httpx", specifier = ">=0.27" },
     { name = "websockets", specifier = ">=13" },
+]
+
+[[package]]
+name = "ghostbus-publish"
+version = "0.1.0"
+source = { editable = "services/publish" }
+dependencies = [
+    { name = "duckdb" },
+    { name = "psycopg", extra = ["binary"] },
+    { name = "pytz" },
+]
+
+[package.dev-dependencies]
+dev = [
+    { name = "ghostbus-api" },
+    { name = "sqlalchemy" },
+]
+
+[package.metadata]
+requires-dist = [
+    { name = "duckdb", specifier = ">=1.1" },
+    { name = "psycopg", extras = ["binary"], specifier = ">=3.2" },
+    { name = "pytz" },
+]
+
+[package.metadata.requires-dev]
+dev = [
+    { name = "ghostbus-api", editable = "services/api" },
+    { name = "sqlalchemy", specifier = ">=2.0" },
 ]
 
 [[package]]

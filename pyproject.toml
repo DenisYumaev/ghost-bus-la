@@ -44,7 +44,7 @@ warn_unreachable = true
 # Each src/ dir (and scripts/) is a root that module names are counted from,
 # so src/ghostbus_core/__init__.py is the module `ghostbus_core`, as at runtime.
 # Test directories hold top-level modules: keep test file names unique.
-mypy_path = ["packages/ghostbus_core/src", "services/ingest/src", "services/api/src", "pipeline/decode/src", "scripts", "services/ingest/tests", "pipeline/decode/tests"]
+mypy_path = ["packages/ghostbus_core/src", "services/ingest/src", "services/api/src", "services/publish/src", "pipeline/decode/src", "scripts", "services/ingest/tests", "pipeline/decode/tests"]
 explicit_package_bases = true
 
 # boto3 and botocore ship no type hints. Code that uses them defines a small Protocol for the
@@ -64,7 +64,7 @@ pythonpath = ["scripts", "services/ingest/tests", "pipeline/decode/tests"]
 xfail_strict = true
 
 [tool.coverage.run]
-source = ["ghostbus_core", "ghostbus_ingest", "ghostbus_decode", "ghostbus_api"]
+source = ["ghostbus_core", "ghostbus_ingest", "ghostbus_decode", "ghostbus_api", "ghostbus_publish"]
 branch = true
 
 [tool.coverage.report]

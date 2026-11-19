@@ -15,6 +15,7 @@ COPY pyproject.toml uv.lock ./
 COPY packages/ghostbus_core/pyproject.toml packages/ghostbus_core/pyproject.toml
 COPY pipeline/decode/pyproject.toml pipeline/decode/pyproject.toml
 COPY services/api/pyproject.toml services/api/pyproject.toml
+COPY services/publish/pyproject.toml services/publish/pyproject.toml
 COPY services/ingest/pyproject.toml services/ingest/pyproject.toml
 RUN uv sync --locked --no-dev --package ghostbus-ingest --no-install-workspace
 

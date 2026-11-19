@@ -247,6 +247,20 @@ The trade-offs in Ghost Bus LA you should be able to defend out loud. Each entry
 - **Rejected:** numpy (not on the stack); pure Python (hours); the delta method (poor near 0 with few days, exactly the weekend cells).
 - **Record:** ADR-027; quiz 037.
 
+### 15o. Publish: load beside, validate, swap in one transaction
+
+- **Decision (ADR-007, pipeline spec section 13):** each serving table loads into `serving.<t>__new` with `COPY`, gets its key and indexes, is validated, and then replaces the live table. The swap renames live to `__old` and `__new` to live, drops `__old`, and records `ops.publish_run`, all in one transaction.
+- **Why one transaction:** Postgres DDL is transactional. Readers see the old table until the commit and the new one after, never a missing or half-filled table. If anything inside fails, even the bookkeeping insert, the renames roll back too. A test forces that by making the `publish_run` insert fail.
+- **Guards:**
+  - a load more than 20% away from the last successful one, or an empty load, is refused unless `--force`;
+  - NULL keys are refused;
+  - a refused table keeps serving yesterday's data and is recorded as failed.
+- **Details that bite:**
+  - index names stay with a renamed table, so a fixed name would collide on the next load; names carry a per-run suffix;
+  - a crash can leave a `__new` table, so it's dropped first;
+  - an unmapped DuckDB type fails loudly rather than becoming text.
+- **Record:** `services/publish/src/ghostbus_publish/engine.py`; quiz 038.
+
 ### 16. Ingest every line; scope the headline numbers
 
 - **Decision:** archive all lines, and compute headline metrics on Metro-operated lines only.
