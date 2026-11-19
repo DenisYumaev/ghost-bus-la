@@ -9,10 +9,9 @@ from sqlalchemy import Connection, text
 # with this line-direction's numbers if it has any: a week without trips is an empty point.
 TREND = """
     WITH newest AS (SELECT max(week_start) AS week FROM serving.line_trend),
-    weeks AS (
-        SELECT CAST(generate_series(week - 7 * (:weeks - 1), week, interval '7 days') AS date)
-            AS week_start
-        FROM newest
+    weeks AS (  -- integer and date arithmetic only: no time zone involved
+        SELECT week - 7 * g AS week_start
+        FROM newest, generate_series(0, :weeks - 1) AS g
     )
     SELECT w.week_start, t.n_service_days, t.n_scheduled, t.n_unknown, t.n_trips, t.n_ran,
            t.n_partial, t.n_missed, t.n_missed_announced, t.n_missed_unplanned, t.missed_rate,
@@ -36,8 +35,11 @@ OUTCOMES = """
            advance_notice_s, stop_coverage
     FROM serving.trip_outcome_recent
     WHERE line = :line AND service_date = :service_date
-      AND (CAST(:after_start AS timestamptz) IS NULL
-           OR (sched_start_utc, trip_id) > (:after_start, :after_trip))
+      -- One predicate that is always an index range condition, even in a generic prepared plan;
+      -- the first page compares against -infinity and '' (trip IDs are never empty).
+      AND (sched_start_utc, trip_id) > (
+          COALESCE(CAST(:after_start AS timestamptz), '-infinity'),
+          COALESCE(CAST(:after_trip AS text), ''))
     ORDER BY sched_start_utc, trip_id
     LIMIT :limit
 """
