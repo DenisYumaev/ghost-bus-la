@@ -328,6 +328,14 @@ The trade-offs in Ghost Bus LA you should be able to defend out loud. Each entry
 - **Versions:** TypeScript 5.9, not 7: the native compiler isn't supported yet by typescript-eslint (caps below 6.1) or openapi-typescript (5.x). ESLint 9, because the React and import plugins don't support 10.
 - **Record:** web spec section 2; `web/lib/api/client.ts`; quiz 047.
 
+### 15y. The line page: server-rendered, answer first, no JavaScript of its own
+
+- **Decision:** `/lines/[line]` is a server component generated on first request and cached (ISR). The cancellations fetch revalidates every 60 s, and the lowest fetch revalidate sets the page's, so the page regenerates each minute while the detail and grid fetches come from the fetch cache (300 s). It opens with one sentence ("Over the past 28 days, 5% of line 720's trips never ran", or "over the 17 days tracked so far" while the archive is younger), then the range and the counts behind it, then announced cancellations, then each direction's heatmap.
+- **Heatmap:** server-rendered SVG. Each cell is focusable and carries a text label ("Weekdays, 5 PM: 5% of 412 trips never ran, range 4 to 7%"). Suppressed cells are hatched and say "not enough data". A `<details>` table repeats every cell, which needs no JavaScript to toggle.
+- **Partial failure:** a 404 or 503 for one direction or for cancellations shows "unavailable" in that section, never an empty list that looks like a quiet day. Only a 404 for the line itself is "not found"; a 503 (database down) reaches the error page, whose retry calls `router.refresh()` so the server render actually runs again. The review caught the first version mapping 503 to not-found.
+- **Measured trade-off:** the page ships 179 KB of gzipped JavaScript, about 1.2 KB of it ours. The Next.js runtime alone breaks the spec's 120 KB budget, so that budget is an open owner question, not something to fix quietly.
+- **Record:** web spec sections 3, 4 and 7; `web/app/lines/[line]/page.tsx`; quiz 048.
+
 ### 16. Ingest every line; scope the headline numbers
 
 - **Decision:** archive all lines, and compute headline metrics on Metro-operated lines only.
