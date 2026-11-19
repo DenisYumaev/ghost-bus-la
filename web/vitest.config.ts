@@ -11,6 +11,7 @@ export default defineConfig({
     // tests in a different zone proves the code never relies on the machine's.
     env: { TZ: "Asia/Tokyo" },
     include: ["**/*.test.{ts,tsx}"],
+    setupFiles: ["./tests/setup.ts"],
     exclude: ["node_modules/**", ".next/**"],
   },
 });

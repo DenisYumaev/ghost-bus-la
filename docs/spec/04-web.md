@@ -49,7 +49,7 @@ Line pages are the search-engine entry point ("is the 720 bus reliable"). Give e
 
 - **`ReliabilityHeatmap`**: 24 hours × 3 day types. Color encodes the share of trips that never ran; each cell is a focusable element with a text label ("Weekdays, 5 PM: 5% of 412 trips never ran, range 4 to 7%"). Suppressed cells are hatched and labeled "not enough data". Includes a "view as table" toggle.
 - **`TrendChart`**: weekly announced and unplanned rates, stacked.
-- **`CancellationList`**: currently announced cancellations, soonest first, with "posted N minutes ago".
+- **`CancellationList`**: currently announced cancellations, soonest first, with how far ahead each was announced ("announced 1 h 10 min before departure", or "announced after departure"; ADR-029), the data's `as_of`, a stale warning when the API flags it, and "unavailable" (never an empty list) when it can't load.
 - **`LikelyMissingList`** (P1): trips flagged likely missing right now, on the home page and each line page. Labeled "our estimate", with the detector's measured precision and a link to the method page. Never mixed into the announced list.
 - **`LinePicker`**, **`StopPicker`**: type-ahead for lines; stops in route order for the chosen direction, with a "use my location" option that never sends coordinates to the server (nearest stop is computed in the browser).
 - **`TimeWindowPicker`**: days of week and a start and end time; shows "about N trips are scheduled in this window".
@@ -86,6 +86,8 @@ The unfinished commute is kept in `sessionStorage` (wrapped in try/catch) throug
 | Lighthouse performance and accessibility | ≥ 90 |
 
 Lighthouse CI runs on every PR against the Vercel preview and fails the build under budget.
+
+**Measured 2026-11-19 (PR #54, production build, `next start`):** the line page loads 8 scripts, 179 KB gzip. About 1.2 KB is this app's code; the rest is the Next.js 16 and React 19 runtime that every App Router page loads, even one with no client components. The 120 KB budget can't be met with the stack this spec chooses. That is an open question for the owner (SPEC section 10), to be decided before the M5 Lighthouse gate.
 
 ## 8. Measurement without tracking
 

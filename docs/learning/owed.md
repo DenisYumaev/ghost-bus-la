@@ -63,6 +63,7 @@ All quizzes are in `docs/learning/quizzes/` on `main`. Take them whenever you ha
 | [#51](https://github.com/DenisYumaev/ghost-bus-la/pull/51) | SQL drill kit (learning spec section 4) | [ ] [045](quizzes/045-sql-drills.md) | [ ] | n/a | n/a |
 | [#52](https://github.com/DenisYumaev/ghost-bus-la/pull/52) | OpenAPI contract: committed document, declared errors, examples | [ ] [046](quizzes/046-openapi-contract.md) | [ ] | n/a | n/a (not deployed yet) |
 | [#53](https://github.com/DenisYumaev/ghost-bus-la/pull/53) | Web scaffold: Next.js, generated API types, LA time and honest formatting, CI job | [ ] [047](quizzes/047-web-scaffold.md) | [ ] | n/a | n/a (not deployed yet) |
+| [#54](https://github.com/DenisYumaev/ghost-bus-la/pull/54) | Line page: summary sentence, heatmap, cancellations | [ ] [048](quizzes/048-line-page.md) | [ ] | n/a | n/a (not deployed yet) |
 
 **Suggested order, if you take them:** 004, 005, and 006 first, because they describe what is live in AWS right now. Then 002, 001, and 003.
 
