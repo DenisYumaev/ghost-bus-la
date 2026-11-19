@@ -23,6 +23,18 @@ def test_the_method_page_shows_the_build_thresholds(client: TestClient) -> None:
     assert thresholds["min_stop_coverage"]["value"] == "0.8"
     assert thresholds["min_cell_service_days_weekend"]["value"] == "4"
     assert thresholds["min_cell_trips"]["decision"].startswith("ADR-025")
+    assert thresholds["bootstrap_replicates"]["value"] == "2000"  # the nightly half
+    assert thresholds["bootstrap_seed"]["value"] == "20261115"
+    assert set(thresholds) == {
+        "window_before_start_min", "window_after_end_min", "min_stop_coverage",
+        "min_feed_healthy_share", "feed_fresh_max_s", "min_cell_trips",
+        "min_cell_service_days_weekday", "min_cell_service_days_weekend", "min_week_service_days",
+        "bootstrap_replicates", "bootstrap_seed",
+    }  # fmt: skip
+    text = " ".join(body["notes"] + [d["meaning"] for d in body["rates"]])
+    assert "announced cancellation" in text
+    assert "unplanned missed trip" in text
+    assert "hid" not in text.lower()  # never imply Metro hides data (SPEC section 2.7)
     assert [d["term"] for d in body["outcomes"]] == ["ran", "partial", "unknown", "missed"]
     assert "not affiliated with LA Metro" in body["notes"][0]
     again = client.get("/v1/meta/method", headers={"If-None-Match": r.headers["etag"]})

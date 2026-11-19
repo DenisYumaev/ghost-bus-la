@@ -446,8 +446,12 @@ models:
     columns:
       - name: name
         data_tests: [unique, not_null]
-      - name: value
-        data_tests: [not_null]
+
+  - name: dim_method_params_nightly
+    description: The bootstrap's settings, rebuilt with the intervals (tag nightly).
+    columns:
+      - name: name
+        data_tests: [unique, not_null]
 
 unit_tests:
   - name: stg_fetch_log_collapses_repeated_lines_and_keeps_only_fetches

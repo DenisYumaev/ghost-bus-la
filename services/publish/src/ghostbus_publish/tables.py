@@ -71,7 +71,8 @@ TABLES: tuple[ServingTable, ...] = (
     ),
     ServingTable(
         "method_param",
-        "SELECT * FROM dim_method_params",
+        # Both halves: the nightly one is rebuilt with the intervals it describes (ADR-027).
+        "SELECT * FROM dim_method_params UNION ALL SELECT * FROM dim_method_params_nightly",
         key=("name",),
         max_change=None,  # a handful of rows; a new threshold is a legitimate change
     ),
