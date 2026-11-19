@@ -26,7 +26,7 @@ test-integration:  ## Start Postgres in Docker (compose.test.yml), run the integ
 lint:  ## Lint, format check, type check, fixture sizes
 	uv run ruff check .
 	uv run ruff format --check .
-	uv run mypy packages/ghostbus_core/src services/ingest/src services/api/src pipeline/decode/src scripts tests packages/ghostbus_core/tests services/ingest/tests services/api/tests pipeline/decode/tests
+	uv run mypy packages/ghostbus_core/src services/ingest/src services/api/src services/publish/src pipeline/decode/src scripts tests packages/ghostbus_core/tests services/ingest/tests services/api/tests services/publish/tests pipeline/decode/tests
 	uv run python scripts/check_fixture_size.py
 
 fmt:  ## Auto-fix lint issues and format
