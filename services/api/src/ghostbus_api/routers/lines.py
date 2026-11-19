@@ -89,8 +89,9 @@ def list_lines(request: Request, window: Window = "28d") -> Response:
     today = request.app.state.today()
     with request.app.state.engine.connect() as con:
         as_of, headers, not_modified = conditional(
-            request, con, ("line_summary", *LINE_TABLES), {"_today": today.isoformat()}
-        )
+            request, con, ("line_summary", *LINE_TABLES, "schedule_version"),
+            {"_today": today.isoformat()},
+        )  # fmt: skip
         if not_modified:
             return not_modified
         rows = repo.list_lines(con, today, window)
@@ -169,6 +170,8 @@ def line_stops(
         if not_modified:
             return not_modified
         rows = repo.stops(con, version, name, direction_id)
+        if not rows:  # the direction exists, so its stops are still being published
+            raise Problem(503, "Stops not published yet")
     body = StopList(
         line=name, line_slug=str(found["line_slug"]), direction_id=direction_id,
         headsign=headsign, data_as_of=as_of, stops=[Stop(**r) for r in rows],

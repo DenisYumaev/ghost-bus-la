@@ -78,9 +78,13 @@ def window_bounds(con: Connection, window: str) -> dict[str, Any] | None:
 
 
 def data_as_of(con: Connection, table: str) -> datetime | None:
-    """When the serving table was last published successfully (API spec section 1). The request
-    stays in one transaction, and the publish_run row commits with its table's swap, so this
-    and the rows read next come from the same publish. Don't switch reads to autocommit."""
+    """When the serving table was last published successfully (API spec section 1).
+
+    Consistency: a request is one READ COMMITTED transaction. A serving table it has already read
+    stays locked against publish's swap until the request ends, so its rows can't change under
+    it. A table first read later can be swapped in between; the body is then newer than its
+    ETag, and the next request gets the new tag. Don't switch to REPEATABLE READ: a table swapped
+    in after the snapshot would read as empty."""
     as_of: datetime | None = con.execute(
         text(
             "SELECT max(finished_at) FROM ops.publish_run "
@@ -139,9 +143,12 @@ def stalest_publish(con: Connection) -> datetime | None:
 # last.
 LIST_LINES = """
     WITH version AS (
-        SELECT version_id FROM serving.schedule_version
-        WHERE ever_in_force AND valid_from <= :today
-        ORDER BY valid_from DESC LIMIT 1
+        -- Only a version serving.line already has: publish swaps schedule_version first, and a
+        -- version whose lines haven't landed must not empty the list.
+        SELECT v.version_id FROM serving.schedule_version AS v
+        WHERE v.ever_in_force AND v.valid_from <= :today
+          AND EXISTS (SELECT 1 FROM serving.line AS l WHERE l.schedule_version = v.version_id)
+        ORDER BY v.valid_from DESC LIMIT 1
     )
     SELECT l.line, l.line_slug, l.display_name, l.line_kind, l.schedule_version,
            s.n_trips, s.n_service_days, s.missed_rate, s.announced_rate, s.unplanned_rate,
@@ -152,7 +159,7 @@ LIST_LINES = """
     LEFT JOIN serving.line_summary AS s
         ON s.line = l.line AND s.direction_id IS NULL AND s.time_window = :window
     WHERE l.is_metro_operated IS DISTINCT FROM false
-    ORDER BY l.line_number NULLS LAST, l.line
+    ORDER BY l.line_number NULLS LAST, l.line COLLATE "C"  -- byte order: same in every database
 """
 
 

@@ -78,3 +78,19 @@ def test_every_new_endpoint_is_cacheable(client: TestClient) -> None:
         first = client.get(path)
         again = client.get(path, headers={"If-None-Match": first.headers["etag"]})
         assert again.status_code == 304, path
+
+
+def test_a_version_whose_lines_have_not_landed_does_not_empty_the_list(
+    client: TestClient, url: str
+) -> None:
+    from sqlalchemy import create_engine, text
+
+    engine = create_engine(url)
+    with engine.begin() as con:  # schedule_version swapped first; line not yet
+        con.execute(text(
+            "INSERT INTO serving.schedule_version (version_id, valid_from, ever_in_force) "
+            "VALUES ('newer', DATE '2026-11-17', true)"
+        ))  # fmt: skip
+    engine.dispose()
+    r = client.get("/v1/lines")
+    assert [x["line"] for x in r.json()["lines"]] == ["2", "10/48"]
