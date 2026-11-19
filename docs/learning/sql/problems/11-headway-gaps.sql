@@ -1,0 +1,13 @@
+-- 11 · Longest waits · LAG · tier 2 · target 12 min
+--
+-- Line 720, direction 0, service date 2026-11-02. Among trips that ran or ran
+-- partially, the gap in minutes between each trip's scheduled start and the
+-- previous operating trip's. Return the five largest gaps, largest first,
+-- ties by trip_id.
+--
+-- Columns: trip_id, prev_trip_id, gap_min
+-- Order: checked
+-- Tables: trips, trip_outcomes
+-- Watch for: filter to operating trips before or after LAG? Riders wait for the bus that came.
+
+-- your query below

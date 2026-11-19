@@ -1,0 +1,13 @@
+-- 16 · Canceled but running · joins on time · tier 3 (timed) · target 20 min
+--
+-- Trips with an active cancellation (problem 08's rule) that still sent a
+-- ping at or after the latest posting's posted_at. Show the posting time and
+-- the first such ping.
+--
+-- Columns: trip_id, posted_at, first_ping_after
+-- Order: not checked
+-- Tables: cancellations, vehicle_positions
+-- Watch for: a withdrawn cancellation followed by pings is not an answer, and
+-- "the posting" means the latest one.
+
+-- your query below

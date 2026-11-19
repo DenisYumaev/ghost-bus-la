@@ -42,3 +42,6 @@ pipeline/dbt/target/
 pipeline/dbt/logs/
 pipeline/dbt/dbt_packages/
 pipeline/dbt/.user.yml
+
+# --- SQL drill attempts (personal; the log in docs/learning/sql-log.md is committed) ---
+docs/learning/sql/attempts/
