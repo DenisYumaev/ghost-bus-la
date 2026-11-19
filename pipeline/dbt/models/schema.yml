@@ -322,6 +322,8 @@ models:
     data_tests:
       - unique_combination:
           arguments: {columns: [schedule_version, line]}
+      - unique_combination:
+          arguments: {columns: [schedule_version, line_slug]}
     columns:
       - name: display_name
         data_tests: [not_null]
@@ -1233,6 +1235,10 @@ unit_tests:
           - {schedule_version: v, route_id: c, line: "901", route_long_name: "Metro G Line (Orange) 901"}
           - {schedule_version: v, route_id: d, line: Dodger Stadium Express, route_long_name: null}
           - {schedule_version: v, route_id: e, line: "999", route_long_name: Metro Local Line}  # no trips
+          # Runs of punctuation and a double space; punctuation at both ends; an accent.
+          - {schedule_version: v, route_id: f, line: "LAX / Metro Transit Center -  SoFi Stadium Express", route_long_name: null}
+          - {schedule_version: v, route_id: g, line: "(Owl) 2.", route_long_name: null}
+          - {schedule_version: v, route_id: h, line: "Línea 1", route_long_name: null}
           - {schedule_version: old, route_id: a, line: "2", route_long_name: Metro Local Line}
       - input: ref('dim_schedule_version')
         rows:
@@ -1244,13 +1250,19 @@ unit_tests:
           - {schedule_version: v, trip_id: t2, route_id: b}
           - {schedule_version: v, trip_id: t3, route_id: c}
           - {schedule_version: v, trip_id: t4, route_id: d}
+          - {schedule_version: v, trip_id: t6, route_id: f}
+          - {schedule_version: v, trip_id: t7, route_id: g}
+          - {schedule_version: v, trip_id: t8, route_id: h}
           - {schedule_version: old, trip_id: t5, route_id: a}
     expect:
       rows:
-        - {schedule_version: v, line: "2", display_name: "2", line_number: 2}
-        - {schedule_version: v, line: "10/48", display_name: "10/48", line_number: 10}
-        - {schedule_version: v, line: "901", display_name: G Line, line_number: 901}
-        - {schedule_version: v, line: Dodger Stadium Express, display_name: Dodger Stadium Express, line_number: null}
+        - {schedule_version: v, line: "2", line_slug: "2", display_name: "2", line_number: 2}
+        - {schedule_version: v, line: "10/48", line_slug: "10-48", display_name: "10/48", line_number: 10}
+        - {schedule_version: v, line: "901", line_slug: "901", display_name: G Line, line_number: 901}
+        - {schedule_version: v, line: Dodger Stadium Express, line_slug: dodger-stadium-express, display_name: Dodger Stadium Express, line_number: null}
+        - {schedule_version: v, line: "LAX / Metro Transit Center -  SoFi Stadium Express", line_slug: lax-metro-transit-center-sofi-stadium-express, display_name: "LAX / Metro Transit Center -  SoFi Stadium Express", line_number: null}
+        - {schedule_version: v, line: "(Owl) 2.", line_slug: owl-2, display_name: "(Owl) 2.", line_number: null}
+        - {schedule_version: v, line: "Línea 1", line_slug: linea-1, display_name: "Línea 1", line_number: null}
 
   - name: fct_reliability_counts_rates_windows_and_suppression
     model: fct_reliability

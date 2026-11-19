@@ -5,7 +5,10 @@ ghostbus:
     local:
       type: duckdb
       path: "{{ env_var('GHOSTBUS_DUCKDB', 'data/ghostbus.duckdb') }}"
-      threads: 2
+      # One thread: two heavy queries at once (int_trip_observations and the trip-updates grain
+      # test) share DuckDB's memory limit and intermittently ran out at 4GB (2026-11-18, two of
+      # four builds). Serial is still under a minute for two service dates.
+      threads: 1
       settings:
         # A laptop build (ADR-023): 1GB ran out on the grain test over three days of trip
         # updates (127M rows). On the VM, set GHOSTBUS_DBT_MEMORY lower and sync fewer days.

@@ -268,6 +268,11 @@ The trade-offs in Ghost Bus LA you should be able to defend out loud. Each entry
 - **Credentials:** the database URL is read from `GHOSTBUS_DATABASE_URL`, never from the command line, where it would land in shell history and process listings (hard rule 9). Review found that libpq's parse errors quote the URL, password included (checked: a bad percent-escape gives `invalid percent-encoded token: "<password>"`), so the publish CLI and `make migrate` catch connection errors and print a fixed message. A test with a sentinel password proves it, and it fails if the handler is removed.
 - **Guard policy per table:** the 20% row-count guard is off for tables that grow in steps (every schedule version ever in force; a young weekly trend). Otherwise a new schedule ZIP would make every run fail, and forcing would switch the guard off for reliability too.
 - **Record:** `services/publish/src/ghostbus_publish/tables.py`, `__main__.py`; quiz 039.
+### 15q. Line slugs in URLs
+
+- **Decision (ADR-028):** URLs name a line by a slug computed in dbt: `720` stays `720`, `10/48` becomes `10-48`, and `Dodger Stadium Express` becomes `dodger-stadium-express`.
+- **Why:** a slash can't sit in a path segment, and encoding it as `%2F` doesn't help, because the framework decodes it before routing. Eight combined lines and six named services in Metro's schedule would otherwise have no working URL.
+- **Stability:** dbt tests make the slug unique per version and one-to-one with the line across all versions, so a bookmarked URL can't come to mean a different line.
 
 ### 16. Ingest every line; scope the headline numbers
 
