@@ -32,7 +32,7 @@ The rider-facing product. Next.js (App Router), TypeScript in strict mode, Tailw
 | --- | --- | --- |
 | `/` | Line search, headline number, count of trips announced as canceled right now, call to action "Get alerts for your commute" | Server, cached |
 | `/lines` | All lines, sortable by reliability; search by number | Server, cached |
-| `/lines/[line]` | Summary sentence, direction switch, hour × day-type heatmap, 12-week trend, current announced cancellations, "Get alerts for this line" | Server, cached; one statically generated page per line |
+| `/lines/[line]` (`[line]` is the line slug, ADR-028: `/lines/10-48`) | Summary sentence, direction switch, hour × day-type heatmap, 12-week trend, current announced cancellations, "Get alerts for this line" | Server, cached; one statically generated page per line |
 | `/lines/[line]/stops/[stopId]` (P1) | Reliability at one stop; next scheduled trips with announced cancellations flagged | Server, cached |
 | `/alerts/new` | Three-step commute builder: line and direction, stop, days and time window; then email | Client |
 | `/auth/verify` | Reads the token from the URL fragment, posts it, redirects | Client |

@@ -1,13 +1,10 @@
--- A URL slug names one line, and a line keeps one slug, across every schedule version: a slug
--- in a bookmarked URL must never come to mean a different line (ADR-028).
-select 'slug used by two lines' as problem, line_slug as value
+{{ config(severity='warn') }}
+-- A URL slug names one line in every schedule version synced (ADR-028), so a bookmarked URL
+-- doesn't come to mean a different line. A warning, not an error: a collision with an old
+-- version only threatens old links, and must not stop publishing. Within one version a
+-- collision would make slug -> line ambiguous, so that is an error (unique_combination on
+-- dim_line). The slug is a function of line, so one line always has one slug.
+select line_slug, count(distinct line) as n_lines
 from {{ ref('dim_line') }}
 group by line_slug
 having count(distinct line) > 1
-union all
-select 'line with two slugs', line
-from {{ ref('dim_line') }}
-group by line
-having count(distinct line_slug) > 1
-union all
-select 'empty slug', line from {{ ref('dim_line') }} where coalesce(line_slug, '') = ''

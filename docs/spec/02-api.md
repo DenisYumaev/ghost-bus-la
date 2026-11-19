@@ -6,7 +6,7 @@ FastAPI service used by the web app and open to the public. Python 3.12, FastAPI
 
 - Base URL `https://api.<domain>/v1`. Breaking changes get `/v2`; additive changes don't.
 - JSON, `snake_case` keys. Timestamps are ISO 8601 in UTC with `Z`. Local times that are meaningful to riders are also returned as `HH:MM` strings in `America/Los_Angeles` and labeled `_local`.
-- A **line** is identified in URL paths by its slug (ADR-028): `720`, `10-48`, `dodger-stadium-express`. Responses carry `line` (Metro's public name, from `route_short_name`), `line_slug` and `display_name`. Stops use GTFS `stop_id`. Directions use `direction_id` (0 or 1) and always come with a `headsign`.
+- A **line** is identified by its slug (ADR-028) in every input: URL paths (`{line}` below), `?line=` query parameters and request bodies. Examples: `720`, `10-48`, `dodger-stadium-express`. The API lowercases it before lookup. Responses carry `line` (Metro's public name, from `route_short_name`), `line_slug` and `display_name`. Stops use GTFS `stop_id`. Directions use `direction_id` (0 or 1) and always come with a `headsign`.
 - Rates are fractions between 0 and 1, never percentages. Every rate comes with `n_trips`. Intervals (ADR-026, ADR-027): reliability cells return `ci_low` and `ci_high` for `missed_rate`; line and system summaries return `missed_rate_ci_low/high` and `unplanned_share_ci_low/high`; other rates carry none. An interval is null when the rate is suppressed, or at a rate of 0 or a share of 0 or 1. A suppressed cell returns `"suppressed": true` and null rates.
 - Every response carries `X-Request-Id`. Logs include it.
 - Every data response includes `data_as_of` (when the serving table was last published).
