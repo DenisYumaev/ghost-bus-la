@@ -1,0 +1,13 @@
+-- 12 · Feed outages · gaps and islands · tier 2 · target 15 min
+--
+-- fetch_log has one row a minute per feed; ok is false when the fetch failed.
+-- List every outage: a run of consecutive failed minutes for one feed.
+-- outage_start and outage_end are the fetched_at of its first and last failed
+-- fetch; minutes is the number of failed fetches.
+--
+-- Columns: feed, outage_start, outage_end, minutes
+-- Order: not checked
+-- Tables: fetch_log
+-- Watch for: the one-minute outage at 14:06 is separate from the one at 14:02-14:04.
+
+-- your query below

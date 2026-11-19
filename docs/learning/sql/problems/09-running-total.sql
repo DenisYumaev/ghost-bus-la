@@ -1,0 +1,11 @@
+-- 09 · Running total · window frames · tier 2 · target 8 min
+--
+-- For line 210, the number of missed trips on each service date and the
+-- running total from the start of the week.
+--
+-- Columns: service_date, missed, missed_to_date
+-- Order: checked (by service_date)
+-- Tables: trips, trip_outcomes
+-- Watch for: what the default frame is when a window has ORDER BY.
+
+-- your query below

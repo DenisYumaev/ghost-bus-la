@@ -1,0 +1,12 @@
+-- 10 · Top three lines per day · DENSE_RANK · tier 2 · target 12 min
+--
+-- Using problem 04's line-days (at least 40 classified trips, share rounded
+-- to 3), rank lines within each service date by missed share, highest first.
+-- Return ranks 1 to 3; tied shares share a rank.
+--
+-- Columns: service_date, line_id, missed_share, rnk
+-- Order: not checked
+-- Tables: trips, trip_outcomes
+-- Watch for: ROW_NUMBER vs RANK vs DENSE_RANK on the 2026-11-08 ties.
+
+-- your query below

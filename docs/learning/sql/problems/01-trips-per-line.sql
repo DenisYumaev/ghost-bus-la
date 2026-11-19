@@ -1,0 +1,11 @@
+-- 01 · Trips per line · joins · tier 1 · target 8 min
+--
+-- For service date 2026-11-02, list every line with the number of trips it
+-- had scheduled that day. A line with no trips appears with 0.
+--
+-- Columns: line_id, trips
+-- Order: not checked
+-- Tables: lines, trips
+-- Watch for: where the date filter goes, and which COUNT counts a padded NULL row.
+
+-- your query below

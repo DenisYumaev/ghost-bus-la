@@ -1,0 +1,12 @@
+-- 03 · Outcomes per line · conditional aggregation · tier 1 · target 10 min
+--
+-- For the whole week, one row per line that had scheduled trips, with how
+-- many trips ran, ran partially, were missed, were canceled, and how many
+-- have no outcome row yet (unclassified).
+--
+-- Columns: line_id, ran, partial, missed, canceled, unclassified
+-- Order: not checked
+-- Tables: trips, trip_outcomes
+-- Watch for: an inner join silently drops the unclassified trips.
+
+-- your query below

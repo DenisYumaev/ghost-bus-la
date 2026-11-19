@@ -4,7 +4,7 @@
 # never an apply target (CLAUDE.md hard rule 8).
 
 .DEFAULT_GOAL := help
-.PHONY: help install test lint fmt hooks tf-test plan-bootstrap plan selftest-s3 deploy-ingest gtfs-versions gtfs-load compact decode dbt-sync dbt test-integration migrate publish
+.PHONY: help install test lint fmt hooks tf-test plan-bootstrap plan selftest-s3 deploy-ingest gtfs-versions gtfs-load compact decode dbt-sync dbt test-integration migrate publish sql-drill sql-check sql-shell
 
 help:  ## List the targets
 	@grep -E '^[a-z0-9-]+:.*## ' $(MAKEFILE_LIST) | awk -F':.*## ' '{printf "  %-15s %s\n", $$1, $$2}'
@@ -83,3 +83,13 @@ dbt-sync:  ## Copy marker-listed derived data for service dates START..END into 
 
 dbt:  ## Build and test every dbt model over data/ (run dbt-sync first)
 	uv run dbt build --project-dir pipeline/dbt --profiles-dir pipeline/dbt
+
+sql-drill:  ## SQL practice: list problems, or start one (make sql-drill P=03)
+	@if [ -n "$(P)" ]; then uv run python scripts/sql_drill.py start $(P); else uv run python scripts/sql_drill.py list; fi
+
+sql-check:  ## Check your SQL practice attempt: make sql-check P=03
+	@test -n "$(P)" || (echo "usage: make sql-check P=03" && exit 2)
+	@uv run python scripts/sql_drill.py check $(P)
+
+sql-shell:  ## Open the duckdb shell on the synthetic practice tables
+	@uv run python scripts/sql_drill.py build >/dev/null && duckdb data/sql-practice.duckdb
