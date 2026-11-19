@@ -1,0 +1,12 @@
+-- 04 · Missed share per line-day · GROUP BY, HAVING · tier 1 · target 10 min
+--
+-- For each line and service date, the share of classified trips (trips with
+-- an outcome row) that were missed, as a fraction rounded to 3 decimals.
+-- Keep only line-days with at least 40 classified trips.
+--
+-- Columns: line_id, service_date, classified, missed_share
+-- Order: not checked
+-- Tables: trips, trip_outcomes
+-- Watch for: in Postgres 3 / 40 is 0. Know how you'd write it there.
+
+-- your query below

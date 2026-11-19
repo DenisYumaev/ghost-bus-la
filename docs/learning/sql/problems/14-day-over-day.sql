@@ -1,0 +1,12 @@
+-- 14 · Getting worse · LAG and filtering · tier 3 (timed) · target 15 min
+--
+-- Line-days where the missed share (missed / classified) rose by more than
+-- 0.05 over the same line's previous service date. Compute the change from
+-- unrounded shares; round all three outputs to 3 at the end.
+--
+-- Columns: line_id, service_date, prev_share, share, change
+-- Order: not checked
+-- Tables: trips, trip_outcomes
+-- Watch for: WHERE runs before window functions.
+
+-- your query below

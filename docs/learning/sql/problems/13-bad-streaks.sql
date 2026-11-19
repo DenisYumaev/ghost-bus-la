@@ -1,0 +1,12 @@
+-- 13 · Bad-day streaks · islands on dates · tier 2 · target 15 min
+--
+-- A bad day is a service date where a line's missed share (missed /
+-- classified) is above 0.10. For each line with any bad day, its longest run
+-- of consecutive bad days; on a tie, the earliest run.
+--
+-- Columns: line_id, streak_start, streak_end, days
+-- Order: not checked
+-- Tables: trips, trip_outcomes
+-- Watch for: a date minus a row number is constant along a streak.
+
+-- your query below

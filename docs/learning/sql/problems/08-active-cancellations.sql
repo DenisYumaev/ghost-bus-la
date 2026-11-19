@@ -1,0 +1,13 @@
+-- 08 · Active cancellations · latest row per group · tier 2 · target 12 min
+--
+-- A trip's cancellation can be posted more than once; only the latest posting
+-- counts. If the latest posting has withdrawn_at set, the cancellation was
+-- called off. Count the trips with an active cancellation per line and date,
+-- listing only line-dates with at least one.
+--
+-- Columns: line_id, service_date, active_cancellations
+-- Order: not checked
+-- Tables: cancellations, trips
+-- Watch for: filter withdrawn rows before or after picking the latest? Only one is right.
+
+-- your query below

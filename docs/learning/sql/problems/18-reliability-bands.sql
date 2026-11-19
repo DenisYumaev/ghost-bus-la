@@ -1,0 +1,14 @@
+-- 18 · Reliability by time of day · bucketing, thin cells · tier 3 (timed) · target 20 min
+--
+-- Weekdays 2026-11-02 to 2026-11-06, classified trips only. Bucket each trip
+-- by its scheduled start hour: early (< 6), am_peak (6-8), midday (9-14),
+-- pm_peak (15-18), evening (19-23), owl (24 and later). Per line and band,
+-- the trip count and the share that ran in full, rounded to 3, but NULL
+-- when the cell has fewer than 30 trips.
+--
+-- Columns: line_id, band, trips, ran_share
+-- Order: not checked
+-- Tables: trips, trip_outcomes
+-- Watch for: this is fct_reliability's shape. Why publish NULL, not a rate, for thin cells?
+
+-- your query below

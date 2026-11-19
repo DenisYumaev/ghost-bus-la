@@ -1,0 +1,13 @@
+-- 07 · Deduplicate pings · ROW_NUMBER · tier 2 · target 10 min
+--
+-- Some pings arrive twice: same vehicle and observed_at, later received_at.
+-- For trips in direction 0 (trip_id LIKE '754-0-%'), return one row per
+-- (vehicle_id, observed_at), keeping the copy received first, for pings
+-- observed before 2026-11-03 08:00:00. (Owl trips ping into 2026-11-04.)
+--
+-- Columns: vehicle_id, trip_id, observed_at, received_at
+-- Order: not checked
+-- Tables: vehicle_positions
+-- Watch for: why SELECT DISTINCT doesn't remove these.
+
+-- your query below

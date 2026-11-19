@@ -1,0 +1,13 @@
+-- 06 · Each line's worst day · CTEs · tier 1 · target 12 min
+--
+-- For each line, the service date with the highest missed share (missed /
+-- classified, no minimum). On a tie, the earliest date. Compare unrounded
+-- shares; round only the output, to 3.
+-- Solve it once with CTEs and no window function, then once with one.
+--
+-- Columns: line_id, service_date, missed_share
+-- Order: not checked
+-- Tables: trips, trip_outcomes
+-- Watch for: GROUP BY line_id with MAX(share) loses the date. How do you get it back?
+
+-- your query below

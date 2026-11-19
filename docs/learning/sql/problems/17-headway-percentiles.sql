@@ -1,0 +1,12 @@
+-- 17 · Headway percentiles · ordered-set aggregates · tier 3 (timed) · target 15 min
+--
+-- Service date 2026-11-04, direction 0. Per line, take the trips that ran or
+-- ran partially, compute the minutes between consecutive scheduled starts,
+-- and report the median and 90th percentile gap (interpolated), rounded to 1.
+--
+-- Columns: line_id, median_gap, p90_gap
+-- Order: not checked
+-- Tables: trips, trip_outcomes
+-- Watch for: PERCENTILE_CONT vs PERCENTILE_DISC; lines 4 and 16 again.
+
+-- your query below

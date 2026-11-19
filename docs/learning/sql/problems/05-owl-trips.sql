@@ -1,0 +1,12 @@
+-- 05 · Owl trips · GTFS times, date math · tier 1 · target 12 min
+--
+-- On service date 2026-11-02, list the trips scheduled at 24:00:00 or later,
+-- with the calendar date and local clock time they actually leave.
+-- (GTFS writes a 00:15 departure belonging to Monday's schedule as 24:15:00.)
+--
+-- Columns: trip_id, line_id, service_date, departs_on (DATE), departs_at (TIME)
+-- Order: not checked
+-- Tables: trips
+-- Watch for: lines 4 and 16 write '5:00:00'. Compare numbers, not strings.
+
+-- your query below

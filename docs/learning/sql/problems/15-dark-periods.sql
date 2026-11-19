@@ -1,0 +1,12 @@
+-- 15 · Buses going dark · LAG on timestamps · tier 3 (timed) · target 15 min
+--
+-- Within each trip, a dark gap is more than 120 seconds between consecutive
+-- pings. For each trip with at least one, the number of dark gaps and the
+-- longest gap in seconds.
+--
+-- Columns: trip_id, dark_gaps, longest_gap_s
+-- Order: not checked
+-- Tables: vehicle_positions
+-- Watch for: a vehicle runs many trips; what does PARTITION BY vehicle_id measure?
+
+-- your query below
