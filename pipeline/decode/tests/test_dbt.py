@@ -213,3 +213,24 @@ def test_line_tables_end_to_end(warehouse: Path) -> None:
     got = rows(warehouse, sql)
     assert got
     assert all(has_headsign and first == 1 for _, _, has_headsign, first in got)
+
+
+def test_every_threshold_var_is_on_the_method_page() -> None:
+    """A new dbt var that changes published numbers must appear in dim_method_params (or its
+    nightly half), or be excluded here with a reason: otherwise the method page silently omits
+    it (hard rule 11)."""
+    import re
+
+    import yaml  # type: ignore[import-untyped]  # dbt ships PyYAML; no stubs installed
+
+    project = yaml.safe_load((DBT / "dbt_project.yml").read_text())
+    excluded = {
+        "data_dir": "where the files are, not a threshold",
+        "match_rate_alert": "only gates the build (a dbt test), never changes a number",
+        "match_rate_error": "only gates the build (a dbt test), never changes a number",
+    }
+    listed = set()
+    for model in ("dim_method_params", "dim_method_params_nightly"):
+        sql = (DBT / "models" / "gold" / f"{model}.sql").read_text()
+        listed |= set(re.findall(r'var\("(\w+)"\)', sql))
+    assert set(project["vars"]) - set(excluded) == listed
