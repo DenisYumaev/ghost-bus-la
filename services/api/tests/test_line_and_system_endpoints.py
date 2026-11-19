@@ -101,7 +101,7 @@ def test_a_version_whose_lines_have_not_landed_does_not_empty_the_list(
 
 def test_the_tag_changes_with_the_query(client: TestClient) -> None:
     def tag(path: str) -> str:
-        return client.get(path).headers["etag"]
+        return str(client.get(path).headers["etag"])
 
     assert tag("/v1/lines") != tag("/v1/lines?window=all")
     assert tag("/v1/system/feed-health?hours=2") != tag("/v1/system/feed-health?hours=3")
