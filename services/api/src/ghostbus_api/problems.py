@@ -10,6 +10,7 @@ from typing import Any
 from fastapi import FastAPI, Request
 from fastapi.exceptions import RequestValidationError
 from fastapi.responses import JSONResponse, Response
+from pydantic import BaseModel
 from sqlalchemy.exc import OperationalError
 from sqlalchemy.exc import TimeoutError as SATimeoutError
 from starlette.exceptions import HTTPException as StarletteHTTPException
@@ -20,6 +21,43 @@ SLUGS = {
     400: "bad-request", 404: "not-found", 405: "method-not-allowed", 422: "validation",
     500: "internal", 503: "unavailable",
 }  # fmt: skip
+
+
+class FieldError(BaseModel):
+    field: str
+    message: str
+
+
+class ProblemDocument(BaseModel):
+    """The body of every error (RFC 9457), as declared in the OpenAPI document."""
+
+    model_config = {
+        "json_schema_extra": {
+            "examples": [{
+                "type": "https://example.org/problems/not-found", "title": "Line not found",
+                "status": 404, "detail": "No line '999'.", "request_id": "3f2b9c0e1d4a",
+            }]
+        }
+    }  # fmt: skip
+
+    type: str
+    title: str
+    status: int
+    detail: str
+    request_id: str
+    errors: list[FieldError] = []  # 422 only, one entry per invalid parameter; absent otherwise
+
+
+def problem_media_type(schema: dict[str, Any]) -> dict[str, Any]:
+    """FastAPI declares every response body as application/json; errors are served as
+    application/problem+json, so the document says that instead."""
+    for item in schema.get("paths", {}).values():
+        for operation in item.values():
+            for status, response in operation.get("responses", {}).items():
+                content = response.get("content", {})
+                if status[0] in "45" and "application/json" in content:
+                    content["application/problem+json"] = content.pop("application/json")
+    return schema
 
 
 class Problem(Exception):
@@ -56,6 +94,15 @@ def problem_response(
 
 
 def install(app: FastAPI) -> None:
+    default_openapi = app.openapi
+
+    def openapi() -> dict[str, Any]:
+        if app.openapi_schema is None:
+            app.openapi_schema = problem_media_type(default_openapi())
+        return app.openapi_schema
+
+    app.openapi = openapi  # type: ignore[method-assign]
+
     @app.middleware("http")
     async def request_id(
         request: Request, call_next: Callable[[Request], Awaitable[Response]]

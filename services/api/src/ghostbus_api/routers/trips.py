@@ -11,7 +11,7 @@ from ghostbus_api import cursor
 from ghostbus_api.problems import Problem
 from ghostbus_api.repos import lines as line_repo
 from ghostbus_api.repos import trips as repo
-from ghostbus_api.routers._http import conditional, json_response
+from ghostbus_api.routers._http import conditional, json_response, responses
 from ghostbus_api.schemas.trips import TripOutcome, TripOutcomes
 
 router = APIRouter(prefix="/v1/trips")
@@ -21,6 +21,7 @@ LOCAL = ZoneInfo("America/Los_Angeles")
 @router.get(
     "/outcomes",
     response_model=TripOutcomes,
+    responses=responses(400, 404, 422),
     summary="Trip-level outcomes for one line and service date",
     description=(
         "Every scheduled trip of the line on the service date (last 35 days), ordered by "

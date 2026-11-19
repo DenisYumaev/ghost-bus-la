@@ -6,7 +6,7 @@ from fastapi import APIRouter, Query, Request
 from fastapi.responses import Response
 
 from ghostbus_api.repos import system as repo
-from ghostbus_api.routers._http import conditional, json_response
+from ghostbus_api.routers._http import conditional, json_response, responses
 from ghostbus_api.schemas.common import Rates
 from ghostbus_api.schemas.system import FeedBucket, FeedHealth, SystemSummary, WindowSummary
 
@@ -16,6 +16,7 @@ router = APIRouter(prefix="/v1/system")
 @router.get(
     "/summary",
     response_model=SystemSummary,
+    responses=responses(),
     summary="Headline numbers, counts and date range",
     description=(
         "Pooled counts and rates for every trip in scope, per window. Internal until M5 "
@@ -45,6 +46,7 @@ def system_summary(request: Request) -> Response:
 @router.get(
     "/feed-health",
     response_model=FeedHealth,
+    responses=responses(422),
     summary="Feed status for the status page",
     description=(
         "Five-minute buckets per realtime feed over the last `hours` (default 24, at most 168), "

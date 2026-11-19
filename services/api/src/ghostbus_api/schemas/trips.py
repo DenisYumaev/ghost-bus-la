@@ -5,6 +5,7 @@ from typing import Literal
 
 from pydantic import BaseModel
 
+from ghostbus_api.schemas import examples
 from ghostbus_api.schemas.common import UtcTime
 
 
@@ -26,6 +27,8 @@ class TrendPoint(BaseModel):
 
 
 class Trend(BaseModel):
+    model_config = examples.examples(examples.TREND)
+
     line: str
     line_slug: str
     direction_id: int
@@ -47,6 +50,8 @@ class TripOutcome(BaseModel):
 
 
 class TripOutcomes(BaseModel):
+    model_config = examples.examples(examples.TRIP_OUTCOMES)
+
     line: str
     line_slug: str
     service_date: date

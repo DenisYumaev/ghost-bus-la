@@ -2,6 +2,7 @@
 
 from pydantic import BaseModel
 
+from ghostbus_api.schemas import examples
 from ghostbus_api.schemas.common import UtcTime
 
 
@@ -19,6 +20,8 @@ class Definition(BaseModel):
 
 
 class Method(BaseModel):
+    model_config = examples.examples(examples.METHOD)
+
     data_as_of: UtcTime
     thresholds: list[Threshold]
     outcomes: list[Definition]

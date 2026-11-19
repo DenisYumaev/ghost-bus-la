@@ -335,7 +335,7 @@ Run the load test from a machine outside the VM against production during a quie
 
 - **Unit:** validators, cursor encoding, ETag logic, rate limiter, token and cookie handling.
 - **Integration:** real Postgres in Docker (`compose.test.yml`); every endpoint's success and error paths; auth flow including a prefetch-style GET that must not log in; ownership checks (user A can't read or change user B's commute).
-- **Contract:** the OpenAPI document is generated in CI and diffed against the committed copy; an unintended API change fails the build. The web app's TypeScript client is generated from it.
+- **Contract:** the OpenAPI document is committed as `services/api/openapi.json` and regenerated with `make openapi`. An offline test (`test_openapi.py`, so every CI run) fails when the code's document differs, so an API change is always a reviewed diff. The same tests require a summary, description, validated example, 304 and 503 on every endpoint, 404 wherever a line is named, and `application/problem+json` for every error. Examples are illustrative, never measured. The web app's TypeScript client is generated from the committed file.
 - **Migration:** apply all migrations to an empty database, and from the previous release's schema, in CI.
 - **Property-based (Hypothesis):** cursor round-trips; commute window validation.
 
