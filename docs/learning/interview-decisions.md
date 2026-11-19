@@ -284,6 +284,12 @@ The trade-offs in Ghost Bus LA you should be able to defend out loud. Each entry
 - **Proved end to end:** the integration test builds the dbt test world, publishes it into Postgres 16, and calls the endpoint through the real app.
 - **Record:** ADR-013; `services/api/src/ghostbus_api/`; quiz 040.
 
+### 15s. One conditional-response helper for every endpoint
+
+- **Decision:** every public data endpoint calls one helper. It reads `data_as_of` for each table the response shows, builds the ETag from the newest stamp plus the query and any extra key (the schedule version in force, today's date), and answers 304 on a match. Endpoints differ only in their queries and shapes.
+- **Why:** a cache bug in one endpoint would be a cache bug in all of them, so it lives in one tested place. Each endpoint's tag covers exactly what its body shows.
+- **Record:** `services/api/src/ghostbus_api/routers/_http.py`; quiz 041.
+
 ### 16. Ingest every line; scope the headline numbers
 
 - **Decision:** archive all lines, and compute headline metrics on Metro-operated lines only.
