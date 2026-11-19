@@ -70,6 +70,14 @@ TABLES: tuple[ServingTable, ...] = (
         indexes=(("line", "service_date", "sched_start_utc", "trip_id"),),
     ),
     ServingTable(
+        "cancellation_current",
+        "SELECT * FROM fct_current_cancellations",
+        key=("service_date", "trip_id"),
+        indexes=(("line",),),
+        max_change=None,  # from none to dozens within minutes: the guard means nothing here
+        allow_empty=True,  # nothing canceled right now is a normal state
+    ),
+    ServingTable(
         "method_param",
         # Both halves: the nightly one is rebuilt with the intervals it describes (ADR-027).
         "SELECT * FROM dim_method_params UNION ALL SELECT * FROM dim_method_params_nightly",

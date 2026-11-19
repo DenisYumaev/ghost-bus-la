@@ -302,6 +302,13 @@ The trade-offs in Ghost Bus LA you should be able to defend out loud. Each entry
 - **Why:** a method page with hand-typed thresholds drifts the first time someone runs a sensitivity build or tunes a value. Rendered from the same build, it can't (hard rule 11).
 - **Record:** `pipeline/dbt/models/gold/dim_method_params.sql`, `services/api/src/ghostbus_api/routers/meta.py`; quiz 043.
 
+### 15v. Current cancellations before the detector exists
+
+- **Decision (ADR-029):** in M2, "currently announced cancellations" come from every 10-minute build. These are trips still canceled at the newest trip-update fetch in the data, whose scheduled end is still ahead, returned with `as_of`. M3 switches the same endpoint to the detector's sub-minute events.
+- **Why "now" is the newest fetch, not the clock:** a delayed build would otherwise list trips that already ended, and two builds of the same data would differ. With `as_of`, the page can say exactly how current it is.
+- **Publish detail:** this table is legitimately empty overnight, so it is the one table allowed to publish empty (`allow_empty`); every other empty load is still refused.
+- **Record:** ADR-029; `pipeline/dbt/models/gold/fct_current_cancellations.sql`; quiz 044.
+
 ### 16. Ingest every line; scope the headline numbers
 
 - **Decision:** archive all lines, and compute headline metrics on Metro-operated lines only.
