@@ -61,10 +61,16 @@ select
     case when not j.suppressed and j.n_missed > 0 then j.n_missed_unplanned / j.n_missed end
         as unplanned_share,
     j.suppressed,
-    case when not j.suppressed then b.missed_rate_ci_low end as missed_rate_ci_low,
-    case when not j.suppressed then b.missed_rate_ci_high end as missed_rate_ci_high,
-    case when not j.suppressed then b.unplanned_share_ci_low end as unplanned_share_ci_low,
-    case when not j.suppressed then b.unplanned_share_ci_high end as unplanned_share_ci_high
+    -- No interval for a rate of 0 or a share of 0 or 1: every replicate agrees there, and a
+    -- percentile bootstrap would claim a certainty the data can't give (ADR-027).
+    case when not j.suppressed and j.n_missed > 0 then b.missed_rate_ci_low end
+        as missed_rate_ci_low,
+    case when not j.suppressed and j.n_missed > 0 then b.missed_rate_ci_high end
+        as missed_rate_ci_high,
+    case when not j.suppressed and j.n_missed_unplanned between 1 and j.n_missed - 1
+        then b.unplanned_share_ci_low end as unplanned_share_ci_low,
+    case when not j.suppressed and j.n_missed_unplanned between 1 and j.n_missed - 1
+        then b.unplanned_share_ci_high end as unplanned_share_ci_high
 from judged as j
 left join {{ ref('int_bootstrap_intervals') }} as b
     on b.grain = case when j.direction_id is null then 'line' else 'line_direction' end

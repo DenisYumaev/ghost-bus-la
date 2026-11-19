@@ -205,7 +205,7 @@ Candidate communities to verify and approach: LA transit subreddits and Discords
 | `ingest` | Hold the realtime WebSocket connections, cut a snapshot every 30 to 60 s, store it to the local spool then S3, write the fetch log, ping the heartbeat; download GTFS static daily | Python, websockets, httpx | VM |
 | `detector` | Read new cancellation snapshots from the spool, upsert events, insert outbox rows; (P1) flag trips likely missing right now | Python, Postgres | VM |
 | `alert-worker` | Claim outbox rows, send email, retry, record result | Python, Postgres, email API | VM |
-| `pipeline` | Compact, decode, dbt build, bootstrap intervals, publish | Python, DuckDB, dbt; cron then Airflow (M4) | VM |
+| `pipeline` | Compact, decode, dbt build (bootstrap intervals inside it, nightly; ADR-027), publish | Python, DuckDB, dbt; cron then Airflow (M4) | VM |
 | `api` | REST API for the web app and the public | FastAPI, SQLAlchemy 2, psycopg 3 | VM |
 | `postgres` | `app`, `serving`, `ops` schemas | PostgreSQL 16 | VM |
 | `caddy` | TLS, reverse proxy, compression | Caddy | VM |
@@ -260,7 +260,7 @@ ghost-bus-la/
 │   ├── compact/  decode/     # Python steps before dbt
 │   ├── dbt/                  # models: silver/, intermediate/, gold/; tests; seeds
 │   └── dags/                 # Airflow DAGs (M4)
-├── analysis/                 # bootstrap intervals, backtests, findings notebooks, metrics
+├── analysis/                 # backtests, findings notebooks, metrics (the bootstrap is in dbt, ADR-027)
 ├── web/                      # Next.js app
 ├── infra/                    # Terraform: main configuration, and bootstrap/ for the state bucket
 ├── deploy/                   # deploy.sh, Caddyfile, cloud-init

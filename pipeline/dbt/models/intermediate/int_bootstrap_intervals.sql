@@ -1,9 +1,10 @@
+{{ config(tags=['nightly']) }}
 -- One row per grain x window x key: 95% percentile intervals from the cluster bootstrap over
 -- service dates (pipeline spec section 9; ADR-026, ADR-027). Percentiles are found by ranking
 -- the replicates (a sort, which spills to disk at scale) and interpolating between the two
 -- nearest ranks, the same definition as quantile_cont: position p * (n - 1) from 0. Replicates
 -- with no trips for a key don't count (n_replicates says how many did); unplanned_share uses only
--- replicates with at least one missed trip.
+-- replicates with at least one missed trip (n_share_replicates), so it is conditional on misses.
 with rates as (
     select grain, time_window, line, direction_id, day_type, hour_local,
            'missed_rate' as metric, n_missed / n_trips as value
@@ -57,6 +58,7 @@ select
     day_type,
     hour_local,
     max(n) filter (where metric = 'missed_rate') as n_replicates,
+    max(n) filter (where metric = 'unplanned_share') as n_share_replicates,
     max(ci_low) filter (where metric = 'missed_rate') as missed_rate_ci_low,
     max(ci_high) filter (where metric = 'missed_rate') as missed_rate_ci_high,
     max(ci_low) filter (where metric = 'unplanned_share') as unplanned_share_ci_low,

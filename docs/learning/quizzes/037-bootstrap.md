@@ -6,7 +6,7 @@
 
 ## 1. What does this do?
 
-A window has 3 service dates. Replicate 7 draws date indexes 2, 0, 2. What weights does `int_bootstrap_weights` store, and how does a cell's replicate missed rate come out if the dates had (trips, missed) = (10, 1), (10, 0), (10, 5)?
+A window's weekday stratum has 3 service dates (to keep it small). Replicate 7 draws date indexes 2, 0, 2. What weights does `int_bootstrap_weights` store, and how does a cell's replicate missed rate come out if the dates had (trips, missed) = (10, 1), (10, 0), (10, 5)?
 
 **Your answer:**
 
@@ -21,7 +21,7 @@ Weights: date 0 → 1, date 2 → 2, and date 1 gets no row. Replicate counts: t
 
 ## 2. What does this do?
 
-Why `hash(seed, window, r, k) mod n_dates` instead of `random()`?
+Why `hash(hash(seed, window, stratum, r, k)) mod n` instead of `random()`, and why hash twice?
 
 **Your answer:**
 
@@ -30,7 +30,7 @@ Why `hash(seed, window, r, k) mod n_dates` instead of `random()`?
 <details>
 <summary>Model answer</summary>
 
-`random()` gives different draws on every build, so the same data would produce slightly different intervals each night. That breaks drill 3's "outputs identical" property and makes a changed number impossible to explain. The hash of fixed inputs is a reproducible pseudo-random draw: same seed and data, same intervals. It needs no stored random state.
+`random()` gives different draws on every build, so the same data would produce slightly different intervals each night. That breaks drill 3's "outputs identical" property and makes a changed number impossible to explain. The hash of fixed inputs is a reproducible pseudo-random draw. Hashing twice is needed because DuckDB's multi-argument hash XORs the last argument in without a final mix. With a single hash and 16 dates, every replicate drew exactly 11 distinct dates: the same sample relabelled, so the intervals would have been meaningless. The outer hash scrambles the bits, and a test checks the draws look random for 13 sizes.
 
 </details>
 
@@ -60,7 +60,7 @@ The intervals would be far too narrow. Missed trips cluster: one day with an ope
 <details>
 <summary>Model answer</summary>
 
-At 90 days it ran out of memory at a 3 GB limit. `quantile_cont` keeps every replicate value for every group in memory, about 75 million values, and DuckDB can't spill that aggregate to disk. Splitting the sums into their own table, then ranking (a sort, which spills) and interpolating with the same formula gave identical results, to 6 × 10⁻¹⁶, in about 90 seconds.
+It runs out of memory at a 3 GB limit from about 14 days of data. `quantile_cont` keeps every replicate value for every group in memory, about 75 million values at 90 days, and DuckDB can't spill that aggregate to disk. The fix splits the sums into their own table, then ranks (a sort, which spills) and interpolates with the same formula. Two separate runs back this: 90 days finishes in about 85 seconds, and a 5-day `--check` matches `quantile_cont` on all 25,236 keys to 1.1 × 10⁻¹⁶.
 
 </details>
 

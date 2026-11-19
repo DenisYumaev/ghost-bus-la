@@ -10,8 +10,9 @@
 -- min_cell_service_days_weekend (Saturday and Sunday cells; ADR-025), is suppressed: no rates.
 -- first_data_date is the first service date with data in the window, which can be later than
 -- window_start early on or after a gap.
--- ci_low and ci_high: the 95% cluster-bootstrap interval for missed_rate (section 9; ADR-027),
--- published only where the rate is.
+-- ci_low and ci_high: the 95% cluster-bootstrap interval for missed_rate only (section 9;
+-- ADR-026, ADR-027), published only where the rate is and is above 0. The interval tables are
+-- nightly (tag nightly); a frequent build without them reads the last night's intervals.
 with cells as (
     select
         o.line,
@@ -75,10 +76,12 @@ select
     case when not j.suppressed and j.n_missed > 0 then j.n_missed_unplanned / j.n_missed end
         as unplanned_share,
     j.suppressed,
-    case when not j.suppressed then b.missed_rate_ci_low end as ci_low,
-    case when not j.suppressed then b.missed_rate_ci_high end as ci_high
+    -- No interval for a rate of 0: every replicate agrees, and the bootstrap can't bound it.
+    case when not j.suppressed and j.n_missed > 0 then b.missed_rate_ci_low end as ci_low,
+    case when not j.suppressed and j.n_missed > 0 then b.missed_rate_ci_high end as ci_high
 from judged as j
 left join {{ ref('int_bootstrap_intervals') }} as b
     on b.grain = 'cell'
-    and j.time_window = b.time_window and j.line = b.line and j.direction_id = b.direction_id
+    and j.time_window = b.time_window and j.line = b.line
+    and j.direction_id is not distinct from b.direction_id
     and j.day_type = b.day_type and j.hour_local = b.hour_local

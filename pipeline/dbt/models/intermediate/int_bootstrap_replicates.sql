@@ -1,3 +1,4 @@
+{{ config(tags=['nightly']) }}
 -- One row per grain x window x replicate x key: the bootstrap replicate's re-weighted counts
 -- (pipeline spec section 9; ADR-027). Grains:
 --   cell            line x direction x day type x hour (fct_reliability)
