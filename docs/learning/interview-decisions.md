@@ -290,6 +290,12 @@ The trade-offs in Ghost Bus LA you should be able to defend out loud. Each entry
 - **Why:** a cache bug in one endpoint would be a cache bug in all of them, so it lives in one tested place. Each endpoint's tag covers exactly what its body shows.
 - **Record:** `services/api/src/ghostbus_api/routers/_http.py`; quiz 041.
 
+### 15t. Keyset pagination and empty trend weeks
+
+- **Trip outcomes paginate by key, not offset (API spec section 3):** each page asks for rows after the last `(sched_start_utc, trip_id)`, a row-value comparison the index `(line, service_date, sched_start_utc, trip_id)` serves as a range scan. Offset pagination would skip or repeat rows when a publish lands between pages and would get slower page by page. The trip ID breaks ties between trips with the same start, and the cursor is opaque base64 of that pair, so clients can't build or depend on it. A property test checks it round-trips.
+- **Trend weeks are a generated series, left-joined to the data:** the last N Mondays counted back from the newest week across all lines (ADR-026), so a week without trips shows as a gap instead of the chart silently joining its neighbours.
+- **Record:** `services/api/src/ghostbus_api/cursor.py`, `repos/trips.py`; quiz 042.
+
 ### 16. Ingest every line; scope the headline numbers
 
 - **Decision:** archive all lines, and compute headline metrics on Metro-operated lines only.

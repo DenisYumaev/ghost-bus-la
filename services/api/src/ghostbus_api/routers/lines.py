@@ -7,10 +7,12 @@ from fastapi.responses import Response
 
 from ghostbus_api.problems import Problem
 from ghostbus_api.repos import lines as repo
+from ghostbus_api.repos import trips as trip_repo
 from ghostbus_api.routers._http import conditional, json_response
 from ghostbus_api.schemas.common import Rates
 from ghostbus_api.schemas.lines import Direction, LineDetail, LineList, LineListItem, Stop, StopList
 from ghostbus_api.schemas.reliability import DayType, LineReliability, ReliabilityCell, Window
+from ghostbus_api.schemas.trips import Trend, TrendPoint
 
 router = APIRouter(prefix="/v1")
 
@@ -175,5 +177,43 @@ def line_stops(
     body = StopList(
         line=name, line_slug=str(found["line_slug"]), direction_id=direction_id,
         headsign=headsign, data_as_of=as_of, stops=[Stop(**r) for r in rows],
+    )  # fmt: skip
+    return json_response(body, headers)
+
+
+@router.get(
+    "/lines/{line}/trend",
+    response_model=Trend,
+    summary="Weekly missed, announced and unplanned rates",
+    description=(
+        "The last `weeks` weeks (Monday starts; default 12, at most 52), counted back from the "
+        "newest week in the data across all lines. A week without trips is an empty point; a "
+        "week with too few trips or service days is suppressed (ADR-026)."
+    ),
+)
+def line_trend(
+    request: Request,
+    line: str,
+    direction_id: Annotated[int, Query(ge=0, le=1)],
+    weeks: Annotated[int, Query(ge=1, le=52)] = 12,
+) -> Response:
+    with request.app.state.engine.connect() as con:
+        found = _find(con, request, line)
+        version, name = str(found["schedule_version"]), str(found["line"])
+        headsign = repo.find_direction(con, version, name, direction_id)
+        if headsign is None:
+            raise Problem(404, "Direction not found", f"No direction {direction_id}.")
+        as_of, headers, not_modified = conditional(
+            request, con, ("line_trend", *LINE_TABLES), {"_version": version}
+        )
+        if not_modified:
+            return not_modified
+        rows = trip_repo.trend(con, name, direction_id, weeks)
+    points = [
+        TrendPoint.model_validate(r | {"suppressed": r["suppressed"] is not False}) for r in rows
+    ]
+    body = Trend(
+        line=name, line_slug=str(found["line_slug"]), direction_id=direction_id,
+        headsign=headsign, weeks=weeks, data_as_of=as_of, points=points,
     )  # fmt: skip
     return json_response(body, headers)
