@@ -322,6 +322,8 @@ models:
     data_tests:
       - unique_combination:
           arguments: {columns: [schedule_version, line]}
+      - unique_combination:
+          arguments: {columns: [schedule_version, line_slug]}
     columns:
       - name: display_name
         data_tests: [not_null]
@@ -1247,10 +1249,10 @@ unit_tests:
           - {schedule_version: old, trip_id: t5, route_id: a}
     expect:
       rows:
-        - {schedule_version: v, line: "2", display_name: "2", line_number: 2}
-        - {schedule_version: v, line: "10/48", display_name: "10/48", line_number: 10}
-        - {schedule_version: v, line: "901", display_name: G Line, line_number: 901}
-        - {schedule_version: v, line: Dodger Stadium Express, display_name: Dodger Stadium Express, line_number: null}
+        - {schedule_version: v, line: "2", line_slug: "2", display_name: "2", line_number: 2}
+        - {schedule_version: v, line: "10/48", line_slug: "10-48", display_name: "10/48", line_number: 10}
+        - {schedule_version: v, line: "901", line_slug: "901", display_name: G Line, line_number: 901}
+        - {schedule_version: v, line: Dodger Stadium Express, line_slug: dodger-stadium-express, display_name: Dodger Stadium Express, line_number: null}
 
   - name: fct_reliability_counts_rates_windows_and_suppression
     model: fct_reliability

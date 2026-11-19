@@ -261,6 +261,12 @@ The trade-offs in Ghost Bus LA you should be able to defend out loud. Each entry
   - an unmapped DuckDB type fails loudly rather than becoming text.
 - **Record:** `services/publish/src/ghostbus_publish/engine.py`; quiz 038.
 
+### 15q. Line slugs in URLs
+
+- **Decision (ADR-028):** URLs name a line by a slug computed in dbt: `720` stays `720`, `10/48` becomes `10-48`, and `Dodger Stadium Express` becomes `dodger-stadium-express`.
+- **Why:** a slash can't sit in a path segment, and encoding it as `%2F` doesn't help, because the framework decodes it before routing. Eight combined lines and six named services in Metro's schedule would otherwise have no working URL.
+- **Stability:** dbt tests make the slug unique per version and one-to-one with the line across all versions, so a bookmarked URL can't come to mean a different line.
+
 ### 16. Ingest every line; scope the headline numbers
 
 - **Decision:** archive all lines, and compute headline metrics on Metro-operated lines only.
