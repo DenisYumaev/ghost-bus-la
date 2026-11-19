@@ -30,18 +30,20 @@ The rider-facing product. Next.js (App Router), TypeScript in strict mode, Tailw
 
 | Route | Purpose | Rendering |
 | --- | --- | --- |
-| `/` | Line search, headline number, count of trips announced as canceled right now, call to action "Get alerts for your commute" | Server, cached |
-| `/lines` | All lines, sortable by reliability; search by number | Server, cached |
+| `/` | Line search, headline number, count of trips announced as canceled right now, call to action "Get alerts for your commute". Until M5 validates the system numbers against Metro's report (API spec section 4.1), the headline number is left out; the alerts call to action arrives with M3 | Server, per request (API responses cached 60 s) |
+| `/lines` | All lines, sortable by reliability (least reliable first; lines without enough data last, never ranked as 0); search by number prefix. Plain links and a GET form | Server, per request (`searchParams`; API response cached 300 s) |
 | `/lines/[line]` (`[line]` is the line slug, ADR-028: `/lines/10-48`) | Summary sentence, direction switch, hour × day-type heatmap, 12-week trend, current announced cancellations, "Get alerts for this line" | Server, cached; one statically generated page per line |
 | `/lines/[line]/stops/[stopId]` (P1) | Reliability at one stop; next scheduled trips with announced cancellations flagged | Server, cached |
 | `/alerts/new` | Three-step commute builder: line and direction, stop, days and time window; then email | Client |
 | `/auth/verify` | Reads the token from the URL fragment, posts it, redirects | Client |
 | `/account` | Commutes (pause, edit, delete), alert history, delete account | Client, session required |
 | `/findings` (P1) | Three findings, each with a chart, an interval, and a method note | Server, cached |
-| `/method` | How trips are classified, in plain words; thresholds in force; limitations | Server, cached |
+| `/method` | How trips are classified, in plain words; thresholds in force; limitations | Server, per request (API response cached 300 s) |
 | `/data` | Dataset downloads, API docs link, attribution | Server, cached |
-| `/status` | Feed health for the past 7 days, uptime, last data refresh | Server, revalidate 60 s |
+| `/status` | How completely the archive captured each feed, per Los Angeles day over the past 7 days (a gap can be ours or Metro's; days cut by the window are marked partial; padding buckets are never published), last data refresh. Uptime comes with the M4 monitoring | Server, per request (API response cached 60 s) |
 | `/privacy`, `/about` | What is stored and why; who built it; "not affiliated with LA Metro" | Static |
+
+Pages without route parameters render per request rather than at build time, so a web build never needs the API (a VM outage must not block a web deploy). Line pages are generated on first request (ISR). Measured 2026-11-19 on a production build: 8 page loads across home, method, status and lines made 3 API requests, so the fetch `revalidate` cache holds under `force-dynamic`. Each page view is still a server render (no CDN-cached HTML) — the trade-off for build independence. Every page has the four states: `app/loading.tsx` while rendering, an empty message, `app/error.tsx` with retry, and `StaleNotice` once `data_as_of` is over an hour old.
 
 Line pages are the search-engine entry point ("is the 720 bus reliable"). Give each a specific title, description, and Open Graph image with the line's headline number.
 
