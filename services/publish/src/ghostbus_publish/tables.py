@@ -18,6 +18,7 @@ TABLES: tuple[ServingTable, ...] = (
         "line",
         "SELECT * FROM dim_line",
         key=("schedule_version", "line"),
+        indexes=(("schedule_version", "line_slug"),),  # the API resolves URLs by slug
         max_change=None,  # every version ever in force: roughly doubles when a new ZIP lands
     ),
     ServingTable(
