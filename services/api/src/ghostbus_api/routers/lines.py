@@ -43,7 +43,7 @@ def line_reliability(
         # The grid's publish, the line tables (headsign, name) and the version in force, which
         # can change at midnight with no publish at all.
         as_of, headers, not_modified = conditional(
-            request, con, ("reliability", "line", "line_direction"),
+            request, con, ("reliability", "line", "line_direction", "system_summary"),
             {"_version": found["schedule_version"]},
         )  # fmt: skip
         if not_modified:
@@ -89,7 +89,7 @@ def list_lines(request: Request, window: Window = "28d") -> Response:
     today = request.app.state.today()
     with request.app.state.engine.connect() as con:
         as_of, headers, not_modified = conditional(
-            request, con, ("line_summary", *LINE_TABLES, "schedule_version"),
+            request, con, ("line_summary", "line", "schedule_version", "system_summary"),
             {"_today": today.isoformat()},
         )  # fmt: skip
         if not_modified:
@@ -122,7 +122,7 @@ def line_detail(request: Request, line: str, window: Window = "28d") -> Response
     with request.app.state.engine.connect() as con:
         found = _find(con, request, line)
         as_of, headers, not_modified = conditional(
-            request, con, ("line_summary", *LINE_TABLES),
+            request, con, ("line_summary", *LINE_TABLES, "system_summary"),
             {"_version": str(found["schedule_version"])},
         )  # fmt: skip
         if not_modified:

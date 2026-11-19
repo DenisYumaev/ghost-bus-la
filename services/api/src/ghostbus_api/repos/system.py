@@ -9,7 +9,9 @@ def summaries(con: Connection) -> list[dict[str, Any]]:
     rows = con.execute(
         text(
             "SELECT time_window, window_start, window_end, first_data_date, n_service_days, "
-            "n_lines, n_trips, missed_rate, announced_rate, unplanned_rate, unplanned_share, "
+            "n_lines, n_scheduled, n_unknown, n_ran, n_partial, n_missed, n_missed_announced, "
+            "n_missed_unplanned, n_trips, missed_rate, announced_rate, unplanned_rate, "
+            "unplanned_share, "
             "missed_rate_ci_low, missed_rate_ci_high, unplanned_share_ci_low, "
             "unplanned_share_ci_high, suppressed FROM serving.system_summary "
             "ORDER BY CASE time_window WHEN '28d' THEN 0 WHEN '90d' THEN 1 ELSE 2 END"

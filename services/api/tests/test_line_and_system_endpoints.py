@@ -74,7 +74,10 @@ def test_feed_health_returns_the_last_hours(client: TestClient) -> None:
 
 
 def test_every_new_endpoint_is_cacheable(client: TestClient) -> None:
-    for path in ("/v1/lines", "/v1/lines/2", "/v1/system/summary", "/v1/system/feed-health"):
+    for path in (
+        "/v1/lines", "/v1/lines/2", "/v1/lines/2/stops?direction_id=1", "/v1/system/summary",
+        "/v1/system/feed-health",
+    ):  # fmt: skip
         first = client.get(path)
         again = client.get(path, headers={"If-None-Match": first.headers["etag"]})
         assert again.status_code == 304, path
@@ -94,3 +97,35 @@ def test_a_version_whose_lines_have_not_landed_does_not_empty_the_list(
     engine.dispose()
     r = client.get("/v1/lines")
     assert [x["line"] for x in r.json()["lines"]] == ["2", "10/48"]
+
+
+def test_the_tag_changes_with_the_query(client: TestClient) -> None:
+    def tag(path: str) -> str:
+        return client.get(path).headers["etag"]
+
+    assert tag("/v1/lines") != tag("/v1/lines?window=all")
+    assert tag("/v1/system/feed-health?hours=2") != tag("/v1/system/feed-health?hours=3")
+
+
+def test_summaries_carry_their_counts(client: TestClient) -> None:
+    summary = client.get("/v1/lines").json()["lines"][0]["summary"]
+    assert (
+        summary["n_scheduled"]
+        == summary["n_unknown"] + summary["n_ran"] + summary["n_partial"] + summary["n_missed"]
+    )
+    assert summary["n_trips"] == summary["n_scheduled"] - summary["n_unknown"]
+
+
+def test_a_line_without_a_summary_is_listed_as_suppressed(client: TestClient, url: str) -> None:
+    from sqlalchemy import create_engine, text
+
+    engine = create_engine(url)
+    with engine.begin() as con:
+        con.execute(text(
+            "INSERT INTO serving.line (schedule_version, line, line_slug, display_name, "
+            "line_number) VALUES ('cb1a2283abecc0af', '99', '99', '99', 99)"
+        ))  # fmt: skip
+    engine.dispose()
+    lines = {x["line"]: x["summary"] for x in client.get("/v1/lines").json()["lines"]}
+    assert lines["99"]["suppressed"] is True
+    assert lines["99"]["n_trips"] is None

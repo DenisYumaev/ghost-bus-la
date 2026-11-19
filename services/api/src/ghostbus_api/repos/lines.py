@@ -31,6 +31,7 @@ FIND_LINE = """
     FROM serving.line AS l
     JOIN serving.schedule_version AS v ON v.version_id = l.schedule_version
     WHERE l.line_slug = :slug AND v.ever_in_force AND v.valid_from <= :today
+      AND l.is_metro_operated IS DISTINCT FROM false  -- as in the list (SPEC section 2)
     ORDER BY v.valid_from DESC
     LIMIT 1
 """
@@ -151,7 +152,9 @@ LIST_LINES = """
         ORDER BY v.valid_from DESC LIMIT 1
     )
     SELECT l.line, l.line_slug, l.display_name, l.line_kind, l.schedule_version,
-           s.n_trips, s.n_service_days, s.missed_rate, s.announced_rate, s.unplanned_rate,
+           s.n_scheduled, s.n_unknown, s.n_ran, s.n_partial, s.n_missed, s.n_missed_announced,
+           s.n_missed_unplanned, s.n_trips, s.n_service_days, s.missed_rate, s.announced_rate,
+           s.unplanned_rate,
            s.unplanned_share, s.missed_rate_ci_low, s.missed_rate_ci_high,
            s.unplanned_share_ci_low, s.unplanned_share_ci_high, s.suppressed
     FROM serving.line AS l
@@ -199,7 +202,9 @@ def line_summaries(con: Connection, line: str, window: str) -> list[dict[str, An
     """Both-directions (direction_id NULL) and per-direction summaries for one window."""
     rows = con.execute(
         text(
-            "SELECT direction_id, n_trips, n_service_days, missed_rate, announced_rate, "
+            "SELECT direction_id, n_scheduled, n_unknown, n_ran, n_partial, n_missed, "
+            "n_missed_announced, n_missed_unplanned, n_trips, n_service_days, missed_rate, "
+            "announced_rate, "
             "unplanned_rate, unplanned_share, missed_rate_ci_low, missed_rate_ci_high, "
             "unplanned_share_ci_low, unplanned_share_ci_high, suppressed "
             "FROM serving.line_summary WHERE line = :line AND time_window = :window"
