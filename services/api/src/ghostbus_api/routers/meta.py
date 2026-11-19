@@ -6,7 +6,7 @@ from fastapi import APIRouter, Request
 from fastapi.responses import Response
 
 from ghostbus_api.repos import meta as repo
-from ghostbus_api.routers._http import conditional, json_response
+from ghostbus_api.routers._http import conditional, json_response, responses
 from ghostbus_api.schemas.meta import Definition, Method, Threshold
 
 router = APIRouter(prefix="/v1/meta")
@@ -58,6 +58,7 @@ STATIC_VERSION = hashlib.sha256(repr((OUTCOMES, RATES, NOTES)).encode()).hexdige
 @router.get(
     "/method",
     response_model=Method,
+    responses=responses(),
     summary="Thresholds and definitions currently in force",
     description=(
         "The thresholds come from the same build as the numbers; the definitions follow the "

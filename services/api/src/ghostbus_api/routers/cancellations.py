@@ -9,7 +9,7 @@ from fastapi.responses import Response
 from ghostbus_api.problems import Problem
 from ghostbus_api.repos import cancellations as repo
 from ghostbus_api.repos import lines as line_repo
-from ghostbus_api.routers._http import conditional, json_response
+from ghostbus_api.routers._http import conditional, json_response, responses
 from ghostbus_api.schemas.cancellations import Cancellation, CurrentCancellations
 
 router = APIRouter(prefix="/v1/cancellations")
@@ -23,6 +23,9 @@ LOCAL = ZoneInfo("America/Los_Angeles")
 @router.get(
     "/current",
     response_model=CurrentCancellations,
+    # `line` can't fail validation, but FastAPI documents a 422 for any endpoint with
+    # parameters; declaring ours keeps its default shape out of the document.
+    responses=responses(404, 422),
     summary="Currently announced cancellations",
     description=(
         "Trips Metro's realtime feed marks canceled and hasn't shown as scheduled again, whose "

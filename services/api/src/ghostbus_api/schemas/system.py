@@ -4,6 +4,7 @@ from datetime import date
 
 from pydantic import BaseModel
 
+from ghostbus_api.schemas import examples
 from ghostbus_api.schemas.common import Rates, UtcTime
 
 
@@ -17,6 +18,8 @@ class WindowSummary(BaseModel):
 
 
 class SystemSummary(BaseModel):
+    model_config = examples.examples(examples.SYSTEM_SUMMARY)
+
     data_as_of: UtcTime
     windows: list[WindowSummary]
 
@@ -33,6 +36,8 @@ class FeedBucket(BaseModel):
 
 
 class FeedHealth(BaseModel):
+    model_config = examples.examples(examples.FEED_HEALTH)
+
     hours: int
     data_as_of: UtcTime
     buckets: list[FeedBucket]

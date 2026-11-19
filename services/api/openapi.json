@@ -1,0 +1,3075 @@
+{
+  "components": {
+    "schemas": {
+      "Cancellation": {
+        "properties": {
+          "advance_notice_s": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Advance Notice S"
+          },
+          "direction_id": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Direction Id"
+          },
+          "display_name": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Display Name"
+          },
+          "first_seen_at": {
+            "format": "date-time",
+            "title": "First Seen At",
+            "type": "string"
+          },
+          "headsign": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Headsign"
+          },
+          "line": {
+            "title": "Line",
+            "type": "string"
+          },
+          "line_slug": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Line Slug"
+          },
+          "sched_start": {
+            "format": "date-time",
+            "title": "Sched Start",
+            "type": "string"
+          },
+          "sched_start_local": {
+            "title": "Sched Start Local",
+            "type": "string"
+          },
+          "service_date": {
+            "format": "date",
+            "title": "Service Date",
+            "type": "string"
+          },
+          "trip_id": {
+            "title": "Trip Id",
+            "type": "string"
+          }
+        },
+        "required": [
+          "service_date",
+          "trip_id",
+          "line",
+          "line_slug",
+          "display_name",
+          "direction_id",
+          "headsign",
+          "sched_start",
+          "sched_start_local",
+          "first_seen_at",
+          "advance_notice_s"
+        ],
+        "title": "Cancellation",
+        "type": "object"
+      },
+      "CurrentCancellations": {
+        "examples": [
+          {
+            "as_of": "2026-12-01T17:38:00Z",
+            "cancellations": [
+              {
+                "advance_notice_s": 4200.0,
+                "direction_id": 0,
+                "display_name": "720",
+                "first_seen_at": "2026-12-01T17:20:00Z",
+                "headsign": "Santa Monica",
+                "line": "720",
+                "line_slug": "720",
+                "sched_start": "2026-12-01T18:30:00Z",
+                "sched_start_local": "10:30",
+                "service_date": "2026-12-01",
+                "trip_id": "68231044-DEC25-D10CAR-1Weekday"
+              }
+            ],
+            "data_as_of": "2026-12-01T17:40:12Z",
+            "stale": false
+          }
+        ],
+        "properties": {
+          "as_of": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "As Of"
+          },
+          "cancellations": {
+            "items": {
+              "$ref": "#/components/schemas/Cancellation"
+            },
+            "title": "Cancellations",
+            "type": "array"
+          },
+          "data_as_of": {
+            "format": "date-time",
+            "title": "Data As Of",
+            "type": "string"
+          },
+          "stale": {
+            "title": "Stale",
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "as_of",
+          "stale",
+          "data_as_of",
+          "cancellations"
+        ],
+        "title": "CurrentCancellations",
+        "type": "object"
+      },
+      "Definition": {
+        "properties": {
+          "meaning": {
+            "title": "Meaning",
+            "type": "string"
+          },
+          "term": {
+            "title": "Term",
+            "type": "string"
+          }
+        },
+        "required": [
+          "term",
+          "meaning"
+        ],
+        "title": "Definition",
+        "type": "object"
+      },
+      "Direction": {
+        "properties": {
+          "direction_id": {
+            "title": "Direction Id",
+            "type": "integer"
+          },
+          "first_stop_name": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "First Stop Name"
+          },
+          "headsign": {
+            "title": "Headsign",
+            "type": "string"
+          },
+          "last_stop_name": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Last Stop Name"
+          },
+          "summary": {
+            "$ref": "#/components/schemas/Rates"
+          }
+        },
+        "required": [
+          "direction_id",
+          "headsign",
+          "first_stop_name",
+          "last_stop_name",
+          "summary"
+        ],
+        "title": "Direction",
+        "type": "object"
+      },
+      "FeedBucket": {
+        "properties": {
+          "bucket_start": {
+            "format": "date-time",
+            "title": "Bucket Start",
+            "type": "string"
+          },
+          "error_rate": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Error Rate"
+          },
+          "feed": {
+            "title": "Feed",
+            "type": "string"
+          },
+          "freshest_age_s": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Freshest Age S"
+          },
+          "healthy": {
+            "title": "Healthy",
+            "type": "boolean"
+          },
+          "n_errors": {
+            "title": "N Errors",
+            "type": "integer"
+          },
+          "n_fetches": {
+            "title": "N Fetches",
+            "type": "integer"
+          },
+          "n_success": {
+            "title": "N Success",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "feed",
+          "bucket_start",
+          "n_fetches",
+          "n_success",
+          "n_errors",
+          "error_rate",
+          "freshest_age_s",
+          "healthy"
+        ],
+        "title": "FeedBucket",
+        "type": "object"
+      },
+      "FeedHealth": {
+        "examples": [
+          {
+            "buckets": [
+              {
+                "bucket_start": "2026-12-01T17:35:00Z",
+                "error_rate": 0.0,
+                "feed": "trip_updates",
+                "freshest_age_s": 4.2,
+                "healthy": true,
+                "n_errors": 0,
+                "n_fetches": 30,
+                "n_success": 30
+              }
+            ],
+            "data_as_of": "2026-12-01T17:40:12Z",
+            "hours": 24
+          }
+        ],
+        "properties": {
+          "buckets": {
+            "items": {
+              "$ref": "#/components/schemas/FeedBucket"
+            },
+            "title": "Buckets",
+            "type": "array"
+          },
+          "data_as_of": {
+            "format": "date-time",
+            "title": "Data As Of",
+            "type": "string"
+          },
+          "hours": {
+            "title": "Hours",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "hours",
+          "data_as_of",
+          "buckets"
+        ],
+        "title": "FeedHealth",
+        "type": "object"
+      },
+      "FieldError": {
+        "properties": {
+          "field": {
+            "title": "Field",
+            "type": "string"
+          },
+          "message": {
+            "title": "Message",
+            "type": "string"
+          }
+        },
+        "required": [
+          "field",
+          "message"
+        ],
+        "title": "FieldError",
+        "type": "object"
+      },
+      "LineDetail": {
+        "examples": [
+          {
+            "data_as_of": "2026-12-01T17:40:12Z",
+            "data_through": "2026-12-01",
+            "directions": [
+              {
+                "direction_id": 0,
+                "first_stop_name": "Commerce",
+                "headsign": "Santa Monica",
+                "last_stop_name": "Santa Monica",
+                "summary": {
+                  "announced_rate": 0.0244,
+                  "missed_rate": 0.0472,
+                  "missed_rate_ci_high": 0.0569,
+                  "missed_rate_ci_low": 0.0381,
+                  "n_missed": 58,
+                  "n_missed_announced": 30,
+                  "n_missed_unplanned": 28,
+                  "n_partial": 20,
+                  "n_ran": 1150,
+                  "n_scheduled": 1240,
+                  "n_service_days": 17,
+                  "n_trips": 1228,
+                  "n_unknown": 12,
+                  "suppressed": false,
+                  "unplanned_rate": 0.0228,
+                  "unplanned_share": 0.4828,
+                  "unplanned_share_ci_high": 0.6034,
+                  "unplanned_share_ci_low": 0.3621
+                }
+              }
+            ],
+            "display_name": "720",
+            "line": "720",
+            "line_kind": "rapid",
+            "line_slug": "720",
+            "route_color": "D11242",
+            "route_text_color": "FFFFFF",
+            "summary": {
+              "announced_rate": 0.0244,
+              "missed_rate": 0.0472,
+              "missed_rate_ci_high": 0.0569,
+              "missed_rate_ci_low": 0.0381,
+              "n_missed": 58,
+              "n_missed_announced": 30,
+              "n_missed_unplanned": 28,
+              "n_partial": 20,
+              "n_ran": 1150,
+              "n_scheduled": 1240,
+              "n_service_days": 17,
+              "n_trips": 1228,
+              "n_unknown": 12,
+              "suppressed": false,
+              "unplanned_rate": 0.0228,
+              "unplanned_share": 0.4828,
+              "unplanned_share_ci_high": 0.6034,
+              "unplanned_share_ci_low": 0.3621
+            },
+            "window": "28d"
+          }
+        ],
+        "properties": {
+          "data_as_of": {
+            "format": "date-time",
+            "title": "Data As Of",
+            "type": "string"
+          },
+          "data_through": {
+            "anyOf": [
+              {
+                "format": "date",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Data Through"
+          },
+          "description": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Description"
+          },
+          "directions": {
+            "items": {
+              "$ref": "#/components/schemas/Direction"
+            },
+            "title": "Directions",
+            "type": "array"
+          },
+          "display_name": {
+            "title": "Display Name",
+            "type": "string"
+          },
+          "line": {
+            "title": "Line",
+            "type": "string"
+          },
+          "line_kind": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Line Kind"
+          },
+          "line_slug": {
+            "title": "Line Slug",
+            "type": "string"
+          },
+          "route_color": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Route Color"
+          },
+          "route_text_color": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Route Text Color"
+          },
+          "summary": {
+            "$ref": "#/components/schemas/Rates"
+          },
+          "window": {
+            "title": "Window",
+            "type": "string"
+          }
+        },
+        "required": [
+          "line",
+          "line_slug",
+          "display_name",
+          "line_kind",
+          "description",
+          "route_color",
+          "route_text_color",
+          "window",
+          "data_through",
+          "data_as_of",
+          "summary",
+          "directions"
+        ],
+        "title": "LineDetail",
+        "type": "object"
+      },
+      "LineList": {
+        "examples": [
+          {
+            "data_as_of": "2026-12-01T17:40:12Z",
+            "data_through": "2026-12-01",
+            "lines": [
+              {
+                "display_name": "720",
+                "line": "720",
+                "line_kind": "rapid",
+                "line_slug": "720",
+                "summary": {
+                  "announced_rate": 0.0244,
+                  "missed_rate": 0.0472,
+                  "missed_rate_ci_high": 0.0569,
+                  "missed_rate_ci_low": 0.0381,
+                  "n_missed": 58,
+                  "n_missed_announced": 30,
+                  "n_missed_unplanned": 28,
+                  "n_partial": 20,
+                  "n_ran": 1150,
+                  "n_scheduled": 1240,
+                  "n_service_days": 17,
+                  "n_trips": 1228,
+                  "n_unknown": 12,
+                  "suppressed": false,
+                  "unplanned_rate": 0.0228,
+                  "unplanned_share": 0.4828,
+                  "unplanned_share_ci_high": 0.6034,
+                  "unplanned_share_ci_low": 0.3621
+                }
+              }
+            ],
+            "window": "28d",
+            "window_start": "2026-11-04"
+          }
+        ],
+        "properties": {
+          "data_as_of": {
+            "format": "date-time",
+            "title": "Data As Of",
+            "type": "string"
+          },
+          "data_through": {
+            "anyOf": [
+              {
+                "format": "date",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Data Through"
+          },
+          "lines": {
+            "items": {
+              "$ref": "#/components/schemas/LineListItem"
+            },
+            "title": "Lines",
+            "type": "array"
+          },
+          "window": {
+            "title": "Window",
+            "type": "string"
+          },
+          "window_start": {
+            "anyOf": [
+              {
+                "format": "date",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Window Start"
+          }
+        },
+        "required": [
+          "window",
+          "window_start",
+          "data_through",
+          "data_as_of",
+          "lines"
+        ],
+        "title": "LineList",
+        "type": "object"
+      },
+      "LineListItem": {
+        "properties": {
+          "display_name": {
+            "title": "Display Name",
+            "type": "string"
+          },
+          "line": {
+            "title": "Line",
+            "type": "string"
+          },
+          "line_kind": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Line Kind"
+          },
+          "line_slug": {
+            "title": "Line Slug",
+            "type": "string"
+          },
+          "summary": {
+            "$ref": "#/components/schemas/Rates"
+          }
+        },
+        "required": [
+          "line",
+          "line_slug",
+          "display_name",
+          "line_kind",
+          "summary"
+        ],
+        "title": "LineListItem",
+        "type": "object"
+      },
+      "LineReliability": {
+        "examples": [
+          {
+            "cells": [
+              {
+                "announced_rate": 0.024,
+                "ci_high": 0.066,
+                "ci_low": 0.038,
+                "day_type": "weekday",
+                "hour_local": 17,
+                "missed_rate": 0.051,
+                "n_trips": 412,
+                "suppressed": false,
+                "unplanned_rate": 0.027
+              }
+            ],
+            "data_as_of": "2026-12-01T17:40:12Z",
+            "data_through": "2026-12-01",
+            "direction_id": 0,
+            "display_name": "720",
+            "headsign": "Santa Monica",
+            "line": "720",
+            "line_slug": "720",
+            "method_url": "https://example.org/method",
+            "window": "28d",
+            "window_start": "2026-11-04"
+          }
+        ],
+        "properties": {
+          "cells": {
+            "items": {
+              "$ref": "#/components/schemas/ReliabilityCell"
+            },
+            "title": "Cells",
+            "type": "array"
+          },
+          "data_as_of": {
+            "title": "Data As Of",
+            "type": "string"
+          },
+          "data_through": {
+            "anyOf": [
+              {
+                "format": "date",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Data Through"
+          },
+          "direction_id": {
+            "title": "Direction Id",
+            "type": "integer"
+          },
+          "display_name": {
+            "title": "Display Name",
+            "type": "string"
+          },
+          "headsign": {
+            "title": "Headsign",
+            "type": "string"
+          },
+          "line": {
+            "title": "Line",
+            "type": "string"
+          },
+          "line_slug": {
+            "title": "Line Slug",
+            "type": "string"
+          },
+          "method_url": {
+            "title": "Method Url",
+            "type": "string"
+          },
+          "window": {
+            "enum": [
+              "28d",
+              "90d",
+              "all"
+            ],
+            "title": "Window",
+            "type": "string"
+          },
+          "window_start": {
+            "anyOf": [
+              {
+                "format": "date",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Window Start"
+          }
+        },
+        "required": [
+          "line",
+          "line_slug",
+          "display_name",
+          "direction_id",
+          "headsign",
+          "window",
+          "window_start",
+          "data_through",
+          "data_as_of",
+          "cells",
+          "method_url"
+        ],
+        "title": "LineReliability",
+        "type": "object"
+      },
+      "Method": {
+        "examples": [
+          {
+            "data_as_of": "2026-12-01T17:40:12Z",
+            "notes": [
+              "Ghost Bus LA is not affiliated with LA Metro."
+            ],
+            "outcomes": [
+              {
+                "meaning": "Not seen while the feeds were healthy.",
+                "term": "missed"
+              }
+            ],
+            "rates": [
+              {
+                "meaning": "Missed trips divided by scheduled trips minus unknown ones (n_trips).",
+                "term": "missed_rate"
+              }
+            ],
+            "thresholds": [
+              {
+                "decision": "ADR-025, ADR-026",
+                "description": "Fewest trips behind any published rate.",
+                "name": "min_cell_trips",
+                "unit": "trips",
+                "value": "30"
+              }
+            ]
+          }
+        ],
+        "properties": {
+          "data_as_of": {
+            "format": "date-time",
+            "title": "Data As Of",
+            "type": "string"
+          },
+          "notes": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Notes",
+            "type": "array"
+          },
+          "outcomes": {
+            "items": {
+              "$ref": "#/components/schemas/Definition"
+            },
+            "title": "Outcomes",
+            "type": "array"
+          },
+          "rates": {
+            "items": {
+              "$ref": "#/components/schemas/Definition"
+            },
+            "title": "Rates",
+            "type": "array"
+          },
+          "thresholds": {
+            "items": {
+              "$ref": "#/components/schemas/Threshold"
+            },
+            "title": "Thresholds",
+            "type": "array"
+          }
+        },
+        "required": [
+          "data_as_of",
+          "thresholds",
+          "outcomes",
+          "rates",
+          "notes"
+        ],
+        "title": "Method",
+        "type": "object"
+      },
+      "ProblemDocument": {
+        "description": "The body of every error (RFC 9457), as declared in the OpenAPI document.",
+        "examples": [
+          {
+            "detail": "No line '999'.",
+            "request_id": "3f2b9c0e1d4a",
+            "status": 404,
+            "title": "Line not found",
+            "type": "https://example.org/problems/not-found"
+          }
+        ],
+        "properties": {
+          "detail": {
+            "title": "Detail",
+            "type": "string"
+          },
+          "errors": {
+            "default": [],
+            "items": {
+              "$ref": "#/components/schemas/FieldError"
+            },
+            "title": "Errors",
+            "type": "array"
+          },
+          "request_id": {
+            "title": "Request Id",
+            "type": "string"
+          },
+          "status": {
+            "title": "Status",
+            "type": "integer"
+          },
+          "title": {
+            "title": "Title",
+            "type": "string"
+          },
+          "type": {
+            "title": "Type",
+            "type": "string"
+          }
+        },
+        "required": [
+          "type",
+          "title",
+          "status",
+          "detail",
+          "request_id"
+        ],
+        "title": "ProblemDocument",
+        "type": "object"
+      },
+      "Rates": {
+        "description": "Counts and rates for a pooled group of trips (ADR-026). Intervals are 95% bootstrap\nintervals (ADR-027), null where the rate is suppressed or at 0 (or a share of 0 or 1).",
+        "properties": {
+          "announced_rate": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Announced Rate"
+          },
+          "missed_rate": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Missed Rate"
+          },
+          "missed_rate_ci_high": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Missed Rate Ci High"
+          },
+          "missed_rate_ci_low": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Missed Rate Ci Low"
+          },
+          "n_missed": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "N Missed"
+          },
+          "n_missed_announced": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "N Missed Announced"
+          },
+          "n_missed_unplanned": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "N Missed Unplanned"
+          },
+          "n_partial": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "N Partial"
+          },
+          "n_ran": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "N Ran"
+          },
+          "n_scheduled": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "N Scheduled"
+          },
+          "n_service_days": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "N Service Days"
+          },
+          "n_trips": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "N Trips"
+          },
+          "n_unknown": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "N Unknown"
+          },
+          "suppressed": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Suppressed"
+          },
+          "unplanned_rate": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Unplanned Rate"
+          },
+          "unplanned_share": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Unplanned Share"
+          },
+          "unplanned_share_ci_high": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Unplanned Share Ci High"
+          },
+          "unplanned_share_ci_low": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Unplanned Share Ci Low"
+          }
+        },
+        "required": [
+          "n_scheduled",
+          "n_unknown",
+          "n_ran",
+          "n_partial",
+          "n_missed",
+          "n_missed_announced",
+          "n_missed_unplanned",
+          "n_trips",
+          "n_service_days",
+          "missed_rate",
+          "announced_rate",
+          "unplanned_rate",
+          "unplanned_share",
+          "missed_rate_ci_low",
+          "missed_rate_ci_high",
+          "unplanned_share_ci_low",
+          "unplanned_share_ci_high",
+          "suppressed"
+        ],
+        "title": "Rates",
+        "type": "object"
+      },
+      "ReliabilityCell": {
+        "properties": {
+          "announced_rate": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Announced Rate"
+          },
+          "ci_high": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Ci High"
+          },
+          "ci_low": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Ci Low"
+          },
+          "day_type": {
+            "enum": [
+              "weekday",
+              "saturday",
+              "sunday"
+            ],
+            "title": "Day Type",
+            "type": "string"
+          },
+          "hour_local": {
+            "title": "Hour Local",
+            "type": "integer"
+          },
+          "missed_rate": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Missed Rate"
+          },
+          "n_trips": {
+            "title": "N Trips",
+            "type": "integer"
+          },
+          "suppressed": {
+            "title": "Suppressed",
+            "type": "boolean"
+          },
+          "unplanned_rate": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Unplanned Rate"
+          }
+        },
+        "required": [
+          "day_type",
+          "hour_local",
+          "n_trips",
+          "missed_rate",
+          "announced_rate",
+          "unplanned_rate",
+          "ci_low",
+          "ci_high",
+          "suppressed"
+        ],
+        "title": "ReliabilityCell",
+        "type": "object"
+      },
+      "Stop": {
+        "properties": {
+          "in_main_pattern": {
+            "title": "In Main Pattern",
+            "type": "boolean"
+          },
+          "stop_code": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Stop Code"
+          },
+          "stop_id": {
+            "title": "Stop Id",
+            "type": "string"
+          },
+          "stop_lat": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Stop Lat"
+          },
+          "stop_lon": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Stop Lon"
+          },
+          "stop_name": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Stop Name"
+          },
+          "stop_order": {
+            "title": "Stop Order",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "stop_order",
+          "stop_id",
+          "stop_code",
+          "stop_name",
+          "stop_lat",
+          "stop_lon",
+          "in_main_pattern"
+        ],
+        "title": "Stop",
+        "type": "object"
+      },
+      "StopList": {
+        "examples": [
+          {
+            "data_as_of": "2026-12-01T17:40:12Z",
+            "direction_id": 0,
+            "headsign": "Santa Monica",
+            "line": "720",
+            "line_slug": "720",
+            "stops": [
+              {
+                "in_main_pattern": true,
+                "stop_code": "12345",
+                "stop_id": "12345",
+                "stop_lat": 34.0622,
+                "stop_lon": -118.2917,
+                "stop_name": "Wilshire / Vermont",
+                "stop_order": 1
+              }
+            ]
+          }
+        ],
+        "properties": {
+          "data_as_of": {
+            "format": "date-time",
+            "title": "Data As Of",
+            "type": "string"
+          },
+          "direction_id": {
+            "title": "Direction Id",
+            "type": "integer"
+          },
+          "headsign": {
+            "title": "Headsign",
+            "type": "string"
+          },
+          "line": {
+            "title": "Line",
+            "type": "string"
+          },
+          "line_slug": {
+            "title": "Line Slug",
+            "type": "string"
+          },
+          "stops": {
+            "items": {
+              "$ref": "#/components/schemas/Stop"
+            },
+            "title": "Stops",
+            "type": "array"
+          }
+        },
+        "required": [
+          "line",
+          "line_slug",
+          "direction_id",
+          "headsign",
+          "data_as_of",
+          "stops"
+        ],
+        "title": "StopList",
+        "type": "object"
+      },
+      "SystemSummary": {
+        "examples": [
+          {
+            "data_as_of": "2026-12-01T17:40:12Z",
+            "windows": [
+              {
+                "data_through": "2026-12-01",
+                "first_data_date": "2026-11-15",
+                "n_lines": 117,
+                "rates": {
+                  "announced_rate": 0.0286,
+                  "missed_rate": 0.05,
+                  "missed_rate_ci_high": 0.0541,
+                  "missed_rate_ci_low": 0.0462,
+                  "n_missed": 12400,
+                  "n_missed_announced": 7100,
+                  "n_missed_unplanned": 5300,
+                  "n_partial": 4100,
+                  "n_ran": 231500,
+                  "n_scheduled": 251000,
+                  "n_service_days": 17,
+                  "n_trips": 248000,
+                  "n_unknown": 3000,
+                  "suppressed": false,
+                  "unplanned_rate": 0.0214,
+                  "unplanned_share": 0.4274,
+                  "unplanned_share_ci_high": 0.4561,
+                  "unplanned_share_ci_low": 0.3988
+                },
+                "window": "28d",
+                "window_start": "2026-11-04"
+              }
+            ]
+          }
+        ],
+        "properties": {
+          "data_as_of": {
+            "format": "date-time",
+            "title": "Data As Of",
+            "type": "string"
+          },
+          "windows": {
+            "items": {
+              "$ref": "#/components/schemas/WindowSummary"
+            },
+            "title": "Windows",
+            "type": "array"
+          }
+        },
+        "required": [
+          "data_as_of",
+          "windows"
+        ],
+        "title": "SystemSummary",
+        "type": "object"
+      },
+      "Threshold": {
+        "properties": {
+          "decision": {
+            "title": "Decision",
+            "type": "string"
+          },
+          "description": {
+            "title": "Description",
+            "type": "string"
+          },
+          "name": {
+            "title": "Name",
+            "type": "string"
+          },
+          "unit": {
+            "title": "Unit",
+            "type": "string"
+          },
+          "value": {
+            "title": "Value",
+            "type": "string"
+          }
+        },
+        "required": [
+          "name",
+          "value",
+          "unit",
+          "description",
+          "decision"
+        ],
+        "title": "Threshold",
+        "type": "object"
+      },
+      "Trend": {
+        "examples": [
+          {
+            "data_as_of": "2026-12-01T17:40:12Z",
+            "direction_id": 0,
+            "headsign": "Santa Monica",
+            "line": "720",
+            "line_slug": "720",
+            "points": [
+              {
+                "announced_rate": 0.0261,
+                "missed_rate": 0.0456,
+                "n_missed": 14,
+                "n_missed_announced": 8,
+                "n_missed_unplanned": 6,
+                "n_partial": 5,
+                "n_ran": 288,
+                "n_scheduled": 310,
+                "n_service_days": 7,
+                "n_trips": 307,
+                "n_unknown": 3,
+                "suppressed": false,
+                "unplanned_rate": 0.0195,
+                "week_start": "2026-11-23"
+              }
+            ],
+            "weeks": 12
+          }
+        ],
+        "properties": {
+          "data_as_of": {
+            "format": "date-time",
+            "title": "Data As Of",
+            "type": "string"
+          },
+          "direction_id": {
+            "title": "Direction Id",
+            "type": "integer"
+          },
+          "headsign": {
+            "title": "Headsign",
+            "type": "string"
+          },
+          "line": {
+            "title": "Line",
+            "type": "string"
+          },
+          "line_slug": {
+            "title": "Line Slug",
+            "type": "string"
+          },
+          "points": {
+            "items": {
+              "$ref": "#/components/schemas/TrendPoint"
+            },
+            "title": "Points",
+            "type": "array"
+          },
+          "weeks": {
+            "title": "Weeks",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "line",
+          "line_slug",
+          "direction_id",
+          "headsign",
+          "weeks",
+          "data_as_of",
+          "points"
+        ],
+        "title": "Trend",
+        "type": "object"
+      },
+      "TrendPoint": {
+        "properties": {
+          "announced_rate": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Announced Rate"
+          },
+          "missed_rate": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Missed Rate"
+          },
+          "n_missed": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "N Missed"
+          },
+          "n_missed_announced": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "N Missed Announced"
+          },
+          "n_missed_unplanned": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "N Missed Unplanned"
+          },
+          "n_partial": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "N Partial"
+          },
+          "n_ran": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "N Ran"
+          },
+          "n_scheduled": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "N Scheduled"
+          },
+          "n_service_days": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "N Service Days"
+          },
+          "n_trips": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "N Trips"
+          },
+          "n_unknown": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "N Unknown"
+          },
+          "suppressed": {
+            "title": "Suppressed",
+            "type": "boolean"
+          },
+          "unplanned_rate": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Unplanned Rate"
+          },
+          "week_start": {
+            "format": "date",
+            "title": "Week Start",
+            "type": "string"
+          }
+        },
+        "required": [
+          "week_start",
+          "n_service_days",
+          "n_scheduled",
+          "n_unknown",
+          "n_trips",
+          "n_ran",
+          "n_partial",
+          "n_missed",
+          "n_missed_announced",
+          "n_missed_unplanned",
+          "missed_rate",
+          "announced_rate",
+          "unplanned_rate",
+          "suppressed"
+        ],
+        "title": "TrendPoint",
+        "type": "object"
+      },
+      "TripOutcome": {
+        "properties": {
+          "advance_notice_s": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Advance Notice S"
+          },
+          "announced": {
+            "title": "Announced",
+            "type": "boolean"
+          },
+          "direction_id": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Direction Id"
+          },
+          "outcome": {
+            "enum": [
+              "ran",
+              "partial",
+              "missed",
+              "unknown"
+            ],
+            "title": "Outcome",
+            "type": "string"
+          },
+          "sched_start": {
+            "format": "date-time",
+            "title": "Sched Start",
+            "type": "string"
+          },
+          "sched_start_local": {
+            "title": "Sched Start Local",
+            "type": "string"
+          },
+          "stop_coverage": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Stop Coverage"
+          },
+          "trip_id": {
+            "title": "Trip Id",
+            "type": "string"
+          }
+        },
+        "required": [
+          "trip_id",
+          "direction_id",
+          "sched_start",
+          "sched_start_local",
+          "outcome",
+          "announced",
+          "advance_notice_s",
+          "stop_coverage"
+        ],
+        "title": "TripOutcome",
+        "type": "object"
+      },
+      "TripOutcomes": {
+        "examples": [
+          {
+            "data_as_of": "2026-12-01T17:40:12Z",
+            "line": "720",
+            "line_slug": "720",
+            "service_date": "2026-11-30",
+            "trips": [
+              {
+                "advance_notice_s": 2700.0,
+                "announced": true,
+                "direction_id": 0,
+                "outcome": "missed",
+                "sched_start": "2026-11-30T15:12:00Z",
+                "sched_start_local": "07:12",
+                "trip_id": "68231004-DEC25-D10CAR-1Weekday"
+              }
+            ]
+          }
+        ],
+        "properties": {
+          "data_as_of": {
+            "format": "date-time",
+            "title": "Data As Of",
+            "type": "string"
+          },
+          "line": {
+            "title": "Line",
+            "type": "string"
+          },
+          "line_slug": {
+            "title": "Line Slug",
+            "type": "string"
+          },
+          "next_cursor": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Next Cursor"
+          },
+          "service_date": {
+            "format": "date",
+            "title": "Service Date",
+            "type": "string"
+          },
+          "trips": {
+            "items": {
+              "$ref": "#/components/schemas/TripOutcome"
+            },
+            "title": "Trips",
+            "type": "array"
+          }
+        },
+        "required": [
+          "line",
+          "line_slug",
+          "service_date",
+          "data_as_of",
+          "trips",
+          "next_cursor"
+        ],
+        "title": "TripOutcomes",
+        "type": "object"
+      },
+      "WindowSummary": {
+        "properties": {
+          "data_through": {
+            "anyOf": [
+              {
+                "format": "date",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Data Through"
+          },
+          "first_data_date": {
+            "anyOf": [
+              {
+                "format": "date",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "First Data Date"
+          },
+          "n_lines": {
+            "title": "N Lines",
+            "type": "integer"
+          },
+          "rates": {
+            "$ref": "#/components/schemas/Rates"
+          },
+          "window": {
+            "title": "Window",
+            "type": "string"
+          },
+          "window_start": {
+            "anyOf": [
+              {
+                "format": "date",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Window Start"
+          }
+        },
+        "required": [
+          "window",
+          "window_start",
+          "data_through",
+          "first_data_date",
+          "n_lines",
+          "rates"
+        ],
+        "title": "WindowSummary",
+        "type": "object"
+      }
+    }
+  },
+  "info": {
+    "description": "Reliability of LA Metro bus lines. Not affiliated with LA Metro. Examples in this document are illustrative, not measured.",
+    "title": "Ghost Bus LA API",
+    "version": "0.1.0"
+  },
+  "openapi": "3.1.0",
+  "paths": {
+    "/v1/cancellations/current": {
+      "get": {
+        "description": "Trips Metro's realtime feed marks canceled and hasn't shown as scheduled again, whose scheduled end is still ahead, as of `as_of`: the newest feed fetch the data covers, which can be up to about an hour old until M3. Filter with `line` (slug). Announced cancellations only: unplanned missed trips can't be known in advance.",
+        "operationId": "current_cancellations_v1_cancellations_current_get",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "line",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Line"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CurrentCancellations"
+                }
+              }
+            },
+            "description": "Successful Response",
+            "headers": {
+              "Cache-Control": {
+                "schema": {
+                  "type": "string"
+                }
+              },
+              "ETag": {
+                "description": "Send back in If-None-Match to get a 304.",
+                "schema": {
+                  "type": "string"
+                }
+              },
+              "X-Request-Id": {
+                "description": "Echoed if sent and valid, else generated.",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "304": {
+            "description": "Not modified: the ETag in If-None-Match is current.",
+            "headers": {
+              "Cache-Control": {
+                "schema": {
+                  "type": "string"
+                }
+              },
+              "ETag": {
+                "description": "Send back in If-None-Match to get a 304.",
+                "schema": {
+                  "type": "string"
+                }
+              },
+              "X-Request-Id": {
+                "description": "Echoed if sent and valid, else generated.",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "404": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDocument"
+                }
+              }
+            },
+            "description": "No such line."
+          },
+          "422": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDocument"
+                }
+              }
+            },
+            "description": "A parameter is missing or invalid; `errors` lists each one."
+          },
+          "500": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDocument"
+                }
+              }
+            },
+            "description": "Unexpected error. Quote `request_id` when reporting it."
+          },
+          "503": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDocument"
+                }
+              }
+            },
+            "description": "The database is unreachable, or nothing has been published yet."
+          }
+        },
+        "summary": "Currently announced cancellations"
+      }
+    },
+    "/v1/lines": {
+      "get": {
+        "description": "Every line in the schedule in force today, with its summary over the window (default 28 days), both directions pooled. Suppressed lines have counts but no rates.",
+        "operationId": "list_lines_v1_lines_get",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "window",
+            "required": false,
+            "schema": {
+              "default": "28d",
+              "enum": [
+                "28d",
+                "90d",
+                "all"
+              ],
+              "title": "Window",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/LineList"
+                }
+              }
+            },
+            "description": "Successful Response",
+            "headers": {
+              "Cache-Control": {
+                "schema": {
+                  "type": "string"
+                }
+              },
+              "ETag": {
+                "description": "Send back in If-None-Match to get a 304.",
+                "schema": {
+                  "type": "string"
+                }
+              },
+              "X-Request-Id": {
+                "description": "Echoed if sent and valid, else generated.",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "304": {
+            "description": "Not modified: the ETag in If-None-Match is current.",
+            "headers": {
+              "Cache-Control": {
+                "schema": {
+                  "type": "string"
+                }
+              },
+              "ETag": {
+                "description": "Send back in If-None-Match to get a 304.",
+                "schema": {
+                  "type": "string"
+                }
+              },
+              "X-Request-Id": {
+                "description": "Echoed if sent and valid, else generated.",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "422": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDocument"
+                }
+              }
+            },
+            "description": "A parameter is missing or invalid; `errors` lists each one."
+          },
+          "500": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDocument"
+                }
+              }
+            },
+            "description": "Unexpected error. Quote `request_id` when reporting it."
+          },
+          "503": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDocument"
+                }
+              }
+            },
+            "description": "The database is unreachable, or nothing has been published yet."
+          }
+        },
+        "summary": "All lines with their headline reliability"
+      }
+    },
+    "/v1/lines/{line}": {
+      "get": {
+        "description": "`line` is the line slug. Summaries are over the window (default 28 days).",
+        "operationId": "line_detail_v1_lines__line__get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "line",
+            "required": true,
+            "schema": {
+              "title": "Line",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "window",
+            "required": false,
+            "schema": {
+              "default": "28d",
+              "enum": [
+                "28d",
+                "90d",
+                "all"
+              ],
+              "title": "Window",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/LineDetail"
+                }
+              }
+            },
+            "description": "Successful Response",
+            "headers": {
+              "Cache-Control": {
+                "schema": {
+                  "type": "string"
+                }
+              },
+              "ETag": {
+                "description": "Send back in If-None-Match to get a 304.",
+                "schema": {
+                  "type": "string"
+                }
+              },
+              "X-Request-Id": {
+                "description": "Echoed if sent and valid, else generated.",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "304": {
+            "description": "Not modified: the ETag in If-None-Match is current.",
+            "headers": {
+              "Cache-Control": {
+                "schema": {
+                  "type": "string"
+                }
+              },
+              "ETag": {
+                "description": "Send back in If-None-Match to get a 304.",
+                "schema": {
+                  "type": "string"
+                }
+              },
+              "X-Request-Id": {
+                "description": "Echoed if sent and valid, else generated.",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "404": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDocument"
+                }
+              }
+            },
+            "description": "No such line."
+          },
+          "422": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDocument"
+                }
+              }
+            },
+            "description": "A parameter is missing or invalid; `errors` lists each one."
+          },
+          "500": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDocument"
+                }
+              }
+            },
+            "description": "Unexpected error. Quote `request_id` when reporting it."
+          },
+          "503": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDocument"
+                }
+              }
+            },
+            "description": "The database is unreachable, or nothing has been published yet."
+          }
+        },
+        "summary": "One line: name, directions with headsigns, summary rates"
+      }
+    },
+    "/v1/lines/{line}/reliability": {
+      "get": {
+        "description": "Rates for each day type and local hour of scheduled start over a window. `line` is the line slug (`720`, `10-48`). Cells with too few trips or days are suppressed: counts but no rates. `ci_low` and `ci_high` are the 95% interval for `missed_rate`.",
+        "operationId": "line_reliability_v1_lines__line__reliability_get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "line",
+            "required": true,
+            "schema": {
+              "title": "Line",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "direction_id",
+            "required": true,
+            "schema": {
+              "maximum": 1,
+              "minimum": 0,
+              "title": "Direction Id",
+              "type": "integer"
+            }
+          },
+          {
+            "in": "query",
+            "name": "window",
+            "required": false,
+            "schema": {
+              "default": "28d",
+              "enum": [
+                "28d",
+                "90d",
+                "all"
+              ],
+              "title": "Window",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "day_type",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "enum": [
+                    "weekday",
+                    "saturday",
+                    "sunday"
+                  ],
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Day Type"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/LineReliability"
+                }
+              }
+            },
+            "description": "Successful Response",
+            "headers": {
+              "Cache-Control": {
+                "schema": {
+                  "type": "string"
+                }
+              },
+              "ETag": {
+                "description": "Send back in If-None-Match to get a 304.",
+                "schema": {
+                  "type": "string"
+                }
+              },
+              "X-Request-Id": {
+                "description": "Echoed if sent and valid, else generated.",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "304": {
+            "description": "Not modified: the ETag in If-None-Match is current.",
+            "headers": {
+              "Cache-Control": {
+                "schema": {
+                  "type": "string"
+                }
+              },
+              "ETag": {
+                "description": "Send back in If-None-Match to get a 304.",
+                "schema": {
+                  "type": "string"
+                }
+              },
+              "X-Request-Id": {
+                "description": "Echoed if sent and valid, else generated.",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "404": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDocument"
+                }
+              }
+            },
+            "description": "No such line, or no data for that direction."
+          },
+          "422": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDocument"
+                }
+              }
+            },
+            "description": "A parameter is missing or invalid; `errors` lists each one."
+          },
+          "500": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDocument"
+                }
+              }
+            },
+            "description": "Unexpected error. Quote `request_id` when reporting it."
+          },
+          "503": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDocument"
+                }
+              }
+            },
+            "description": "The database is unreachable, or nothing has been published yet."
+          }
+        },
+        "summary": "Hour-by-day-type reliability grid for one line and direction"
+      }
+    },
+    "/v1/lines/{line}/stops": {
+      "get": {
+        "description": "Every stop the direction serves in the schedule in force today, in route order (branches and short turns placed between the trunk stops around them).",
+        "operationId": "line_stops_v1_lines__line__stops_get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "line",
+            "required": true,
+            "schema": {
+              "title": "Line",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "direction_id",
+            "required": true,
+            "schema": {
+              "maximum": 1,
+              "minimum": 0,
+              "title": "Direction Id",
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StopList"
+                }
+              }
+            },
+            "description": "Successful Response",
+            "headers": {
+              "Cache-Control": {
+                "schema": {
+                  "type": "string"
+                }
+              },
+              "ETag": {
+                "description": "Send back in If-None-Match to get a 304.",
+                "schema": {
+                  "type": "string"
+                }
+              },
+              "X-Request-Id": {
+                "description": "Echoed if sent and valid, else generated.",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "304": {
+            "description": "Not modified: the ETag in If-None-Match is current.",
+            "headers": {
+              "Cache-Control": {
+                "schema": {
+                  "type": "string"
+                }
+              },
+              "ETag": {
+                "description": "Send back in If-None-Match to get a 304.",
+                "schema": {
+                  "type": "string"
+                }
+              },
+              "X-Request-Id": {
+                "description": "Echoed if sent and valid, else generated.",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "404": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDocument"
+                }
+              }
+            },
+            "description": "No such line, or no data for that direction."
+          },
+          "422": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDocument"
+                }
+              }
+            },
+            "description": "A parameter is missing or invalid; `errors` lists each one."
+          },
+          "500": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDocument"
+                }
+              }
+            },
+            "description": "Unexpected error. Quote `request_id` when reporting it."
+          },
+          "503": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDocument"
+                }
+              }
+            },
+            "description": "The database is unreachable, or nothing has been published yet."
+          }
+        },
+        "summary": "Ordered stops for one direction"
+      }
+    },
+    "/v1/lines/{line}/trend": {
+      "get": {
+        "description": "The last `weeks` weeks (Monday starts; default 12, at most 52), counted back from the newest week in the data across all lines. A week without trips is an empty point; a week with too few trips or service days is suppressed (ADR-026).",
+        "operationId": "line_trend_v1_lines__line__trend_get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "line",
+            "required": true,
+            "schema": {
+              "title": "Line",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "direction_id",
+            "required": true,
+            "schema": {
+              "maximum": 1,
+              "minimum": 0,
+              "title": "Direction Id",
+              "type": "integer"
+            }
+          },
+          {
+            "in": "query",
+            "name": "weeks",
+            "required": false,
+            "schema": {
+              "default": 12,
+              "maximum": 52,
+              "minimum": 1,
+              "title": "Weeks",
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Trend"
+                }
+              }
+            },
+            "description": "Successful Response",
+            "headers": {
+              "Cache-Control": {
+                "schema": {
+                  "type": "string"
+                }
+              },
+              "ETag": {
+                "description": "Send back in If-None-Match to get a 304.",
+                "schema": {
+                  "type": "string"
+                }
+              },
+              "X-Request-Id": {
+                "description": "Echoed if sent and valid, else generated.",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "304": {
+            "description": "Not modified: the ETag in If-None-Match is current.",
+            "headers": {
+              "Cache-Control": {
+                "schema": {
+                  "type": "string"
+                }
+              },
+              "ETag": {
+                "description": "Send back in If-None-Match to get a 304.",
+                "schema": {
+                  "type": "string"
+                }
+              },
+              "X-Request-Id": {
+                "description": "Echoed if sent and valid, else generated.",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "404": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDocument"
+                }
+              }
+            },
+            "description": "No such line, or no data for that direction."
+          },
+          "422": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDocument"
+                }
+              }
+            },
+            "description": "A parameter is missing or invalid; `errors` lists each one."
+          },
+          "500": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDocument"
+                }
+              }
+            },
+            "description": "Unexpected error. Quote `request_id` when reporting it."
+          },
+          "503": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDocument"
+                }
+              }
+            },
+            "description": "The database is unreachable, or nothing has been published yet."
+          }
+        },
+        "summary": "Weekly missed, announced and unplanned rates"
+      }
+    },
+    "/v1/meta/method": {
+      "get": {
+        "description": "The thresholds come from the same build as the numbers; the definitions follow the pipeline specification's decision table.",
+        "operationId": "method_v1_meta_method_get",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Method"
+                }
+              }
+            },
+            "description": "Successful Response",
+            "headers": {
+              "Cache-Control": {
+                "schema": {
+                  "type": "string"
+                }
+              },
+              "ETag": {
+                "description": "Send back in If-None-Match to get a 304.",
+                "schema": {
+                  "type": "string"
+                }
+              },
+              "X-Request-Id": {
+                "description": "Echoed if sent and valid, else generated.",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "304": {
+            "description": "Not modified: the ETag in If-None-Match is current.",
+            "headers": {
+              "Cache-Control": {
+                "schema": {
+                  "type": "string"
+                }
+              },
+              "ETag": {
+                "description": "Send back in If-None-Match to get a 304.",
+                "schema": {
+                  "type": "string"
+                }
+              },
+              "X-Request-Id": {
+                "description": "Echoed if sent and valid, else generated.",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "500": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDocument"
+                }
+              }
+            },
+            "description": "Unexpected error. Quote `request_id` when reporting it."
+          },
+          "503": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDocument"
+                }
+              }
+            },
+            "description": "The database is unreachable, or nothing has been published yet."
+          }
+        },
+        "summary": "Thresholds and definitions currently in force"
+      }
+    },
+    "/v1/system/feed-health": {
+      "get": {
+        "description": "Five-minute buckets per realtime feed over the last `hours` (default 24, at most 168), counted back from the newest bucket published. A bucket is healthy if a fetch succeeded with data under 3 minutes old (ADR-024).",
+        "operationId": "feed_health_v1_system_feed_health_get",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "hours",
+            "required": false,
+            "schema": {
+              "default": 24,
+              "maximum": 168,
+              "minimum": 1,
+              "title": "Hours",
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/FeedHealth"
+                }
+              }
+            },
+            "description": "Successful Response",
+            "headers": {
+              "Cache-Control": {
+                "schema": {
+                  "type": "string"
+                }
+              },
+              "ETag": {
+                "description": "Send back in If-None-Match to get a 304.",
+                "schema": {
+                  "type": "string"
+                }
+              },
+              "X-Request-Id": {
+                "description": "Echoed if sent and valid, else generated.",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "304": {
+            "description": "Not modified: the ETag in If-None-Match is current.",
+            "headers": {
+              "Cache-Control": {
+                "schema": {
+                  "type": "string"
+                }
+              },
+              "ETag": {
+                "description": "Send back in If-None-Match to get a 304.",
+                "schema": {
+                  "type": "string"
+                }
+              },
+              "X-Request-Id": {
+                "description": "Echoed if sent and valid, else generated.",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "422": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDocument"
+                }
+              }
+            },
+            "description": "A parameter is missing or invalid; `errors` lists each one."
+          },
+          "500": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDocument"
+                }
+              }
+            },
+            "description": "Unexpected error. Quote `request_id` when reporting it."
+          },
+          "503": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDocument"
+                }
+              }
+            },
+            "description": "The database is unreachable, or nothing has been published yet."
+          }
+        },
+        "summary": "Feed status for the status page"
+      }
+    },
+    "/v1/system/summary": {
+      "get": {
+        "description": "Pooled counts and rates for every trip in scope, per window. Internal until M5 validates them against Metro's report; suppressed until enough days are in.",
+        "operationId": "system_summary_v1_system_summary_get",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SystemSummary"
+                }
+              }
+            },
+            "description": "Successful Response",
+            "headers": {
+              "Cache-Control": {
+                "schema": {
+                  "type": "string"
+                }
+              },
+              "ETag": {
+                "description": "Send back in If-None-Match to get a 304.",
+                "schema": {
+                  "type": "string"
+                }
+              },
+              "X-Request-Id": {
+                "description": "Echoed if sent and valid, else generated.",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "304": {
+            "description": "Not modified: the ETag in If-None-Match is current.",
+            "headers": {
+              "Cache-Control": {
+                "schema": {
+                  "type": "string"
+                }
+              },
+              "ETag": {
+                "description": "Send back in If-None-Match to get a 304.",
+                "schema": {
+                  "type": "string"
+                }
+              },
+              "X-Request-Id": {
+                "description": "Echoed if sent and valid, else generated.",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "500": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDocument"
+                }
+              }
+            },
+            "description": "Unexpected error. Quote `request_id` when reporting it."
+          },
+          "503": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDocument"
+                }
+              }
+            },
+            "description": "The database is unreachable, or nothing has been published yet."
+          }
+        },
+        "summary": "Headline numbers, counts and date range"
+      }
+    },
+    "/v1/trips/outcomes": {
+      "get": {
+        "description": "Every scheduled trip of the line on the service date (last 35 days), ordered by scheduled start, with its outcome and whether it was announced. Paginate with `cursor` (from `next_cursor`) and `limit` (default 50, at most 200). A date outside the published window returns an empty list.",
+        "operationId": "trip_outcomes_v1_trips_outcomes_get",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "line",
+            "required": true,
+            "schema": {
+              "title": "Line",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "service_date",
+            "required": true,
+            "schema": {
+              "format": "date",
+              "title": "Service Date",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "cursor",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Cursor"
+            }
+          },
+          {
+            "in": "query",
+            "name": "limit",
+            "required": false,
+            "schema": {
+              "default": 50,
+              "maximum": 200,
+              "minimum": 1,
+              "title": "Limit",
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TripOutcomes"
+                }
+              }
+            },
+            "description": "Successful Response",
+            "headers": {
+              "Cache-Control": {
+                "schema": {
+                  "type": "string"
+                }
+              },
+              "ETag": {
+                "description": "Send back in If-None-Match to get a 304.",
+                "schema": {
+                  "type": "string"
+                }
+              },
+              "X-Request-Id": {
+                "description": "Echoed if sent and valid, else generated.",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "304": {
+            "description": "Not modified: the ETag in If-None-Match is current.",
+            "headers": {
+              "Cache-Control": {
+                "schema": {
+                  "type": "string"
+                }
+              },
+              "ETag": {
+                "description": "Send back in If-None-Match to get a 304.",
+                "schema": {
+                  "type": "string"
+                }
+              },
+              "X-Request-Id": {
+                "description": "Echoed if sent and valid, else generated.",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "400": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDocument"
+                }
+              }
+            },
+            "description": "The cursor is malformed or belongs to another query."
+          },
+          "404": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDocument"
+                }
+              }
+            },
+            "description": "No such line."
+          },
+          "422": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDocument"
+                }
+              }
+            },
+            "description": "A parameter is missing or invalid; `errors` lists each one."
+          },
+          "500": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDocument"
+                }
+              }
+            },
+            "description": "Unexpected error. Quote `request_id` when reporting it."
+          },
+          "503": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDocument"
+                }
+              }
+            },
+            "description": "The database is unreachable, or nothing has been published yet."
+          }
+        },
+        "summary": "Trip-level outcomes for one line and service date"
+      }
+    }
+  }
+}

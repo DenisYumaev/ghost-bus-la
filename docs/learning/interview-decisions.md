@@ -312,6 +312,14 @@ The trade-offs in Ghost Bus LA you should be able to defend out loud. Each entry
 - **Publish detail:** this table is legitimately empty overnight, so it is the one table allowed to publish empty (`allow_empty`); every other empty load is still refused.
 - **Record:** ADR-029; `pipeline/dbt/models/gold/fct_current_cancellations.sql`; quiz 044.
 
+### 15w. A committed OpenAPI document as the API contract
+
+- **Decision:** commit the generated OpenAPI document (`services/api/openapi.json`) and fail an offline test when the code's document differs. `make openapi` regenerates it.
+- **Why:** an API change (a renamed field, a new required parameter) becomes a visible diff in review instead of a silent break for the web client, which is generated from the same file. A runtime-only document would show the change only after deploy.
+- **Rejected:** schema snapshot testing per endpoint (more files, same signal), or a contract-testing tool such as Schemathesis (a new dependency for a problem a diff already solves).
+- **Detail worth knowing:** FastAPI documents every body as `application/json` and its own validation error shape. The app rewrites error responses to `application/problem+json` with the real problem schema, so the document doesn't lie about what clients get.
+- **Record:** API spec section 9; `services/api/tests/test_openapi.py`; quiz 046.
+
 ### 16. Ingest every line; scope the headline numbers
 
 - **Decision:** archive all lines, and compute headline metrics on Metro-operated lines only.

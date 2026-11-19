@@ -8,7 +8,7 @@ from fastapi.responses import Response
 from ghostbus_api.problems import Problem
 from ghostbus_api.repos import lines as repo
 from ghostbus_api.repos import trips as trip_repo
-from ghostbus_api.routers._http import conditional, json_response
+from ghostbus_api.routers._http import conditional, json_response, responses
 from ghostbus_api.schemas.common import Rates
 from ghostbus_api.schemas.lines import Direction, LineDetail, LineList, LineListItem, Stop, StopList
 from ghostbus_api.schemas.reliability import DayType, LineReliability, ReliabilityCell, Window
@@ -20,6 +20,7 @@ router = APIRouter(prefix="/v1")
 @router.get(
     "/lines/{line}/reliability",
     response_model=LineReliability,
+    responses=responses(404, 422, not_found="No such line, or no data for that direction."),
     summary="Hour-by-day-type reliability grid for one line and direction",
     description=(
         "Rates for each day type and local hour of scheduled start over a window. `line` is "
@@ -81,6 +82,7 @@ def _find(con: object, request: Request, line: str) -> dict[str, object]:
 @router.get(
     "/lines",
     response_model=LineList,
+    responses=responses(422),
     summary="All lines with their headline reliability",
     description=(
         "Every line in the schedule in force today, with its summary over the window (default "
@@ -117,6 +119,7 @@ def list_lines(request: Request, window: Window = "28d") -> Response:
 @router.get(
     "/lines/{line}",
     response_model=LineDetail,
+    responses=responses(404, 422),
     summary="One line: name, directions with headsigns, summary rates",
     description="`line` is the line slug. Summaries are over the window (default 28 days).",
 )
@@ -151,6 +154,7 @@ def line_detail(request: Request, line: str, window: Window = "28d") -> Response
 @router.get(
     "/lines/{line}/stops",
     response_model=StopList,
+    responses=responses(404, 422, not_found="No such line, or no data for that direction."),
     summary="Ordered stops for one direction",
     description=(
         "Every stop the direction serves in the schedule in force today, in route order "
@@ -184,6 +188,7 @@ def line_stops(
 @router.get(
     "/lines/{line}/trend",
     response_model=Trend,
+    responses=responses(404, 422, not_found="No such line, or no data for that direction."),
     summary="Weekly missed, announced and unplanned rates",
     description=(
         "The last `weeks` weeks (Monday starts; default 12, at most 52), counted back from the "

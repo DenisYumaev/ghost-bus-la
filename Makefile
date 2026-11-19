@@ -4,7 +4,7 @@
 # never an apply target (CLAUDE.md hard rule 8).
 
 .DEFAULT_GOAL := help
-.PHONY: help install test lint fmt hooks tf-test plan-bootstrap plan selftest-s3 deploy-ingest gtfs-versions gtfs-load compact decode dbt-sync dbt test-integration migrate publish sql-drill sql-check sql-shell
+.PHONY: help install test lint fmt hooks tf-test plan-bootstrap plan selftest-s3 deploy-ingest gtfs-versions gtfs-load compact decode dbt-sync dbt test-integration migrate publish openapi sql-drill sql-check sql-shell
 
 help:  ## List the targets
 	@grep -E '^[a-z0-9-]+:.*## ' $(MAKEFILE_LIST) | awk -F':.*## ' '{printf "  %-15s %s\n", $$1, $$2}'
@@ -30,6 +30,9 @@ migrate:  ## Apply the Alembic migrations to $$GHOSTBUS_DATABASE_URL (never a UR
 publish:  ## Publish the serving tables from data/ghostbus.duckdb to $$GHOSTBUS_DATABASE_URL: make publish [ARGS=--force]
 	@test -n "$$GHOSTBUS_DATABASE_URL" || (echo "set GHOSTBUS_DATABASE_URL" && exit 2)
 	uv run python -m ghostbus_publish $(ARGS)
+
+openapi:  ## Regenerate the committed OpenAPI document (services/api/openapi.json)
+	uv run python -m ghostbus_api.openapi --write services/api/openapi.json
 
 lint:  ## Lint, format check, type check, fixture sizes
 	uv run ruff check .

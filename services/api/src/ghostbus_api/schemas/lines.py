@@ -4,6 +4,7 @@ from datetime import date
 
 from pydantic import BaseModel
 
+from ghostbus_api.schemas import examples
 from ghostbus_api.schemas.common import Rates, UtcTime
 
 
@@ -16,6 +17,8 @@ class LineListItem(BaseModel):
 
 
 class LineList(BaseModel):
+    model_config = examples.examples(examples.LINE_LIST)
+
     window: str
     window_start: date | None
     data_through: date | None
@@ -32,6 +35,8 @@ class Direction(BaseModel):
 
 
 class LineDetail(BaseModel):
+    model_config = examples.examples(examples.LINE_DETAIL)
+
     line: str
     line_slug: str
     display_name: str
@@ -57,6 +62,8 @@ class Stop(BaseModel):
 
 
 class StopList(BaseModel):
+    model_config = examples.examples(examples.STOP_LIST)
+
     line: str
     line_slug: str
     direction_id: int

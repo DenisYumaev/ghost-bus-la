@@ -4,6 +4,7 @@ from datetime import date
 
 from pydantic import BaseModel
 
+from ghostbus_api.schemas import examples
 from ghostbus_api.schemas.common import UtcTime
 
 
@@ -22,6 +23,8 @@ class Cancellation(BaseModel):
 
 
 class CurrentCancellations(BaseModel):
+    model_config = examples.examples(examples.CURRENT_CANCELLATIONS)
+
     as_of: UtcTime | None  # the newest feed fetch these reflect; null if none published yet
     stale: bool  # as_of more than 90 minutes old: the pipeline has stalled
     data_as_of: UtcTime
