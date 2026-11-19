@@ -22,30 +22,30 @@ class LineDirection:
     headsign: str
 
 
-# Both queries pick the schedule version in force on the rider's local date: the newest one
-# in force at some point that starts on or before it (ADR-028: lines are per version).
+# The line as of the rider's local date: the newest schedule version in force by then that
+# contains this line. Choosing the version from serving.line itself means a publish that has
+# swapped schedule_version but not yet line can't make every line vanish, and a discontinued
+# line still resolves to its last version (reliability is keyed by line, so its history stays).
 FIND_LINE = """
-    SELECT line, line_slug, display_name
-    FROM serving.line
-    WHERE line_slug = :slug
-      AND schedule_version = (
-          SELECT version_id FROM serving.schedule_version
-          WHERE ever_in_force AND valid_from <= :today
-          ORDER BY valid_from DESC LIMIT 1)
+    SELECT l.line, l.line_slug, l.display_name, l.schedule_version
+    FROM serving.line AS l
+    JOIN serving.schedule_version AS v ON v.version_id = l.schedule_version
+    WHERE l.line_slug = :slug AND v.ever_in_force AND v.valid_from <= :today
+    ORDER BY v.valid_from DESC
+    LIMIT 1
 """
 
 FIND_DIRECTION = """
     SELECT headsign
     FROM serving.line_direction
-    WHERE line = :line AND direction_id = :direction_id
-      AND schedule_version = (
-          SELECT version_id FROM serving.schedule_version
-          WHERE ever_in_force AND valid_from <= :today
-          ORDER BY valid_from DESC LIMIT 1)
+    WHERE schedule_version = :version AND line = :line AND direction_id = :direction_id
 """
 
 
 def find_line(con: Connection, slug: str, today: date) -> dict[str, Any] | None:
+    """`today` is the Los Angeles calendar date (hard rule 5: rider-facing lookups use the local
+    day). Between midnight and the end of the previous service day on a service-change date this
+    already picks the new version; only headsign and name could differ."""
     row = (
         con.execute(text(FIND_LINE), {"today": today, "slug": normalize_slug(slug)})
         .mappings()
@@ -54,21 +54,41 @@ def find_line(con: Connection, slug: str, today: date) -> dict[str, Any] | None:
     return dict(row) if row else None
 
 
-def find_direction(con: Connection, line: str, direction_id: int, today: date) -> str | None:
-    params = {"today": today, "line": line, "direction_id": direction_id}
+def find_direction(con: Connection, version: str, line: str, direction_id: int) -> str | None:
+    params = {"version": version, "line": line, "direction_id": direction_id}
     headsign: str | None = con.execute(text(FIND_DIRECTION), params).scalar_one_or_none()
     return headsign
 
 
+def window_bounds(con: Connection, window: str) -> dict[str, Any] | None:
+    """The window's dates: int_windows is global, so system_summary carries them for every
+    window even when a line has no cells in it."""
+    row = (
+        con.execute(
+            text(
+                "SELECT window_start, window_end FROM serving.system_summary "
+                "WHERE time_window = :window"
+            ),
+            {"window": window},
+        )
+        .mappings()
+        .first()
+    )
+    return dict(row) if row else None
+
+
 def data_as_of(con: Connection, table: str) -> datetime | None:
-    """When the serving table was last published successfully (API spec section 1)."""
-    return con.execute(
+    """When the serving table was last published successfully (API spec section 1). The request
+    stays in one transaction, and the publish_run row commits with its table's swap, so this
+    and the rows read next come from the same publish. Don't switch reads to autocommit."""
+    as_of: datetime | None = con.execute(
         text(
             "SELECT max(finished_at) FROM ops.publish_run "
             "WHERE table_name = :table AND status = 'succeeded'"
         ),
         {"table": table},
     ).scalar_one_or_none()
+    return as_of
 
 
 def reliability_cells(
@@ -101,7 +121,13 @@ def has_cells(con: Connection, line: str, direction_id: int) -> bool:
     )
 
 
-def newest_publish(con: Connection) -> datetime | None:
-    return con.execute(
-        text("SELECT max(finished_at) FROM ops.publish_run WHERE status = 'succeeded'")
+def stalest_publish(con: Connection) -> datetime | None:
+    """The oldest of each serving table's latest successful publish: readiness means every
+    table is fresh, so one table failing for days can't hide behind the others."""
+    stalest: datetime | None = con.execute(
+        text(
+            "SELECT min(latest) FROM (SELECT table_name, max(finished_at) AS latest "
+            "FROM ops.publish_run WHERE status = 'succeeded' GROUP BY table_name) AS t"
+        )
     ).scalar_one_or_none()
+    return stalest

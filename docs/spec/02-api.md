@@ -28,12 +28,12 @@ RFC 9457 problem details, `Content-Type: application/problem+json`:
 
 | Status | When |
 | --- | --- |
-| 400 | Malformed parameters |
+| 400 | Malformed request (not parameters: those are 422) |
 | 401 | No valid session on a protected route |
 | 403 | Origin check failed, or the resource belongs to another user |
 | 404 | Unknown line, stop, or resource |
 | 409 | Duplicate commute |
-| 422 | Validation error; `errors` lists fields |
+| 422 | Validation error, including malformed values (`direction_id=abc`); `errors` lists fields |
 | 429 | Rate limited; `Retry-After` set |
 | 503 | Database unavailable or serving data older than 60 minutes on `/readyz` |
 

@@ -23,6 +23,22 @@ class ReliabilityCell(BaseModel):
 
 
 class LineReliability(BaseModel):
+    model_config = {
+        "json_schema_extra": {
+            "examples": [{
+                "line": "720", "line_slug": "720", "display_name": "720", "direction_id": 0,
+                "headsign": "Santa Monica", "window": "28d", "window_start": "2026-11-04",
+                "data_through": "2026-12-01", "data_as_of": "2026-12-01T17:40:12Z",
+                "cells": [{
+                    "day_type": "weekday", "hour_local": 17, "n_trips": 412,
+                    "missed_rate": 0.051, "announced_rate": 0.024, "unplanned_rate": 0.027,
+                    "ci_low": 0.038, "ci_high": 0.066, "suppressed": False,
+                }],
+                "method_url": "https://example.org/method",
+            }]
+        }
+    }  # fmt: skip
+
     line: str
     line_slug: str
     display_name: str

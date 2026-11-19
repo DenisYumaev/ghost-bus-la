@@ -16,6 +16,7 @@ def make_engine(database_url: str) -> Engine:
         pool_size=5,
         max_overflow=5,
         pool_pre_ping=True,
+        pool_timeout=3,  # a request waits at most 3 s for a connection, then gets a 503
         connect_args={
             "options": f"-c statement_timeout={STATEMENT_TIMEOUT_MS}"
             f" -c idle_in_transaction_session_timeout={IDLE_IN_TRANSACTION_TIMEOUT_MS}",

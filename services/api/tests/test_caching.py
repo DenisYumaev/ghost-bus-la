@@ -27,3 +27,15 @@ def test_new_data_or_another_query_changes_it() -> None:
 def test_slugs_are_matched_case_insensitively() -> None:
     assert normalize_slug("Dodger-Stadium-Express") == "dodger-stadium-express"
     assert normalize_slug(" 10-48 ") == "10-48"
+
+
+def test_if_none_match_follows_rfc_9110() -> None:
+    from ghostbus_api.caching import matches
+
+    tag = '"abc"'
+    assert matches('"abc"', tag)
+    assert matches('W/"abc"', tag)  # a compressing proxy weakens the tag
+    assert matches('"old", "abc"', tag)
+    assert matches("*", tag)
+    assert not matches('"old"', tag)
+    assert not matches(None, tag)

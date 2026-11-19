@@ -1,5 +1,9 @@
 """The app factory (API spec section 10)."""
 
+from collections.abc import Callable
+from datetime import date, datetime
+from zoneinfo import ZoneInfo
+
 from fastapi import FastAPI
 
 from ghostbus_api import problems
@@ -8,7 +12,14 @@ from ghostbus_api.routers import health, lines
 from ghostbus_api.settings import Settings, from_env
 
 
-def create_app(database_url: str | None = None) -> FastAPI:
+def los_angeles_today() -> date:
+    """The rider's local date (hard rule 5; ADR-028)."""
+    return datetime.now(ZoneInfo("America/Los_Angeles")).date()
+
+
+def create_app(
+    database_url: str | None = None, today: Callable[[], date] = los_angeles_today
+) -> FastAPI:
     settings = Settings(database_url=database_url) if database_url else from_env()
     app = FastAPI(
         title="Ghost Bus LA API",
@@ -20,6 +31,7 @@ def create_app(database_url: str | None = None) -> FastAPI:
     )
     app.state.settings = settings
     app.state.engine = make_engine(settings.database_url)
+    app.state.today = today  # injectable, so tests can pin the date
     problems.install(app)
     app.include_router(health.router)
     app.include_router(lines.router)

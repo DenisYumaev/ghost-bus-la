@@ -7,7 +7,7 @@ from fastapi.responses import JSONResponse
 from sqlalchemy.exc import SQLAlchemyError
 
 from ghostbus_api.problems import problem_response
-from ghostbus_api.repos.lines import newest_publish
+from ghostbus_api.repos.lines import stalest_publish
 
 router = APIRouter()
 
@@ -22,13 +22,14 @@ def readyz(request: Request) -> JSONResponse:
     settings = request.app.state.settings
     try:
         with request.app.state.engine.connect() as con:
-            newest = newest_publish(con)
+            newest = stalest_publish(con)
     except SQLAlchemyError:
         return problem_response(request, 503, "Database unavailable")
     limit = timedelta(minutes=settings.max_data_age_minutes)
     if newest is None or datetime.now(UTC) - newest > limit:
         return problem_response(
             request, 503, "Serving data is stale",
-            f"newest successful publish is older than {settings.max_data_age_minutes} minutes",
+            f"a serving table's last successful publish is older than "
+            f"{settings.max_data_age_minutes} minutes",
         )  # fmt: skip
     return JSONResponse({"status": "ready", "data_as_of": newest.strftime("%Y-%m-%dT%H:%M:%SZ")})
