@@ -26,3 +26,27 @@ def upgrade_to_head(database_url: str) -> None:
 
 def downgrade_to_base(database_url: str) -> None:
     command.downgrade(_config(database_url), "base")
+
+
+def main() -> None:
+    """`python -m ghostbus_api.migrations`: upgrade $GHOSTBUS_DATABASE_URL to head (make migrate).
+
+    The URL comes from the environment only, and connection errors are reported without it:
+    libpq's messages can quote the URL, password included (hard rule 9).
+    """
+    import os
+    import sys
+
+    from sqlalchemy.exc import SQLAlchemyError
+
+    url = os.environ.get("GHOSTBUS_DATABASE_URL")
+    if not url:
+        sys.exit("GHOSTBUS_DATABASE_URL is not set")
+    try:
+        upgrade_to_head(url)
+    except SQLAlchemyError:
+        sys.exit("cannot migrate with GHOSTBUS_DATABASE_URL (check the URL); details withheld")
+
+
+if __name__ == "__main__":
+    main()

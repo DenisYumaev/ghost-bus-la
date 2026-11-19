@@ -14,7 +14,7 @@ from hypothesis import strategies as st
 
 def sql_parse(text: str | None) -> int | None:
     with duckdb.connect() as con:
-        query = f"SELECT {gtfs_seconds_sql('t')} FROM (SELECT ?::VARCHAR AS t)"  # noqa: S608
+        query = f"SELECT {gtfs_seconds_sql('t')} FROM (SELECT ?::VARCHAR AS t)"
         result = con.execute(query, [text]).fetchall()[0][0]
     return None if result is None else int(result)
 
@@ -73,7 +73,7 @@ def sql_date(text: str) -> object:
     from ghostbus_decode.gtfs_tables import typed_sql
 
     with duckdb.connect() as con:
-        query = f"SELECT {typed_sql('d', 'date')} FROM (SELECT ?::VARCHAR AS d)"  # noqa: S608
+        query = f"SELECT {typed_sql('d', 'date')} FROM (SELECT ?::VARCHAR AS d)"
         return con.execute(query, [text]).fetchall()[0][0]
 
 
