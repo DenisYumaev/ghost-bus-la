@@ -31,7 +31,10 @@ def main() -> None:
         sys.exit("GHOSTBUS_DATABASE_URL is not set")
     synced = json.loads(args.sync_file.read_text())
     source = f"service dates {synced['start']}..{synced['end']}"
-    tables = [t for t in TABLES if not args.only or t.name in args.only]
+    if args.only:
+        tables = [t for t in TABLES if t.name in args.only]
+    else:  # tables every build publishes; open-date-only tables need --only (ADR-029)
+        tables = [t for t in TABLES if t.default]
     unknown = set(args.only or []) - {t.name for t in TABLES}
     if unknown:
         sys.exit(f"unknown table(s): {', '.join(sorted(unknown))}")

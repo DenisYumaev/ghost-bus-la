@@ -304,8 +304,11 @@ The trade-offs in Ghost Bus LA you should be able to defend out loud. Each entry
 
 ### 15v. Current cancellations before the detector exists
 
-- **Decision (ADR-029):** in M2, "currently announced cancellations" come from every 10-minute build. These are trips still canceled at the newest trip-update fetch in the data, whose scheduled end is still ahead, returned with `as_of`. M3 switches the same endpoint to the detector's sub-minute events.
-- **Why "now" is the newest fetch, not the clock:** a delayed build would otherwise list trips that already ended, and two builds of the same data would differ. With `as_of`, the page can say exactly how current it is.
+- **Decision (ADR-029):** in M2, "currently announced cancellations" come from the open-date build. These are trips still canceled at the newest decoded trip-update fetch, whose scheduled end is still ahead, returned with `as_of`. M3 switches the same endpoint to the detector's sub-minute events.
+- **Why "now" is the newest decoded fetch, not the clock or the fetch log:** a delayed build would otherwise list trips that already ended, and two builds of the same data would differ. The fetch log can list fetches not yet decoded, so it would overstate how current the list is.
+- **`as_of` lives in its own one-row table,** so an empty list still says "nothing canceled as of 4:52 PM". A dbt test fails the build when there is no decoded fetch, so a broken sync can't masquerade as a quiet day.
+- **Only the open-date build publishes it** (`default=False`, published with `--only`). A nightly close or backfill sees every trip already ended and would wipe the live list.
+- **Honest freshness:** the fetch log uploads hourly today, so the lag is up to about an hour, not 10 minutes. The API sets `stale` after 90 minutes and caches the list for 60 s.
 - **Publish detail:** this table is legitimately empty overnight, so it is the one table allowed to publish empty (`allow_empty`); every other empty load is still refused.
 - **Record:** ADR-029; `pipeline/dbt/models/gold/fct_current_cancellations.sql`; quiz 044.
 

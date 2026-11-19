@@ -1,5 +1,6 @@
 """Currently announced cancellations (API spec section 4.1; ADR-029)."""
 
+from datetime import UTC, datetime, timedelta
 from zoneinfo import ZoneInfo
 
 from fastapi import APIRouter, Request
@@ -12,6 +13,10 @@ from ghostbus_api.routers._http import conditional, json_response
 from ghostbus_api.schemas.cancellations import Cancellation, CurrentCancellations
 
 router = APIRouter(prefix="/v1/cancellations")
+SHORT_CACHE = "public, max-age=60, stale-while-revalidate=60"
+# Data can lag up to about an hour (hourly fetch-log upload, ADR-029); older than this means the
+# pipeline has stalled, and the page must say so rather than show an old list as current.
+STALE_AFTER = timedelta(minutes=90)
 LOCAL = ZoneInfo("America/Los_Angeles")
 
 
@@ -21,9 +26,9 @@ LOCAL = ZoneInfo("America/Los_Angeles")
     summary="Currently announced cancellations",
     description=(
         "Trips Metro's realtime feed marks canceled and hasn't shown as scheduled again, whose "
-        "scheduled end is still ahead, as of `as_of` (the newest feed fetch; refreshed about "
-        "every 10 minutes until M3). Filter with `line` (slug). Announced cancellations only: "
-        "unplanned missed trips can't be known in advance."
+        "scheduled end is still ahead, as of `as_of`: the newest feed fetch the data covers, "
+        "which can be up to about an hour old until M3. Filter with `line` (slug). Announced "
+        "cancellations only: unplanned missed trips can't be known in advance."
     ),
 )
 def current_cancellations(request: Request, line: str | None = None) -> Response:
@@ -36,14 +41,18 @@ def current_cancellations(request: Request, line: str | None = None) -> Response
                 raise Problem(404, "Line not found", f"No line '{line}'.")
             name = str(found["line"])
         as_of_publish, headers, not_modified = conditional(
-            request, con, ("cancellation_current", "line", "line_direction"),
-            {"_today": today.isoformat()},
+            request, con, ("cancellation_current", "cancellation_as_of", "line", "line_direction"),
         )  # fmt: skip
         if not_modified:
             return not_modified
-        rows = repo.current(con, today, name)
+        rows = repo.current(con, name)
+        fetched = repo.as_of(con)
+    # A short cache: this list changes within minutes (the others change nightly).
+    headers = headers | {"Cache-Control": SHORT_CACHE}
+    stale = fetched is None or datetime.now(UTC) - fetched > STALE_AFTER
     body = CurrentCancellations(
-        as_of=rows[0]["as_of"] if rows else None,
+        as_of=fetched,
+        stale=stale,
         data_as_of=as_of_publish,
         cancellations=[
             Cancellation(

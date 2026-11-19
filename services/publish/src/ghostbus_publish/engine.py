@@ -70,6 +70,10 @@ class ServingTable:
     # An empty load is refused unless the table can legitimately be empty (current
     # cancellations overnight).
     allow_empty: bool = False
+    # Published by a plain `make publish`? Tables built only by the open-date build (current
+    # cancellations) are published by it alone, with --only: a closed-date build would replace
+    # the live list with an empty one.
+    default: bool = True
 
     def __post_init__(self) -> None:
         if not NAME.match(self.name) or self.name.endswith(("__new", "__old")):

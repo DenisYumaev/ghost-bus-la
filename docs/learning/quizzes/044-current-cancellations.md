@@ -21,7 +21,7 @@ Yes. It was announced (`canceled_first_seen_at` is set), not reinstated, and its
 
 ## 2. What does this do?
 
-Why does `fct_current_cancellations` use the newest fetch instead of `now()`?
+Why does `fct_current_cancellations` take `as_of` from the newest *decoded* fetch, instead of `now()` or the newest fetch in the fetch log?
 
 **Your answer:**
 
@@ -30,13 +30,13 @@ Why does `fct_current_cancellations` use the newest fetch instead of `now()`?
 <details>
 <summary>Model answer</summary>
 
-The table should say what the feed showed and when. With `now()`, a build that ran late would drop or keep trips based on the clock rather than the data, and two builds of the same data would disagree. With the newest fetch as `as_of`, the result is deterministic and the page can show "as of 4:52 PM".
+The table should say what the feed showed and when. With `now()`, a build that ran late would drop or keep trips based on the clock rather than the data, and two builds of the same data would disagree. With the newest fetch as `as_of`, the result is deterministic and the page can show "as of 4:52 PM". The fetch log can list fetches whose snapshots aren't decoded yet; using it would claim the list is more current than the data behind it.
 
 </details>
 
 ## 3. What breaks if…
 
-…publish refused empty loads for this table too?
+…a plain `make publish` after the nightly close published this table too?
 
 **Your answer:**
 
@@ -45,7 +45,7 @@ The table should say what the feed showed and when. With `now()`, a build that r
 <details>
 <summary>Model answer</summary>
 
-Overnight, or on a good day, nothing is canceled, so the load is empty. Publish would refuse it every run and alert. Worse, the live table would keep yesterday evening's cancellations, so the page would show trips as canceled that aren't. `allow_empty` is set only on this table; a test pins that.
+The nightly build covers closed days, whose newest fetch is after every trip has ended, so the table is empty. Because empty loads are allowed here (`allow_empty`), publish would swap it in and wipe the live list until the next open-date build. That's why both cancellation tables are `default=False`: a plain publish leaves them out, and only the open-date build publishes them with `--only`. A test pins that set.
 
 </details>
 
@@ -60,7 +60,7 @@ Overnight, or on a good day, nothing is canceled, so the load is empty. Publish 
 <details>
 <summary>Model answer</summary>
 
-A rider on a contracted line would not see an announced cancellation that the feed does carry. The reliability scope (SPEC section 2) is about which numbers we publish as headlines. This list just reports what the feed announced, so it isn't filtered (ADR-029 decision 3).
+A rider on a contracted line would not see an announced cancellation that the feed does carry. The reliability scope (SPEC section 2) is about which numbers we publish as headlines. This list just reports what the feed announced, so it isn't filtered (ADR-029 decision 4).
 
 </details>
 

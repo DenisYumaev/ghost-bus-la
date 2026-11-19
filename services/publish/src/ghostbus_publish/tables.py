@@ -73,9 +73,17 @@ TABLES: tuple[ServingTable, ...] = (
         "cancellation_current",
         "SELECT * FROM fct_current_cancellations",
         key=("service_date", "trip_id"),
-        indexes=(("line",),),
         max_change=None,  # from none to dozens within minutes: the guard means nothing here
         allow_empty=True,  # nothing canceled right now is a normal state
+        default=False,  # the open-date build publishes it (--only); ADR-029
+    ),
+    ServingTable(
+        "cancellation_as_of",
+        # One row: how current the list is, even when it's empty (ADR-029).
+        "SELECT 'trip_updates' AS feed, as_of FROM fct_current_cancellations_as_of",
+        key=("feed",),
+        max_change=None,
+        default=False,
     ),
     ServingTable(
         "method_param",

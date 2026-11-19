@@ -23,5 +23,6 @@ class Cancellation(BaseModel):
 
 class CurrentCancellations(BaseModel):
     as_of: UtcTime | None  # the newest feed fetch these reflect; null if none published yet
+    stale: bool  # as_of more than 90 minutes old: the pipeline has stalled
     data_as_of: UtcTime
     cancellations: list[Cancellation]

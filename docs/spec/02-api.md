@@ -311,7 +311,7 @@ Notes for the build:
 The table list, keys, indexes and row-count guard policy live in `services/publish/src/ghostbus_publish/tables.py`. Not yet built:
 - `serving.trip_stop_time` comes with commute matching (M3); `serving.stop_reliability` is P1.
 - `serving.method_param` (from dbt `dim_method_params`, plus `dim_method_params_nightly` for the bootstrap settings, rebuilt with the intervals) feeds `GET /v1/meta/method`, so the method page can't drift from the values that built the numbers. Sensitivity runs must be full builds; a test fails if a new threshold var is neither listed nor excluded with a reason.
-- `serving.cancellation_current` (dbt `fct_current_cancellations`, every open-date build) feeds `GET /v1/cancellations/current` in M2: trips still canceled at the newest trip-update fetch, returned with `as_of` (ADR-029). M3 switches it to the detector's events.
+- `serving.cancellation_current` (dbt `fct_current_cancellations`, every open-date build) feeds `GET /v1/cancellations/current` in M2: trips still canceled at the newest decoded trip-update fetch, returned with `as_of` (from `serving.cancellation_as_of`, present even when the list is empty) and `stale`, cached 60 s. Only the open-date build publishes these two tables (ADR-029). M3 switches the endpoint to the detector's events.
 
 Ownership (ADR-007): `publish` creates each serving table, with its indexes, on every load; Alembic creates the `serving` and `ops` schemas and the `ops` tables (migration `0001`, `services/api/src/ghostbus_api/alembic/`); `ops.alert_feedback` arrives with its P1 feature.
 

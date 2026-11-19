@@ -280,6 +280,8 @@ Suppress any cell with fewer than 30 trips, or fewer service days than its day t
 
 A lock file prevents overlapping runs. If a run exceeds twice its budget, alert.
 
+**Open-day freshness (ADR-029):** ingest uploads the fetch log only when each hour closes, and compaction reads `fetched_at` from it, so an open-day build lags real time by up to about an hour. The open-day pipeline should upload the open hour's fetch log every few minutes (content-hash keys make that safe), and sync needs an open-day mode that accepts today's partial data.
+
 **VERIFY before scheduling on the VM (M4):** the nightly build's peak memory on the t4g.medium. On a laptop the bootstrap peaked at 4.2 GB with DuckDB limited to 3 GB (ADR-027), and the VM has 4 GB shared with ingest, Postgres and the API. Run the pipeline in a container with its own memory cap, and set `GHOSTBUS_DBT_MEMORY` well below it, so the OOM killer can never pick ingest (hard rule 3).
 
 **Late data:** rows arriving after a service date closes still land in bronze. A weekly job reports closed dates with new bronze rows; reprocess them with a backfill.
