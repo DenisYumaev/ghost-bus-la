@@ -66,7 +66,7 @@ Never return a stack trace. Never reveal whether an email has an account.
 | `GET /v1/system/feed-health?hours=` | Feed status for the status page |
 | `GET /v1/meta/method` | Thresholds and definitions currently in force |
 
-Implemented so far (`services/api`): `/v1/lines`, `/v1/lines/{line}`, `/v1/lines/{line}/stops`, `/v1/lines/{line}/reliability`, `/v1/system/summary`, `/v1/system/feed-health`. The line list holds the schedule in force today and keeps lines unless known not to be Metro-operated. Summaries pool both directions (ADR-026). Feed health counts back from the newest bucket.
+Implemented so far (`services/api`): `/v1/lines`, `/v1/lines/{line}`, `/v1/lines/{line}/stops`, `/v1/lines/{line}/reliability`, `/v1/lines/{line}/trend` (`direction_id` required, `weeks` 1–52, default 12), `/v1/trips/outcomes` (`line` and `service_date` required; keyset cursor over scheduled start then trip ID, tied to its line and date; a bad or mismatched cursor is 400; a date outside the 35 published days is an empty list), `/v1/system/summary`, `/v1/system/feed-health`. The line list holds the schedule in force today and keeps lines unless known not to be Metro-operated. Summaries pool both directions (ADR-026). Feed health counts back from the newest bucket.
 
 `window` is `28d` (default), `90d`, or `all`. `day_type` is `weekday`, `saturday`, or `sunday`. Definitions (ADR-025): a holiday on Sunday service is a `sunday`; `hour_local` is the local hour of the scheduled start, and a trip after midnight belongs to its service day (Friday's 1:30 AM bus is in `weekday`, hour 1); windows end at the last service date with data (return it as `data_through`, since `data_as_of` is only the publish time).
 

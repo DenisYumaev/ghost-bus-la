@@ -253,7 +253,15 @@ models:
     data_tests:
       - unique_combination:
           arguments: {columns: [service_date, schedule_version, trip_id]}
+      # One schedule version per service date, so the API's trip list can page by
+      # (sched_start_utc, trip_id) without two rows sharing a key.
+      - unique_combination:
+          arguments: {columns: [service_date, trip_id]}
     columns:
+      - name: sched_start_utc
+        data_tests: [not_null]
+      - name: line
+        data_tests: [not_null]
       - name: outcome
         data_tests:
           - not_null
