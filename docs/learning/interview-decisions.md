@@ -296,6 +296,12 @@ The trade-offs in Ghost Bus LA you should be able to defend out loud. Each entry
 - **Trend weeks are a generated series, left-joined to the data:** the last N Mondays counted back from the newest week across all lines (ADR-026), so a week without trips shows as a gap instead of the chart silently joining its neighbours.
 - **Record:** `services/api/src/ghostbus_api/cursor.py`, `repos/trips.py`; quiz 042.
 
+### 15u. The method page reads the build's own thresholds
+
+- **Decision:** a dbt model renders the thresholds from the build's own vars into rows (name, value, unit, description, the ADR that set it). Publish copies them to `serving.method_param`, and `GET /v1/meta/method` returns them with the outcome and rate definitions.
+- **Why:** a method page with hand-typed thresholds drifts the first time someone runs a sensitivity build or tunes a value. Rendered from the same build, it can't (hard rule 11).
+- **Record:** `pipeline/dbt/models/gold/dim_method_params.sql`, `services/api/src/ghostbus_api/routers/meta.py`; quiz 043.
+
 ### 16. Ingest every line; scope the headline numbers
 
 - **Decision:** archive all lines, and compute headline metrics on Metro-operated lines only.

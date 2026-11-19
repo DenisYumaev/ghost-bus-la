@@ -70,6 +70,12 @@ TABLES: tuple[ServingTable, ...] = (
         indexes=(("line", "service_date", "sched_start_utc", "trip_id"),),
     ),
     ServingTable(
+        "method_param",
+        "SELECT * FROM dim_method_params",
+        key=("name",),
+        max_change=None,  # a handful of rows; a new threshold is a legitimate change
+    ),
+    ServingTable(
         "feed_health",
         # FEED_HEALTH_DAYS days.
         "SELECT * FROM fct_feed_health WHERE bucket_start > "
