@@ -320,6 +320,14 @@ The trade-offs in Ghost Bus LA you should be able to defend out loud. Each entry
 - **Detail worth knowing:** FastAPI documents every body as `application/json` and its own validation error shape. The app rewrites error responses to `application/problem+json` with the real problem schema, so the document doesn't lie about what clients get.
 - **Record:** API spec section 9; `services/api/tests/test_openapi.py`; quiz 046.
 
+### 15x. One typed GET over generated API types
+
+- **Decision:** the web app's response types are generated from the committed OpenAPI document, and the only API call is `apiGet(path, {params, query})`, whose arguments are derived from the same types. CI regenerates the types and fails on a diff.
+- **Why:** the chain from Pydantic model → `openapi.json` → `schema.ts` → page code means a renamed API field fails `tsc` in the web app, in the same PR. A path that needs `{line}` can't be called without it; that is a compile error, not a runtime 404.
+- **Rejected:** a generated client library (openapi-fetch and friends): another dependency for what one 20-line function does. Hand-written types: they drift silently.
+- **Versions:** TypeScript 5.9, not 7: the native compiler isn't supported yet by typescript-eslint (caps below 6.1) or openapi-typescript (5.x). ESLint 9, because the React and import plugins don't support 10.
+- **Record:** web spec section 2; `web/lib/api/client.ts`; quiz 047.
+
 ### 16. Ingest every line; scope the headline numbers
 
 - **Decision:** archive all lines, and compute headline metrics on Metro-operated lines only.

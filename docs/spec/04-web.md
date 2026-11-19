@@ -16,9 +16,9 @@ The rider-facing product. Next.js (App Router), TypeScript in strict mode, Tailw
 | Concern | Choice |
 | --- | --- |
 | Framework | Next.js, App Router, React Server Components for public pages |
-| Language | TypeScript, `strict: true`, no `any` |
+| Language | TypeScript 5.9, `strict: true` plus `noUncheckedIndexedAccess`, no `any`. TypeScript 7 (the native compiler) waits until typescript-eslint and openapi-typescript support it; both cap at 5.x or 6.0 today |
 | Styles | Tailwind CSS; design tokens as CSS variables; light and dark themes |
-| API client | Generated from the API's OpenAPI document (`openapi-typescript`); never hand-write response types |
+| API client | Types generated from the committed `services/api/openapi.json` into `web/lib/api/schema.ts` (`openapi-typescript`, `make openapi`); CI regenerates and fails on a diff. `lib/api/client.ts` is one typed `apiGet(path, {params, query})`: a missing path parameter or an unknown query parameter is a compile error. Never hand-write response types |
 | Server data | `fetch` in server components with `revalidate: 300` |
 | Client data (account pages) | TanStack Query |
 | Forms | React Hook Form with Zod schemas |

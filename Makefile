@@ -4,7 +4,7 @@
 # never an apply target (CLAUDE.md hard rule 8).
 
 .DEFAULT_GOAL := help
-.PHONY: help install test lint fmt hooks tf-test plan-bootstrap plan selftest-s3 deploy-ingest gtfs-versions gtfs-load compact decode dbt-sync dbt test-integration migrate publish openapi sql-drill sql-check sql-shell
+.PHONY: help install test lint fmt hooks tf-test plan-bootstrap plan selftest-s3 deploy-ingest gtfs-versions gtfs-load compact decode dbt-sync dbt test-integration migrate publish openapi web-check web-dev sql-drill sql-check sql-shell
 
 help:  ## List the targets
 	@grep -E '^[a-z0-9-]+:.*## ' $(MAKEFILE_LIST) | awk -F':.*## ' '{printf "  %-15s %s\n", $$1, $$2}'
@@ -31,8 +31,17 @@ publish:  ## Publish the serving tables from data/ghostbus.duckdb to $$GHOSTBUS_
 	@test -n "$$GHOSTBUS_DATABASE_URL" || (echo "set GHOSTBUS_DATABASE_URL" && exit 2)
 	uv run python -m ghostbus_publish $(ARGS)
 
-openapi:  ## Regenerate the committed OpenAPI document (services/api/openapi.json)
+openapi:  ## Regenerate the committed OpenAPI document and the web app's types from it
 	uv run python -m ghostbus_api.openapi --write services/api/openapi.json
+	cd web && npm run -s gen:api
+
+web-check:  ## Web app: install, generated types current, lint, types, format, tests (as CI runs them)
+	cd web && npm ci --no-audit --no-fund && npm run -s gen:api && git diff --exit-code lib/api/schema.ts \
+	  && npm run -s lint && npm run -s typecheck && npm run -s format:check && npm test \
+	  && npm run -s build
+
+web-dev:  ## Run the web app locally against $$GHOSTBUS_API_URL
+	cd web && npm run dev
 
 lint:  ## Lint, format check, type check, fixture sizes
 	uv run ruff check .
