@@ -38,7 +38,7 @@ def warehouse(tmp_path: Path, n: int, *, null_key: bool = False) -> Path:
                    DATE '2026-11-15' + CAST(i AS INTEGER) AS day,
                    TIMESTAMPTZ '2026-11-15 16:00:00+00' AS at,
                    CASE WHEN i = 1 THEN NULL ELSE i::BIGINT END AS maybe
-            FROM range({n}) AS t(i)""")  # noqa: S608
+            FROM range({n}) AS t(i)""")
     return path
 
 

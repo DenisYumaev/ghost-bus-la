@@ -76,3 +76,24 @@ def test_the_first_load_has_nothing_to_compare_with() -> None:
 def test_an_empty_load_is_refused_unless_forced(previous: int | None) -> None:
     assert row_count_problem(previous, 0, force=False) == "no rows"
     assert row_count_problem(previous, 0, force=True) is None
+
+
+def test_the_recent_windows_match_their_constants() -> None:
+    from ghostbus_publish.tables import FEED_HEALTH_DAYS, RECENT_OUTCOME_DAYS, TABLES
+
+    by_name = {t.name: t.source_sql for t in TABLES}
+    assert f"- {RECENT_OUTCOME_DAYS}" in by_name["trip_outcome_recent"]
+    assert f"INTERVAL {FEED_HEALTH_DAYS} DAY" in by_name["feed_health"]
+
+
+def test_a_table_without_a_limit_may_double() -> None:
+    # A new schedule ZIP doubles the line tables; a young trend gains 50% a week.
+    assert row_count_problem(15_000, 30_000, force=False, max_change=None) is None
+    assert row_count_problem(15_000, 0, force=False, max_change=None) == "no rows"
+
+
+def test_only_grow_in_steps_tables_skip_the_guard() -> None:
+    from ghostbus_publish.tables import TABLES
+
+    unguarded = {t.name for t in TABLES if t.max_change is None}
+    assert unguarded == {"schedule_version", "line", "line_direction", "line_stop", "line_trend"}

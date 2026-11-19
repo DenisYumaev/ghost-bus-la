@@ -77,7 +77,7 @@ def query(bucket: FakeBucket, feed: str, table: str, sql: str, tmp_path: Path) -
         (d / k.rsplit("/", 1)[-1]).write_bytes(bucket.objects[k])
     with duckdb.connect() as con:
         con.execute("SET TimeZone = 'UTC'")
-        con.execute(f"CREATE VIEW t AS SELECT * FROM read_parquet('{d}/*.parquet')")  # noqa: S608
+        con.execute(f"CREATE VIEW t AS SELECT * FROM read_parquet('{d}/*.parquet')")
         return con.execute(sql).fetchall()
 
 
