@@ -1,37 +1,15 @@
 """GET /v1/lines/{line}/reliability end to end: the dbt test world, published into Postgres 16,
 served through the app (API spec sections 1-4; ADR-007, ADR-013, ADR-028)."""
 
-import os
 from collections.abc import Iterator
 from datetime import date
 
 import pytest
-from dbt_world import build_world, run_dbt
 from fastapi.testclient import TestClient
 from ghostbus_api.main import create_app
-from ghostbus_api.migrations import downgrade_to_base, upgrade_to_head
-from ghostbus_publish.engine import publish
-from ghostbus_publish.tables import TABLES
 from sqlalchemy import create_engine, text
 
 pytestmark = pytest.mark.integration
-
-
-@pytest.fixture(scope="module")
-def url(tmp_path_factory: pytest.TempPathFactory) -> Iterator[str]:
-    url = os.environ.get("GHOSTBUS_TEST_DATABASE_URL")
-    if not url:
-        pytest.skip("GHOSTBUS_TEST_DATABASE_URL not set (run make test-integration)")
-    engine = create_engine(url)
-    with engine.begin() as con:
-        con.execute(text("DROP SCHEMA IF EXISTS serving, ops CASCADE"))
-        con.execute(text("DROP TABLE IF EXISTS public.alembic_version"))
-    engine.dispose()
-    upgrade_to_head(url)
-    tmp = tmp_path_factory.mktemp("api")
-    publish(run_dbt(build_world(tmp), tmp), url, TABLES, source="test world")
-    yield url
-    downgrade_to_base(url)
 
 
 TODAY = date(2026, 11, 18)

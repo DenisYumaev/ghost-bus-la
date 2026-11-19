@@ -56,6 +56,7 @@ All quizzes are in `docs/learning/quizzes/` on `main`. Take them whenever you ha
 | [#44](https://github.com/DenisYumaev/ghost-bus-la/pull/44) | Serving tables, `make migrate`, `make publish` | [ ] [039](quizzes/039-serving-tables.md) | [ ] | n/a | n/a (not deployed yet) |
 | [#45](https://github.com/DenisYumaev/ghost-bus-la/pull/45) | Line slugs in URLs (ADR-028) | n/a (small; covered by quiz 039 Q2-style questions) | [ ] | n/a | n/a |
 | [#46](https://github.com/DenisYumaev/ghost-bus-la/pull/46) | API app and `GET /v1/lines/{line}/reliability` (ADR-013) | [ ] [040](quizzes/040-api-reliability.md) | [ ] | n/a | n/a (not deployed yet) |
+| [#47](https://github.com/DenisYumaev/ghost-bus-la/pull/47) | Line list, detail, stops, system summary, feed health endpoints | [ ] [041](quizzes/041-more-endpoints.md) | [ ] | n/a | n/a (not deployed yet) |
 
 **Suggested order, if you take them:** 004, 005, and 006 first, because they describe what is live in AWS right now. Then 002, 001, and 003.
 

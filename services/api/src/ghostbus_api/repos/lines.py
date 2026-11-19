@@ -31,6 +31,7 @@ FIND_LINE = """
     FROM serving.line AS l
     JOIN serving.schedule_version AS v ON v.version_id = l.schedule_version
     WHERE l.line_slug = :slug AND v.ever_in_force AND v.valid_from <= :today
+      AND l.is_metro_operated IS DISTINCT FROM false  -- as in the list (SPEC section 2)
     ORDER BY v.valid_from DESC
     LIMIT 1
 """
@@ -78,9 +79,13 @@ def window_bounds(con: Connection, window: str) -> dict[str, Any] | None:
 
 
 def data_as_of(con: Connection, table: str) -> datetime | None:
-    """When the serving table was last published successfully (API spec section 1). The request
-    stays in one transaction, and the publish_run row commits with its table's swap, so this
-    and the rows read next come from the same publish. Don't switch reads to autocommit."""
+    """When the serving table was last published successfully (API spec section 1).
+
+    Consistency: a request is one READ COMMITTED transaction. A serving table it has already read
+    stays locked against publish's swap until the request ends, so its rows can't change under
+    it. A table first read later can be swapped in between; the body is then newer than its
+    ETag, and the next request gets the new tag. Don't switch to REPEATABLE READ: a table swapped
+    in after the snapshot would read as empty."""
     as_of: datetime | None = con.execute(
         text(
             "SELECT max(finished_at) FROM ops.publish_run "
@@ -131,3 +136,92 @@ def stalest_publish(con: Connection) -> datetime | None:
         )
     ).scalar_one_or_none()
     return stalest
+
+
+# The lines of the schedule version in force on the local date, with their summary for one
+# window (both directions pooled, ADR-026). Lines are kept unless known not to be Metro-operated
+# (is_metro_operated is NULL until the contracted-lines seed). Ordered by number, named services
+# last.
+LIST_LINES = """
+    WITH version AS (
+        -- Only a version serving.line already has: publish swaps schedule_version first, and a
+        -- version whose lines haven't landed must not empty the list.
+        SELECT v.version_id FROM serving.schedule_version AS v
+        WHERE v.ever_in_force AND v.valid_from <= :today
+          AND EXISTS (SELECT 1 FROM serving.line AS l WHERE l.schedule_version = v.version_id)
+        ORDER BY v.valid_from DESC LIMIT 1
+    )
+    SELECT l.line, l.line_slug, l.display_name, l.line_kind, l.schedule_version,
+           s.n_scheduled, s.n_unknown, s.n_ran, s.n_partial, s.n_missed, s.n_missed_announced,
+           s.n_missed_unplanned, s.n_trips, s.n_service_days, s.missed_rate, s.announced_rate,
+           s.unplanned_rate,
+           s.unplanned_share, s.missed_rate_ci_low, s.missed_rate_ci_high,
+           s.unplanned_share_ci_low, s.unplanned_share_ci_high, s.suppressed
+    FROM serving.line AS l
+    JOIN version AS v ON l.schedule_version = v.version_id
+    LEFT JOIN serving.line_summary AS s
+        ON s.line = l.line AND s.direction_id IS NULL AND s.time_window = :window
+    WHERE l.is_metro_operated IS DISTINCT FROM false
+    ORDER BY l.line_number NULLS LAST, l.line COLLATE "C"  -- byte order: same in every database
+"""
+
+
+def list_lines(con: Connection, today: date, window: str) -> list[dict[str, Any]]:
+    rows = con.execute(text(LIST_LINES), {"today": today, "window": window}).mappings()
+    return [dict(r) for r in rows]
+
+
+def line_info(con: Connection, version: str, line: str) -> dict[str, Any]:
+    row = (
+        con.execute(
+            text(
+                "SELECT line_kind, description, route_color, route_text_color "
+                "FROM serving.line WHERE schedule_version = :version AND line = :line"
+            ),
+            {"version": version, "line": line},
+        )
+        .mappings()
+        .one()
+    )
+    return dict(row)
+
+
+def directions(con: Connection, version: str, line: str) -> list[dict[str, Any]]:
+    rows = con.execute(
+        text(
+            "SELECT direction_id, headsign, first_stop_name, last_stop_name "
+            "FROM serving.line_direction WHERE schedule_version = :version AND line = :line "
+            "ORDER BY direction_id"
+        ),
+        {"version": version, "line": line},
+    ).mappings()
+    return [dict(r) for r in rows]
+
+
+def line_summaries(con: Connection, line: str, window: str) -> list[dict[str, Any]]:
+    """Both-directions (direction_id NULL) and per-direction summaries for one window."""
+    rows = con.execute(
+        text(
+            "SELECT direction_id, n_scheduled, n_unknown, n_ran, n_partial, n_missed, "
+            "n_missed_announced, n_missed_unplanned, n_trips, n_service_days, missed_rate, "
+            "announced_rate, "
+            "unplanned_rate, unplanned_share, missed_rate_ci_low, missed_rate_ci_high, "
+            "unplanned_share_ci_low, unplanned_share_ci_high, suppressed "
+            "FROM serving.line_summary WHERE line = :line AND time_window = :window"
+        ),
+        {"line": line, "window": window},
+    ).mappings()
+    return [dict(r) for r in rows]
+
+
+def stops(con: Connection, version: str, line: str, direction_id: int) -> list[dict[str, Any]]:
+    rows = con.execute(
+        text(
+            "SELECT stop_order, stop_id, stop_code, stop_name, stop_lat, stop_lon, "
+            "in_main_pattern FROM serving.line_stop "
+            "WHERE schedule_version = :version AND line = :line AND direction_id = :direction_id "
+            "ORDER BY stop_order"
+        ),
+        {"version": version, "line": line, "direction_id": direction_id},
+    ).mappings()
+    return [dict(r) for r in rows]
