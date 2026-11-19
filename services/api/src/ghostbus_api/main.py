@@ -8,7 +8,7 @@ from fastapi import FastAPI
 
 from ghostbus_api import problems
 from ghostbus_api.db import make_engine
-from ghostbus_api.routers import health, lines, meta, system, trips
+from ghostbus_api.routers import cancellations, health, lines, meta, system, trips
 from ghostbus_api.settings import Settings, from_env
 
 
@@ -38,4 +38,5 @@ def create_app(
     app.include_router(system.router)
     app.include_router(trips.router)
     app.include_router(meta.router)
+    app.include_router(cancellations.router)
     return app

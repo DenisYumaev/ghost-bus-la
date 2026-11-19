@@ -67,6 +67,13 @@ class ServingTable:
     # schedule version ever in force; a weekly trend in its first weeks), where a refusal would
     # only force operators to switch the guard off for every table.
     max_change: float | None = MAX_CHANGE
+    # An empty load is refused unless the table can legitimately be empty (current
+    # cancellations overnight).
+    allow_empty: bool = False
+    # Published by a plain `make publish`? Tables built only by the open-date build (current
+    # cancellations) are published by it alone, with --only: a closed-date build would replace
+    # the live list with an empty one.
+    default: bool = True
 
     def __post_init__(self) -> None:
         if not NAME.match(self.name) or self.name.endswith(("__new", "__old")):
@@ -101,13 +108,18 @@ def create_table_sql(table: ServingTable, columns: Sequence[tuple[str, str]]) ->
 
 
 def row_count_problem(
-    previous: int | None, new: int, *, force: bool, max_change: float | None = MAX_CHANGE
+    previous: int | None,
+    new: int,
+    *,
+    force: bool,
+    max_change: float | None = MAX_CHANGE,
+    allow_empty: bool = False,
 ) -> str | None:
     """Why a load of `new` rows mustn't replace one of `previous` rows, or None if it may."""
     if force:
         return None
     if new == 0:
-        return "no rows"
+        return None if allow_empty else "no rows"
     # previous 0 is a forced empty load: no baseline.
     if max_change is not None and previous and abs(new - previous) > max_change * previous:
         return f"{new} rows against {previous} last time (more than {max_change:.0%} apart)"
@@ -204,8 +216,9 @@ def _publish_table(
         )
         last = cur.fetchone()
         problem = row_count_problem(
-            last[0] if last else None, n, force=force, max_change=table.max_change
-        )
+            last[0] if last else None, n, force=force, max_change=table.max_change,
+            allow_empty=table.allow_empty,
+        )  # fmt: skip
         if problem:
             raise ValueError(problem)
         # Column statistics now, so the first API query on the new table plans well.

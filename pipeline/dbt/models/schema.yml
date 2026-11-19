@@ -453,6 +453,26 @@ models:
       - name: name
         data_tests: [unique, not_null]
 
+  - name: fct_current_cancellations
+    description: Trips still canceled at the newest trip-update fetch (ADR-029).
+    data_tests:
+      - unique_combination:
+          arguments: {columns: [service_date, trip_id]}
+    columns:
+      - name: as_of
+        data_tests: [not_null]
+      - name: line
+        data_tests: [not_null]
+      - name: sched_start_utc
+        data_tests: [not_null]
+      - name: sched_end_utc
+        data_tests: [not_null]
+      - name: canceled_first_seen_at
+        data_tests: [not_null]
+
+  - name: fct_current_cancellations_as_of
+    description: The newest trip-update fetch the decoded state covers (one row).
+
 unit_tests:
   - name: stg_fetch_log_collapses_repeated_lines_and_keeps_only_fetches
     model: stg_fetch_log
@@ -1662,3 +1682,40 @@ unit_tests:
     expect:
       rows:
         - {time_window: "28d", suppressed: false, missed_rate_ci_low: 0.5, missed_rate_ci_high: 0.8, unplanned_share_ci_low: 0.2, unplanned_share_ci_high: 0.7}
+
+  - name: fct_current_cancellations_lists_what_is_still_canceled
+    model: fct_current_cancellations
+    given:
+      - input: ref('fct_current_cancellations_as_of')
+        rows:
+          - {as_of: "2026-11-18 20:00:00+00"}
+      - input: ref('int_trip_observations')
+        rows:
+          # Still canceled, ends later: listed.
+          - {service_date: "2026-11-18", trip_id: a, line: "2", direction_id: 0, sched_start_utc: "2026-11-18 21:00:00+00", sched_end_utc: "2026-11-18 22:00:00+00", canceled_first_seen_at: "2026-11-18 19:00:00+00", reinstated_at: null}
+          # Ends exactly at as_of, canceled: listed (pins the inclusive boundary).
+          - {service_date: "2026-11-18", trip_id: b, line: "2", direction_id: 1, sched_start_utc: "2026-11-18 19:30:00+00", sched_end_utc: "2026-11-18 20:00:00+00", canceled_first_seen_at: "2026-11-18 19:45:00+00", reinstated_at: null}
+          # Already over: not listed.
+          - {service_date: "2026-11-18", trip_id: c, line: "2", direction_id: 0, sched_start_utc: "2026-11-18 18:00:00+00", sched_end_utc: "2026-11-18 19:00:00+00", canceled_first_seen_at: "2026-11-18 17:00:00+00", reinstated_at: null}
+          # Reinstated since: not listed.
+          - {service_date: "2026-11-18", trip_id: d, line: "2", direction_id: 0, sched_start_utc: "2026-11-18 23:00:00+00", sched_end_utc: "2026-11-18 23:30:00+00", canceled_first_seen_at: "2026-11-18 18:00:00+00", reinstated_at: "2026-11-18 19:00:00+00"}
+          # Never canceled: not listed.
+          - {service_date: "2026-11-18", trip_id: e, line: "2", direction_id: 0, sched_start_utc: "2026-11-18 23:00:00+00", sched_end_utc: "2026-11-18 23:30:00+00", canceled_first_seen_at: null, reinstated_at: null}
+          # Yesterday's service date, an after-midnight trip still running: listed (grain).
+          - {service_date: "2026-11-17", trip_id: a, line: "2", direction_id: 0, sched_start_utc: "2026-11-18 19:50:00+00", sched_end_utc: "2026-11-18 20:30:00+00", canceled_first_seen_at: "2026-11-18 19:00:00+00", reinstated_at: null}
+    expect:
+      rows:
+        - {service_date: "2026-11-18", trip_id: a, advance_notice_s: 7200.0, as_of: "2026-11-18 20:00:00+00"}
+        - {service_date: "2026-11-18", trip_id: b, advance_notice_s: -900.0, as_of: "2026-11-18 20:00:00+00"}
+        - {service_date: "2026-11-17", trip_id: a, advance_notice_s: 3000.0, as_of: "2026-11-18 20:00:00+00"}
+
+  - name: fct_current_cancellations_as_of_is_the_newest_decoded_fetch
+    model: fct_current_cancellations_as_of
+    given:
+      - input: ref('stg_trip_reports')
+        rows:
+          - {fetched_at: "2026-11-18 19:59:00+00"}
+          - {fetched_at: "2026-11-18 20:00:00+00"}  # a duplicate fetch counts: its rows are decoded too
+    expect:
+      rows:
+        - {as_of: "2026-11-18 20:00:00+00"}

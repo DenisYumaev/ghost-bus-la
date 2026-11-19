@@ -59,6 +59,7 @@ All quizzes are in `docs/learning/quizzes/` on `main`. Take them whenever you ha
 | [#47](https://github.com/DenisYumaev/ghost-bus-la/pull/47) | Line list, detail, stops, system summary, feed health endpoints | [ ] [041](quizzes/041-more-endpoints.md) | [ ] | n/a | n/a (not deployed yet) |
 | [#48](https://github.com/DenisYumaev/ghost-bus-la/pull/48) | Trend and trip-outcomes endpoints, keyset cursor | [ ] [042](quizzes/042-trend-outcomes.md) | [ ] | n/a | n/a (not deployed yet) |
 | [#49](https://github.com/DenisYumaev/ghost-bus-la/pull/49) | Method endpoint from the build's thresholds | [ ] [043](quizzes/043-method.md) | [ ] | n/a | n/a (not deployed yet) |
+| [#50](https://github.com/DenisYumaev/ghost-bus-la/pull/50) | Current cancellations from the open-date build (ADR-029) | [ ] [044](quizzes/044-current-cancellations.md) | [ ] | n/a | n/a (not deployed yet) |
 | [#51](https://github.com/DenisYumaev/ghost-bus-la/pull/51) | SQL drill kit (learning spec section 4) | [ ] [045](quizzes/045-sql-drills.md) | [ ] | n/a | n/a |
 
 **Suggested order, if you take them:** 004, 005, and 006 first, because they describe what is live in AWS right now. Then 002, 001, and 003.

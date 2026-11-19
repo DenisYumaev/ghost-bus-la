@@ -98,4 +98,21 @@ def test_only_grow_in_steps_tables_skip_the_guard() -> None:
     unguarded = {t.name for t in TABLES if t.max_change is None}
     assert unguarded == {
         "schedule_version", "line", "line_direction", "line_stop", "line_trend", "method_param",
+        "cancellation_current", "cancellation_as_of",
     }  # fmt: skip
+
+
+def test_an_empty_load_is_allowed_only_where_empty_is_normal() -> None:
+    from ghostbus_publish.tables import TABLES
+
+    assert row_count_problem(5, 0, force=False, max_change=None, allow_empty=True) is None
+    assert {t.name for t in TABLES if t.allow_empty} == {"cancellation_current"}
+
+
+def test_only_open_date_tables_are_left_out_of_a_plain_publish() -> None:
+    from ghostbus_publish.tables import TABLES
+
+    assert {t.name for t in TABLES if not t.default} == {
+        "cancellation_current",
+        "cancellation_as_of",
+    }

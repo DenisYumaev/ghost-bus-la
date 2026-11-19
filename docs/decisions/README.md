@@ -29,6 +29,7 @@ Update this table in the same PR that adds or changes an ADR.
 | [026](026-aggregate-suppression.md) | Suppression and intervals for line and system summaries and the weekly trend; trend takes a direction | Accepted | Supplements ADR-025 |
 | [027](027-bootstrap-in-dbt.md) | The cluster bootstrap runs as DuckDB SQL inside dbt (hash-seeded draws, spill-friendly percentiles) | Accepted | Supersedes pipeline spec section 9's Python job |
 | [028](028-line-slugs-in-urls.md) | Lines are identified in URLs by a slug (`10-48`, `dodger-stadium-express`) | Accepted | Supersedes API spec section 1's line-in-path rule |
+| [029](029-current-cancellations-in-m2.md) | Current cancellations from the 10-minute build in M2 (as of the newest fetch), from the detector in M3 | Accepted | Settles the API spec's open source for `/v1/cancellations/current` |
 
 ## Planned
 
@@ -51,7 +52,7 @@ Already decided in `docs/SPEC.md` section 5, which holds the one-line why and th
 | 005 | Likely-missing detector: micro-batch baseline first, streaming only on evidence | M5–M6 |
 | 020 | Dataset on Hugging Face and GitHub Releases, not a public bucket | M6 |
 
-New decisions that come up during the build take the next free number after 028.
+New decisions that come up during the build take the next free number after 029.
 
 ## Template
 
