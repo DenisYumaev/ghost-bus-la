@@ -89,6 +89,7 @@ make web-check  # the web app's CI checks: generated types, eslint, tsc, prettie
 make web-dev  # Next.js dev server against $GHOSTBUS_API_URL
 make init-secrets  # once: database passwords into SSM /ghost-bus-la/db/ (never printed)
 make deploy-app SHA=<sha>  # Postgres, API, Caddy on the VM over SSM; health-gated with rollback; never touches ingest
+make publish-vm  # publish data/ghostbus.duckdb into the VM's Postgres as `pipeline`, over an SSM tunnel (needs session-manager-plugin)
 make publish  # serving tables from data/ghostbus.duckdb into $GHOSTBUS_DATABASE_URL (ARGS=--force)
 ```
 

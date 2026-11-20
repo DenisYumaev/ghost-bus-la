@@ -79,6 +79,8 @@ Never `cat .env`: it holds the database passwords. The `migrate` step's output i
 
 **How to fix.** A migration error: fix the migration (expand-only) and deploy a new SHA. Missing passwords (`ParameterNotFound`): run `make init-secrets` from the laptop. API crash at start: read its log; the rollback keeps the old SHA serving meanwhile.
 
+**Publishing data (M2).** `make publish-vm` needs `session-manager-plugin` and a deployed `compose.app.yml` that binds Postgres to `127.0.0.1:5432` on the VM (`make deploy-app` first).
+
 **How to verify.** `make deploy-app SHA=<sha>` prints `DEPLOY SUCCEEDED`, and `curl -s https://api.labusreliability.com/healthz` answers 200.
 
 **Notes.**

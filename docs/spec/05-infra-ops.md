@@ -47,10 +47,10 @@ Docker Compose, as two projects: `deploy/compose.ingest.yml` (ingest alone, its 
 | `detector` | none | `spool` (read-only) | always |
 | `alert-worker` | none | none | always |
 | `pipeline` (cron, then Airflow in M4) | Airflow UI bound to localhost only | `duckdb-tmp` | always |
-| `postgres` | internal 5432 | `pgdata` | always |
+| `postgres` | internal 5432; `127.0.0.1:5432` on the VM host in M2, for `make publish-vm` | `pgdata` | always |
 | metrics agent | none | none | always |
 
-Each container has a health check, a memory limit, and log rotation. Postgres is never exposed outside the Docker network. A 2 GB swap file is configured by cloud-init.
+Each container has a health check, a memory limit, and log rotation. Postgres is never reachable from outside the VM: in M2 it is published on the VM's loopback (`127.0.0.1:5432`) so `make publish-vm` can reach it through an SSM port-forwarding tunnel while dbt runs on the laptop; the security group allows only 80 and 443. A 2 GB swap file is configured by cloud-init.
 
 DNS: `<domain>` and `www` point at Vercel; `api.<domain>` points at the Elastic IP. Same parent domain, so session cookies are same-site (ADR-017).
 
