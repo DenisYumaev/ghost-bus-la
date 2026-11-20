@@ -345,6 +345,17 @@ The trade-offs in Ghost Bus LA you should be able to defend out loud. Each entry
 - **Also:** the home page shows no system-wide percentage until M5 validates it against Metro's report; the API itself labels those numbers internal.
 - **Record:** web spec section 3; quiz 049.
 
+### 15aa. Deploying the API stack without touching the archive
+
+- **Decision:** the API, Postgres and Caddy are a separate Compose project from ingest, deployed by `make deploy-app` over SSM. A broken app deploy can't restart ingest (hard rule 3), and ingest keeps its own health-gated deploy.
+- **Secrets:** generated once into SSM Parameter Store (`make init-secrets`), read on the VM with the instance role and written to a root-only `.env`. They never travel in the SSM command, because SSM keeps command history.
+- **Least privilege (ADR-007):** a migration creates NOLOGIN `pipeline` and `api` roles. `pipeline` owns the serving tables it creates (only an owner can rename or drop them in the swap). `api` reads through default privileges, which survive every swap; a test publishes twice as `pipeline` and reads as `api` after each.
+- **Health gate:** the deploy passes when the API is healthy and `/readyz` says ready or "stale". Stale means the database answered; failing a deploy because the pipeline hasn't published yet would block every fix to the pipeline's own consumer.
+- **Failure handling the review caught:** bash ignores `set -e` inside a function called from `if` or `&&`, so a failed migration would have counted as a successful deploy. Every step now ends in `|| return 1`. And a rollback skips migrations: migrations are expand-only, so the old code runs on the new schema, while the old image's Alembic wouldn't recognise the new revision. A test runs the real script with fake `docker` and `aws` binaries.
+- **Passwords are hashed client-side (SCRAM)** before `ALTER ROLE`, so the plaintext never reaches the server, its activity view or its logs.
+- **Not yet:** deploy-on-merge from GitHub needs an OIDC deploy role in IAM, which is a Terraform change for the owner to approve.
+- **Record:** infra spec sections 3 and 6; `deploy/remote-deploy-app.sh`; migration 0002; quiz 051.
+
 ### 16. Ingest every line; scope the headline numbers
 
 - **Decision:** archive all lines, and compute headline metrics on Metro-operated lines only.

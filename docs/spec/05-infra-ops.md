@@ -37,7 +37,7 @@ The `denis-dev` IAM user currently has administrator access for setup. Before la
 
 ## 3. The VM
 
-Docker Compose (`compose.prod.yml`). Images are built in CI and pulled from GitHub Container Registry; nothing is built on the VM.
+Docker Compose, as two projects: `deploy/compose.ingest.yml` (ingest alone, its own deploy) and `deploy/compose.app.yml` (Postgres, the API, Caddy, and a one-off `migrate`). An app deploy can't restart the archive (hard rule 3). Images are built in CI and pulled from GitHub Container Registry; nothing is built on the VM.
 
 | Service | Ports | Volumes | Restart |
 | --- | --- | --- | --- |
@@ -82,6 +82,9 @@ All tests run offline against recorded fixtures. Target: under 10 minutes.
 Branch protection on `main`: PRs only, all checks green.
 
 ## 6. CD
+
+**M2 as built (2026-11-20):** `make deploy-app SHA=<sha>` from the laptop sends `deploy/remote-deploy-app.sh` through SSM Run Command. On the VM it installs the AWS CLI once, reads the database passwords from SSM with the instance role (never in the command, which SSM keeps in history), writes a root-only `.env`, brings up Postgres, runs `migrate` (Alembic, then login and passwords for the `pipeline` and `api` roles), then the API and Caddy. The deploy passes when the API container is healthy and `/readyz` answers ready or "stale" (the database answered; freshness is the pipeline's job); otherwise it redeploys the previous SHA. Deploy-on-merge from GitHub needs an OIDC deploy role, a separate Terraform change for the owner to approve.
+
 
 On merge to `main`:
 

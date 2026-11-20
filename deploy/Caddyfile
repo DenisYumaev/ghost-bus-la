@@ -1,0 +1,30 @@
+# TLS for the public API (infra spec, section 3). Caddy gets and renews the certificate from
+# Let's Encrypt over port 80 (HTTP-01) and serves only the API's host name; anything else on
+# the IP gets no site.
+{
+	admin off
+	servers {
+		protocols h1 h2
+	}
+}
+
+# The container's own health check, from inside it. Only Host "localhost" matches.
+http://localhost {
+	respond /caddy-health "ok" 200
+	respond 404
+}
+
+{$API_DOMAIN} {
+	encode zstd gzip
+	reverse_proxy api:8000
+	header {
+		Strict-Transport-Security "max-age=31536000"
+		X-Content-Type-Options "nosniff"
+		Referrer-Policy "no-referrer"
+		-Server
+	}
+	log {
+		output stdout
+		format json
+	}
+}

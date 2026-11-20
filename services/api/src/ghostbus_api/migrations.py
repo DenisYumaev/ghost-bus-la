@@ -37,6 +37,7 @@ def main() -> None:
     import os
     import sys
 
+    from alembic.util.exc import CommandError
     from sqlalchemy.exc import SQLAlchemyError
 
     url = os.environ.get("GHOSTBUS_DATABASE_URL")
@@ -46,6 +47,9 @@ def main() -> None:
         upgrade_to_head(url)
     except SQLAlchemyError:
         sys.exit("cannot migrate with GHOSTBUS_DATABASE_URL (check the URL); details withheld")
+    except CommandError as error:
+        # e.g. the database is at a revision this image doesn't know (it's older than the schema).
+        sys.exit(f"migration failed: {error}")
 
 
 if __name__ == "__main__":
