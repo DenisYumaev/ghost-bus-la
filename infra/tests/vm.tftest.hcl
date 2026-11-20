@@ -88,12 +88,12 @@ run "instance_size_is_capped" {
   expect_failures = [var.instance_type]
 }
 
-run "instance_is_small_arm_with_no_ssh_key" {
+run "instance_is_medium_arm_with_no_ssh_key" {
   command = apply
 
   assert {
-    condition     = aws_instance.app.instance_type == "t4g.small"
-    error_message = "Start on t4g.small through M1 (SPEC section 3.4)."
+    condition     = aws_instance.app.instance_type == "t4g.medium"
+    error_message = "t4g.medium from M2 (SPEC section 3.4), never larger (hard rule 8)."
   }
 
   # key_name is computed, so the mock invents a value; check the source instead.
@@ -138,12 +138,23 @@ run "root_volume_is_encrypted_gp3_30gb" {
   }
 }
 
-run "security_group_has_no_inbound_rules" {
+run "security_group_opens_only_caddys_ports" {
   command = apply
 
   assert {
-    condition     = length(aws_security_group.app.ingress) == 0
-    error_message = "No inbound rules through M1. Never port 22."
+    condition = (
+      length(aws_security_group.app.ingress) == 2
+      && toset([for r in aws_security_group.app.ingress : r.from_port]) == toset([80, 443])
+      && alltrue([for r in aws_security_group.app.ingress : r.from_port == r.to_port && r.protocol == "tcp"])
+    )
+    error_message = "Inbound is exactly TCP 80 and 443 for Caddy (infra spec, section 2)."
+  }
+
+  assert {
+    condition = alltrue([
+      for r in aws_security_group.app.ingress : !(r.from_port <= 22 && 22 <= r.to_port)
+    ])
+    error_message = "Never port 22: shell access is through SSM."
   }
 
   assert {
@@ -222,5 +233,14 @@ run "failed_status_checks_trigger_recovery" {
       contains(aws_cloudwatch_metric_alarm.instance_check.alarm_actions, aws_sns_topic.ops_alerts.arn),
     ])
     error_message = "Both alarms must also email the owner through the ops SNS topic."
+  }
+}
+
+run "api_has_a_fixed_address" {
+  command = apply
+
+  assert {
+    condition     = aws_eip.app.instance == aws_instance.app.id && aws_eip.app.domain == "vpc"
+    error_message = "An Elastic IP attached to the VM, for the api.<domain> DNS record."
   }
 }

@@ -1,10 +1,11 @@
 # The one VM (ADR-011, to be written): runs ingest now, the whole Docker Compose stack from M2.
-# Reachable only through SSM Session Manager: no SSH key, no inbound ports (infra spec, section 2).
+# Shell access only through SSM Session Manager: no SSH key, never port 22. From M2, inbound 80
+# and 443 reach Caddy, which fronts the API (infra spec, section 2).
 
 variable "instance_type" {
   description = "t4g.small through M1, t4g.medium from M2 (SPEC section 3.4)."
   type        = string
-  default     = "t4g.small"
+  default     = "t4g.medium"
 
   # Hard rule 8: one instance, nothing above t4g.medium.
   validation {
@@ -36,8 +37,22 @@ resource "aws_security_group" "app" {
   description = "Ghost Bus LA VM: no inbound; all outbound (Metro, S3, SSM)."
   vpc_id      = data.aws_subnet.app.vpc_id
 
-  # No ingress blocks: nothing on the internet can open a connection to this VM.
-  # From M2, 80 and 443 open for Caddy. Never 22.
+  # Only Caddy's ports. Never 22: shell access is through SSM.
+  ingress {
+    description = "HTTP: ACME certificate challenges and redirect to HTTPS"
+    from_port   = 80
+    to_port     = 80
+    protocol    = "tcp"
+    cidr_blocks = ["0.0.0.0/0"]
+  }
+
+  ingress {
+    description = "HTTPS: the public API through Caddy"
+    from_port   = 443
+    to_port     = 443
+    protocol    = "tcp"
+    cidr_blocks = ["0.0.0.0/0"]
+  }
 
   egress {
     description = "Outbound HTTPS and DNS to Metro, GitLab, S3, SSM, and package mirrors"
@@ -81,6 +96,20 @@ resource "aws_instance" "app" {
     # Upgrading the OS is a deliberate, planned rebuild instead.
     ignore_changes = [ami, user_data]
   }
+}
+
+# A fixed address for the API's DNS record (infra spec, section 2): the auto-assigned public IP
+# changes on every stop and start. Associating it replaces that IP, so outbound traffic (ingest,
+# S3) uses this address too.
+resource "aws_eip" "app" {
+  domain   = "vpc"
+  instance = aws_instance.app.id
+  tags     = { Name = "ghost-bus-la" }
+}
+
+output "public_ip" {
+  description = "Point the api.<domain> A record here."
+  value       = aws_eip.app.public_ip
 }
 
 output "instance_id" {

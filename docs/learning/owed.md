@@ -65,6 +65,7 @@ All quizzes are in `docs/learning/quizzes/` on `main`. Take them whenever you ha
 | [#53](https://github.com/DenisYumaev/ghost-bus-la/pull/53) | Web scaffold: Next.js, generated API types, LA time and honest formatting, CI job | [ ] [047](quizzes/047-web-scaffold.md) | [ ] | n/a | n/a (not deployed yet) |
 | [#54](https://github.com/DenisYumaev/ghost-bus-la/pull/54) | Line page: summary sentence, heatmap, cancellations | [ ] [048](quizzes/048-line-page.md) | [ ] | n/a | n/a (not deployed yet) |
 | [#55](https://github.com/DenisYumaev/ghost-bus-la/pull/55) | Home, line list, method and status pages | [ ] [049](quizzes/049-web-pages.md) | [ ] | n/a | n/a (not deployed yet) |
+| [#56](https://github.com/DenisYumaev/ghost-bus-la/pull/56) | M2 VM: t4g.medium, Elastic IP, inbound 80/443 | [ ] [050](quizzes/050-m2-vm.md) | [ ] | n/a | n/a |
 
 **Suggested order, if you take them:** 004, 005, and 006 first, because they describe what is live in AWS right now. Then 002, 001, and 003.
 
