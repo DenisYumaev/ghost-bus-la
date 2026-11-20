@@ -36,6 +36,6 @@ def test_the_method_page_shows_the_build_thresholds(client: TestClient) -> None:
     assert "unplanned missed trip" in text
     assert "hid" not in text.lower()  # never imply Metro hides data (SPEC section 2.7)
     assert [d["term"] for d in body["outcomes"]] == ["ran", "partial", "unknown", "missed"]
-    assert "not affiliated with LA Metro" in body["notes"][0]
+    assert body["notes"][0] == "LA Bus Reliability is not affiliated with LA Metro."
     again = client.get("/v1/meta/method", headers={"If-None-Match": r.headers["etag"]})
     assert again.status_code == 304

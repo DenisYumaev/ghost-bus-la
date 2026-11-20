@@ -570,7 +570,7 @@ export interface components {
      * @example {
      *       "data_as_of": "2026-12-01T17:40:12Z",
      *       "notes": [
-     *         "Ghost Bus LA is not affiliated with LA Metro."
+     *         "LA Bus Reliability is not affiliated with LA Metro."
      *       ],
      *       "outcomes": [
      *         {

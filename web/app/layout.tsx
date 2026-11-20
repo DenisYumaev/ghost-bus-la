@@ -8,7 +8,7 @@ import "./globals.css";
 
 export const metadata: Metadata = {
   title: { default: t("site.name"), template: `%s · ${t("site.name")}` },
-  description: t("site.tagline"),
+  description: t("site.description"),
 };
 
 export const viewport: Viewport = { width: "device-width", initialScale: 1 };

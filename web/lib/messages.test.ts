@@ -5,7 +5,7 @@ import { t } from "./messages";
 
 describe("messages", () => {
   it("looks up a string", () => {
-    expect(t("site.name")).toBe("Ghost Bus LA");
+    expect(t("site.name")).toBe("LA Bus Reliability");
   });
 
   it("states the disclaimer the product copy requires (hard rule 12)", () => {

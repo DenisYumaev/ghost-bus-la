@@ -33,7 +33,7 @@ Everything in this spec exists to make the following entry true, measurable, and
 
 ### 1.2 Target resume entry (SWE version)
 
-**Ghost Bus LA** · Creator and sole engineer · `<live URL>` · Nov 2026 – present
+**LA Bus Reliability** (labusreliability.com) · Creator and sole engineer · `<live URL>` · Nov 2026 – present
 *Python, FastAPI, PostgreSQL, TypeScript, Next.js, DuckDB, dbt, Airflow, AWS, Terraform, Docker*
 
 1. Built and launched a web app that warns LA Metro riders when their bus is canceled; `[riders]` riders subscribed and `[alerts_sent]` alerts delivered, p95 `[alert_p95_s]` s after a cancellation is posted

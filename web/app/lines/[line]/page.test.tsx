@@ -120,7 +120,7 @@ describe("line page", () => {
   it("never puts 'not enough data' inside the headline sentence", async () => {
     answer({ "/v1/lines/{line}": { ...DETAIL, summary: { ...SUPPRESSED, suppressed: false } } });
     expect((await generateMetadata(props)).description).toBe(
-      "How often LA Metro line 720 trips never ran, by hour and day of the week.",
+      "How often LA Metro line 720 trips never ran, by hour and day of the week. An independent project, not affiliated with LA Metro.",
     );
   });
 });

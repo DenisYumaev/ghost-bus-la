@@ -1,7 +1,7 @@
 [project]
 name = "ghostbus-api"
 version = "0.1.0"
-description = "Public REST API and the Postgres schema for Ghost Bus LA. Not affiliated with LA Metro."
+description = "Public REST API and the Postgres schema for LA Bus Reliability (repo: ghost-bus-la). Not affiliated with LA Metro."
 requires-python = ">=3.12,<3.13"
 dependencies = [
     "alembic>=1.13",
