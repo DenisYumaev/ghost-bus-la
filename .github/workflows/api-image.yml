@@ -1,0 +1,80 @@
+name: api image
+
+# Builds the api image for linux/arm64 (the VM is a t4g) on GitHub's ARM runner.
+# Pull requests build only, which proves the Dockerfile works. Pushes to main also publish it
+# to GitHub Container Registry: ghcr.io/denisyumaev/ghost-bus-la-api:<git sha> and :main.
+# The VM pulls by SHA, so a deploy always names the exact build (infra spec, section 6).
+
+on:
+  pull_request:
+    paths:
+      - services/api/**
+      - pyproject.toml
+      - uv.lock
+      - .dockerignore
+      - .github/workflows/api-image.yml
+  push:
+    branches: [main]
+    paths:
+      - services/api/**
+      - pyproject.toml
+      - uv.lock
+      - .dockerignore
+      - .github/workflows/api-image.yml
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: api-image-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  IMAGE: ghcr.io/denisyumaev/ghost-bus-la-api
+
+jobs:
+  build:
+    runs-on: ubuntu-24.04-arm
+    timeout-minutes: 15
+    permissions:
+      contents: read
+      packages: write # publish to GHCR on main; unused on pull requests
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: docker/setup-buildx-action@f87e5991a6d7451dcb8d9637bfbc97413f497069 # v4.4.1
+      - name: Log in to GHCR
+        if: github.event_name != 'pull_request'
+        uses: docker/login-action@8aa5831fb8d48d8f76594c7ddde61ae58019f550 # v4.8.0
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+      - name: Smoke test the image
+        run: |
+          docker build -q -f services/api/Dockerfile -t api:smoke .
+          # The app and its migrations import; zone data is present (rider dates are LA dates).
+          docker run --rm --entrypoint python api:smoke -c "import ghostbus_api.main, ghostbus_api.migrations, ghostbus_api.roles"
+          docker run --rm --entrypoint python api:smoke -c "from zoneinfo import ZoneInfo; ZoneInfo('America/Los_Angeles')"
+          # The alembic scripts ship inside the package.
+          docker run --rm --entrypoint python api:smoke -c "import importlib.resources as r; assert r.files('ghostbus_api').joinpath('alembic/versions/0002_roles.py').is_file()"
+          # Without a database URL the app must refuse to start (exit non-zero), not serve.
+          code=0; timeout 20 docker run --rm api:smoke || code=$?
+          test "$code" -ne 0 && test "$code" -ne 124
+      # Only after the smoke test passes: a broken image is never published.
+      - name: Build (and push on main)
+        uses: docker/build-push-action@c3c9e263c25d99ce0380d002d59b67737d91b0dc # v7.4.0
+        with:
+          context: .
+          file: services/api/Dockerfile
+          platforms: linux/arm64
+          push: ${{ github.event_name != 'pull_request' }}
+          tags: |
+            ${{ env.IMAGE }}:${{ github.sha }}
+            ${{ env.IMAGE }}:main
+          labels: |
+            org.opencontainers.image.source=https://github.com/${{ github.repository }}
+            org.opencontainers.image.revision=${{ github.sha }}
+            org.opencontainers.image.description=LA Bus Reliability API. Not affiliated with LA Metro.
+          cache-from: type=gha
+          cache-to: type=gha,mode=max

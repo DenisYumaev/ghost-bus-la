@@ -37,13 +37,13 @@ _MANIFEST_TYPES = ", ".join(
 )
 
 
-def image_exists(sha: str, http: httpx.Client) -> bool:
+def image_exists(sha: str, http: httpx.Client, repo: str = IMAGE_REPO) -> bool:
     """True if ghcr.io serves the manifest for this tag without credentials."""
-    token = http.get(
-        "https://ghcr.io/token", params={"scope": f"repository:{IMAGE_REPO}:pull"}
-    ).json()["token"]
+    token = http.get("https://ghcr.io/token", params={"scope": f"repository:{repo}:pull"}).json()[
+        "token"
+    ]
     response = http.get(
-        f"https://ghcr.io/v2/{IMAGE_REPO}/manifests/{sha}",
+        f"https://ghcr.io/v2/{repo}/manifests/{sha}",
         headers={"Authorization": f"Bearer {token}", "Accept": _MANIFEST_TYPES},
     )
     return response.status_code == 200
@@ -75,14 +75,21 @@ def deploy(
     if not image_exists(sha, http):
         raise RuntimeError(f"image ghcr.io/{IMAGE_REPO}:{sha} is not published (or not public)")
 
+    return run_on_vm(
+        ssm, instance_id, build_commands(sha, bucket, repo_root),
+        f"ghost-bus-la ingest deploy {sha[:12]}", poll_s,
+    )  # fmt: skip
+
+
+def run_on_vm(
+    ssm: Any, instance_id: str, commands: list[str], comment: str, poll_s: float = 5.0
+) -> tuple[bool, str]:
+    """Send a shell script through SSM Run Command and wait; return (succeeded, output)."""
     command_id = ssm.send_command(
         InstanceIds=[instance_id],
         DocumentName="AWS-RunShellScript",
-        Comment=f"ghost-bus-la ingest deploy {sha[:12]}",
-        Parameters={
-            "commands": build_commands(sha, bucket, repo_root),
-            "executionTimeout": ["900"],
-        },
+        Comment=comment,
+        Parameters={"commands": commands, "executionTimeout": ["900"]},
     )["Command"]["CommandId"]
 
     while True:
@@ -98,7 +105,7 @@ def deploy(
             return result["Status"] == "Success", output
 
 
-def _terraform_output(repo_root: Path, name: str) -> str:
+def terraform_output(repo_root: Path, name: str) -> str:
     return subprocess.run(  # noqa: S603 - fixed arguments, no shell
         ["terraform", f"-chdir={repo_root / 'infra'}", "output", "-raw", name],  # noqa: S607
         check=True,
@@ -112,8 +119,8 @@ def main(argv: list[str]) -> int:
         print(__doc__, file=sys.stderr)
         return 2
     repo_root = Path(__file__).resolve().parents[1]
-    instance_id = _terraform_output(repo_root, "instance_id")
-    bucket = _terraform_output(repo_root, "data_bucket_name")
+    instance_id = terraform_output(repo_root, "instance_id")
+    bucket = terraform_output(repo_root, "data_bucket_name")
     ssm = boto3.client("ssm", region_name="us-west-2")
     with httpx.Client(timeout=30) as http:
         ok, output = deploy(argv[0], instance_id, bucket, repo_root, ssm, http)

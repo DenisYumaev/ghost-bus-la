@@ -59,6 +59,33 @@ cat ingest.tag   # the SHA currently deployed
 
 ---
 
+## app-deploy-failed
+
+**Alert:** `make deploy-app` prints `DEPLOY FAILED` (no automated alert yet; deploys run from the laptop).
+
+**What it means.** The new API either didn't become healthy or couldn't reach the database within 120 s, or a step before it (pulling images, `migrate`) failed. The script then redeployed the previous SHA from `/opt/ghost-bus-la/app/api.tag`. Ingest is a separate Compose project and isn't affected.
+
+**How to confirm.** Read the deploy output: the last `RESULT:` line says whether the rollback worked. On the VM (`sudo -i`):
+
+```bash
+cd /opt/ghost-bus-la/app
+C="docker compose --project-name ghost-bus-la-app -f compose.app.yml --env-file .env"
+$C ps
+$C logs --tail 50 api caddy
+cat api.tag   # the SHA now serving
+```
+
+Never `cat .env`: it holds the database passwords. The `migrate` step's output is only in the deploy output (one-off containers leave no logs).
+
+**How to fix.** A migration error: fix the migration (expand-only) and deploy a new SHA. Missing passwords (`ParameterNotFound`): run `make init-secrets` from the laptop. API crash at start: read its log; the rollback keeps the old SHA serving meanwhile.
+
+**How to verify.** `make deploy-app SHA=<sha>` prints `DEPLOY SUCCEEDED`, and `curl -s https://api.labusreliability.com/healthz` answers 200.
+
+**Notes.**
+- The first image of a new GHCR package is private; the deploy then fails with "not published (or not public)". The owner sets the package `ghost-bus-la-api` to public once (GitHub, Packages, package settings).
+- `POSTGRES_PASSWORD` only applies when the `pgdata` volume is first created. To rotate the owner password: `ALTER ROLE ghostbus PASSWORD ...` in Postgres first, then update `/ghost-bus-la/db/owner-password` in SSM, then deploy. The api and pipeline passwords are reset from SSM on every deploy.
+- Caddy registers with Let's Encrypt without a contact email (none is shared with outside services). The `cert_expiring` alert (infra spec section 9) covers expiry instead.
+
 ## vm-status-check
 
 **Alerts:** `ghost-bus-la-system-status-check`, `ghost-bus-la-instance-status-check` (CloudWatch, emailed through the `ghost-bus-la-ops-alerts` SNS topic).
