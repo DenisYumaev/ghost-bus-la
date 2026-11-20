@@ -4,7 +4,7 @@
 # never an apply target (CLAUDE.md hard rule 8).
 
 .DEFAULT_GOAL := help
-.PHONY: help install test lint fmt hooks tf-test plan-bootstrap plan selftest-s3 deploy-ingest init-secrets deploy-app gtfs-versions gtfs-load compact decode dbt-sync dbt test-integration migrate publish openapi web-check web-dev sql-drill sql-check sql-shell
+.PHONY: help install test lint fmt hooks tf-test plan-bootstrap plan selftest-s3 deploy-ingest init-secrets deploy-app publish-vm gtfs-versions gtfs-load compact decode dbt-sync dbt test-integration migrate publish openapi web-check web-dev sql-drill sql-check sql-shell
 
 help:  ## List the targets
 	@grep -E '^[a-z0-9-]+:.*## ' $(MAKEFILE_LIST) | awk -F':.*## ' '{printf "  %-15s %s\n", $$1, $$2}'
@@ -76,6 +76,9 @@ init-secrets:  ## Create the database passwords in SSM once (never replaces, nev
 deploy-app:  ## Deploy Postgres, the API and Caddy to the VM over SSM: make deploy-app SHA=<full git sha on main>
 	@test -n "$(SHA)" || (echo "usage: make deploy-app SHA=<full git sha>" && exit 2)
 	uv run python scripts/deploy_app.py $(SHA)
+
+publish-vm:  ## Publish data/ghostbus.duckdb into the VM's Postgres as the pipeline role, over an SSM tunnel (ARGS=--force)
+	uv run python scripts/publish_vm.py $(ARGS)
 
 deploy-ingest:  ## Deploy ingest to the VM over SSM: make deploy-ingest SHA=<full git sha on main>
 	@test -n "$(SHA)" || (echo "usage: make deploy-ingest SHA=<full git sha>" && exit 2)

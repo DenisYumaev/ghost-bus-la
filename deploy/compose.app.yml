@@ -3,8 +3,8 @@
 # restart the archive (hard rule 3). Deployed by deploy/remote-deploy-app.sh, which writes the
 # .env next to this file from SSM: API_TAG (a git SHA), API_DOMAIN, and the database passwords.
 #
-# Postgres is never published to the host: only Caddy's 80 and 443 are (the security group
-# allows nothing else).
+# Postgres is published on the VM's loopback only (see the postgres service); Caddy's 80 and 443
+# are the only public ports (the security group allows nothing else).
 
 x-hardening: &hardening
   security_opt:
@@ -24,6 +24,11 @@ services:
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?set from SSM by the deploy}
     volumes:
       - pgdata:/var/lib/postgresql/data
+    # The VM's loopback only, for `make publish-vm` through an SSM port-forwarding tunnel while
+    # dbt runs on the laptop (M2). The security group allows only 80 and 443, so nothing outside
+    # the VM can reach it.
+    ports:
+      - "127.0.0.1:5432:5432"
     healthcheck:
       # Over TCP: during first-time setup the temporary server answers only on the socket.
       test: ["CMD-SHELL", "pg_isready -h 127.0.0.1 -U ghostbus -d ghostbus"]
