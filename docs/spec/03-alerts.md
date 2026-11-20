@@ -151,7 +151,7 @@ Your commute "Morning to work" has run 94% of its trips over the past 28 days.
 Manage alerts: https://<domain>/account
 Unsubscribe from this commute: <one-click link>
 
-Ghost Bus LA is an independent project and is not affiliated with LA Metro.
+LA Bus Reliability is an independent project and is not affiliated with LA Metro.
 ```
 
 The example values are illustrative. Rules: the subject carries line, time, and stop; "next scheduled trips" excludes other trips already announced as canceled; the reliability line appears only when the cell isn't suppressed; times are local; no tracking pixels.

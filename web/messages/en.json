@@ -1,10 +1,10 @@
 {
-  "site.name": "Ghost Bus LA",
+  "site.name": "LA Bus Reliability",
   "site.tagline": "How reliable is your LA Metro bus?",
-  "site.disclaimer": "Ghost Bus LA is not affiliated with LA Metro.",
+  "site.disclaimer": "LA Bus Reliability is not affiliated with LA Metro.",
   "line.title": "Line {name}",
   "line.metaTitle": "Is the {name} bus reliable?",
-  "line.metaDescription": "How often LA Metro line {name} trips never ran, by hour and day of the week.",
+  "line.metaDescription": "How often LA Metro line {name} trips never ran, by hour and day of the week. An independent project, not affiliated with LA Metro.",
   "line.summary": "Over {period}, {percent} of line {name}'s trips never ran.",
   "line.summaryRange": "Range: {range}.",
   "line.summaryCounts": "{missed} of {trips} trips with a known outcome. {announced} were announced cancellations and {unplanned} were unplanned missed trips.",
@@ -86,5 +86,6 @@
   "status.partial": "{day} (partial day)",
   "status.caption": "Share of five-minute periods captured, by day and feed",
   "status.none": "No feed data is published yet.",
-  "loading": "Loading…"
+  "loading": "Loading…",
+  "site.description": "How reliable is your LA Metro bus? An independent project, not affiliated with LA Metro."
 }

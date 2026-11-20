@@ -31,7 +31,7 @@ const METHOD = {
   thresholds: [{ name: "min_cell_trips", value: "30", unit: "trips", description: "Fewest trips behind any published rate.", decision: "ADR-025, ADR-026" }],
   outcomes: [{ term: "missed", meaning: "Not seen while the feeds were healthy." }],
   rates: [{ term: "missed_rate", meaning: "Missed trips divided by scheduled trips minus unknown ones (n_trips)." }],
-  notes: ["Ghost Bus LA is not affiliated with LA Metro."],
+  notes: ["LA Bus Reliability is not affiliated with LA Metro."],
 }; // prettier-ignore
 
 const bucket = (feed: string, healthy: boolean) => ({
@@ -159,7 +159,7 @@ describe("method", () => {
     render(await MethodPage());
     expect(screen.getByText("Not seen while the feeds were healthy.")).toBeTruthy();
     expect(screen.getByRole("row", { name: /min_cell_trips 30 trips/ })).toBeTruthy();
-    expect(screen.getByText("Ghost Bus LA is not affiliated with LA Metro.")).toBeTruthy();
+    expect(screen.getByText("LA Bus Reliability is not affiliated with LA Metro.")).toBeTruthy();
     expect(screen.queryByText(/may be out of date/)).toBeNull();
   });
 

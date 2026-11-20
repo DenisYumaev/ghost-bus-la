@@ -1,4 +1,6 @@
-# Ghost Bus LA
+# LA Bus Reliability
+
+Public site: [labusreliability.com](https://labusreliability.com). The repository keeps its working name, `ghost-bus-la`.
 
 Reliability lookup and cancellation alerts for LA Metro bus riders.
 

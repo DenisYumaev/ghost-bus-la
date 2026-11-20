@@ -115,7 +115,7 @@ METHOD = {
         "term": "missed_rate",
         "meaning": "Missed trips divided by scheduled trips minus unknown ones (n_trips).",
     }],
-    "notes": ["Ghost Bus LA is not affiliated with LA Metro."],
+    "notes": ["LA Bus Reliability is not affiliated with LA Metro."],
 }  # fmt: skip
 
 CURRENT_CANCELLATIONS = {

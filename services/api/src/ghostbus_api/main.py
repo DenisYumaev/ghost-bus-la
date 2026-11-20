@@ -22,7 +22,7 @@ def create_app(
 ) -> FastAPI:
     settings = Settings(database_url=database_url) if database_url else from_env()
     app = FastAPI(
-        title="Ghost Bus LA API",
+        title="LA Bus Reliability API",
         description=(
             "Reliability of LA Metro bus lines. Not affiliated with LA Metro. "
             "Examples in this document are illustrative, not measured."

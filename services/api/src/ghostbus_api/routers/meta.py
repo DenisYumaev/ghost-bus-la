@@ -35,7 +35,7 @@ RATES = [
 ]  # fmt: skip
 
 NOTES = [
-    "Ghost Bus LA is not affiliated with LA Metro.",
+    "LA Bus Reliability is not affiliated with LA Metro.",
     "An announced cancellation is a trip marked canceled in Metro's realtime feed as of its "
     "scheduled start. An unplanned missed trip is one never seen running and not marked canceled "
     "by then. What the canceled flag covers isn't documented, so no claim is made about why a "
